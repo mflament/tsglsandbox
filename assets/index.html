@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="description" content="Meccano Builder" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Ant Colony</title>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
+    <meta name="msapplication-TileColor" content="#da532c" />
+    <meta name="theme-color" content="#ffffff" />
+
+    <link rel="stylesheet" href="css/ant-colony.css" />
+
+    <script type="text/x-vertex-shader" id="vertex-shader">
+      #version 300 es
+      precision mediump float;
+      layout(location = 0) in vec2 position;
+
+      void main() {
+        gl_Position = vec4(position, 0.0, 1.0);
+      }
+    </script>
+
+    <script type="text/x-fragment-shader" id="fragment-shader">
+      #version 300 es
+      precision mediump float;
+
+      uniform vec2 viewportSize;
+      out vec4 color;
+
+      void main() {
+        color = vec4(gl_FragCoord.x / viewportSize.x, 1.0 - (gl_FragCoord.y / viewportSize.y), 0.0, 0.0);
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="full-screen" id="application"></div>
+    <script type="module" src="index.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules/**"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "dist/",
+    "target": "ES2020",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "ScriptHost"],
+    "incremental": false,
+    "allowJs": false,
+    "allowUmdGlobalAccess": false,
+    "allowSyntheticDefaultImports": true,
+    "importHelpers": true,
+    "sourceMap": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "resolveJsonModule": true
+  }
+}
