@@ -32,21 +32,14 @@ function watch() {
     gulp.watch('less/*.less', css);
 }
 
-function favicons() {
-    return gulp.src('assets/favicons/*').pipe(gulp.dest('dist'));
+function assets() {
+    return gulp.src('assets/**').pipe(gulp.dest('dist'));
 }
 
-function shaders() {
-    return gulp.src('assets/shaders/**/*').pipe(gulp.dest('dist/shaders'));
-}
-
-function index() {
-    return gulp.src('assets/index.html').pipe(gulp.dest('dist'));
-}
 
 gulp.task('clean', clean);
 
-gulp.task('assets', gulp.series(favicons, index, css, shaders));
+gulp.task('assets', gulp.series(css, assets));
 
 gulp.task('watch', gulp.series(gulp.task('assets'), watch));
 

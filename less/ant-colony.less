@@ -20,3 +20,18 @@ body {
   background-color: black;
   overflow: hidden;
 }
+
+#sandbox {
+  padding: 10px;
+
+  display: grid;
+  grid-template-columns: repeat(1, auto);
+  grid-template-rows: repeat(1, auto);
+  align-items: center;
+  justify-items: center;
+
+  canvas:focus {
+    border: none;
+    outline: none;
+  }
+}
