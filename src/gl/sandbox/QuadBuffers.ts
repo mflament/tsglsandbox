@@ -20,31 +20,28 @@ export class QuadBuffers {
 
   constructor(readonly gl: WebGL2RenderingContext) {
     this.vao = new VertextArray(gl).bind();
-
-    this.vbo = new VertexBuffer(gl).bind().data(new Float32Array(QuadBuffers.VERTICES));
+    this.vbo = new VertexBuffer(gl).bind().setdata(new Float32Array(QuadBuffers.VERTICES));
     this.vao.withAttribute(0, 2, VertexComponentType.FLOAT);
-
-    this.ibo = new IndexBuffer(gl).bind().data(new Uint8Array(QuadBuffers.INDICES));
-
-    this.unbind();
+    this.ibo = new IndexBuffer(gl).bind().setdata(new Uint8Array(QuadBuffers.INDICES));
   }
 
-  bind(): void {
+  bind(): QuadBuffers {
     this.vbo.bind();
     this.ibo.bind();
     this.vao.bind();
+    return this;
   }
 
-  unbind(): void {
+  unbind(): QuadBuffers {
     this.vbo.unbind();
     this.ibo.unbind();
     this.vao.unbind();
+    return this;
   }
 
-  draw(): void {
-    this.bind();
+  draw(): QuadBuffers {
     this.ibo.draw();
-    this.unbind();
+    return this;
   }
 
   delete(): void {

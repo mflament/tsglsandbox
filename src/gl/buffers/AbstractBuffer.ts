@@ -31,13 +31,24 @@ export abstract class AbstractBuffer implements Bindable, Deletable {
 
   abstract draw(mode?: DrawMode, offset?: number, count?: number): void;
 
-  protected data(
+  protected setdata(
     source: ArrayBufferView,
     usage = BufferUsage.STATIC_READ,
     srcOffset = 0,
     length = source.byteLength
   ): AbstractBuffer {
     this.gl.bufferData(this.target, source, usage, srcOffset, length);
+    return this;
+  }
+
+  protected setsubdata(
+    source: ArrayBufferView,
+    dstByteOffset: number,
+    length?: number,
+    srcByteOffset = 0
+  ): AbstractBuffer {
+    if (length === undefined) length = source.byteLength - (source.byteOffset + srcByteOffset);
+    this.gl.bufferSubData(this.target, dstByteOffset, source, srcByteOffset, length);
     return this;
   }
 }

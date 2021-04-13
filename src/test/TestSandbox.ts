@@ -12,12 +12,12 @@ interface UniformLocation {
 
 type Resources = { program: Program; quadBuffers: QuadBuffers; texture: GLTexture2D };
 
-export class TestSandbox extends AbstractGLSandbox {
+export class TestSandbox extends AbstractGLSandbox<any> {
   private _resources?: Resources;
   private uniformLocations: UniformLocation = { viewportSize: null, seconds: null, texture: null };
 
   constructor() {
-    super('test');
+    super('test', {});
   }
 
   private get resources(): Resources {
@@ -27,25 +27,25 @@ export class TestSandbox extends AbstractGLSandbox {
 
   async setup(container: SandboxContainer): Promise<void> {
     super.setup(container);
-    const program = await this.loadProgram('shaders/quad-vs.glsl', 'shaders/test/test-fs.glsl');
+
+    const program = await this.loadProgram({
+      vsSource: 'shaders/quad-vs.glsl',
+      fsSource: 'shaders/test/test-fs.glsl',
+      uniformLocations: this.uniformLocations
+    });
+
     program.use();
-    this.uniformLocations = {
-      viewportSize: program.uniformLocation('viewportSize'),
-      seconds: program.uniformLocation('seconds'),
-      texture: program.uniformLocation('u_sampler')
-    };
     this.gl.uniform2f(this.uniformLocations.viewportSize, container.dimension.width, container.dimension.height);
     this.gl.uniform1f(this.uniformLocations.seconds, 0);
 
-    const quadBuffers = new QuadBuffers(this.gl);
+    const quadBuffers = new QuadBuffers(this.gl).bind();
     const texture = new GLTexture2D(this.gl);
     texture
       .bind()
       .data({ width: 1, height: 1, buffer: new Uint8Array([0, 255, 0, 255]) })
       .data({ uri: 'images/momotte.jpg' })
-      .unbind();
+      .activate(0);
     this.gl.uniform1i(this.uniformLocations.texture, 0);
-
     this._resources = { texture: texture, program: program, quadBuffers: quadBuffers };
   }
 
@@ -64,14 +64,8 @@ export class TestSandbox extends AbstractGLSandbox {
 
   render(elapsedSeconds: number): void {
     this.gl.uniform1f(this.uniformLocations.seconds, elapsedSeconds);
-
     // this.gl.activeTexture(WebGL2RenderingContext.TEXTURE0);
     const resources = this.resources;
-
-    resources.texture.bind().activate(0);
-    resources.program.use();
-    resources.texture.bind();
     resources.quadBuffers.draw();
-    resources.texture.unbind();
   }
 }

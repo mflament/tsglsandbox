@@ -2,7 +2,6 @@ export interface Dimension {
   width: number;
   height: number;
 }
-export type SandboxParams = { [key: string]: string };
 
 export interface SandboxContainer {
   readonly gl: WebGL2RenderingContext;
@@ -10,19 +9,29 @@ export interface SandboxContainer {
   readonly canvas: HTMLCanvasElement;
   readonly clientArea: Dimension;
   dimension: Dimension;
-  params: SandboxParams;
 }
 
-export interface GLSandbox {
+export interface GLSandbox<P = any> {
   name: string;
+  parameters: P;
+  overlayContent?: HTMLElement;
+
   render(runningSeconds: number): void;
   setup?: (container: SandboxContainer) => Promise<void>;
-  onParamsChanged?: (newParams: SandboxParams) => void;
   delete?: () => void;
+
+  onParametersChanged?: () => void;
+
   onresize?: (dimension: Dimension) => Dimension | void;
-  onmousemove?: (event: MouseEvent) => void;
-  onmouseup?: (event: MouseEvent) => void;
+
   onmousedown?: (event: MouseEvent) => void;
+  onmouseup?: (event: MouseEvent) => void;
+  onmousemove?: (event: MouseEvent) => void;
+
+  ontouchstart?: (e: TouchEvent) => void;
+  ontouchend?: (e: TouchEvent) => void;
+  ontouchmove?: (e: TouchEvent) => void;
+
   onwheel?: (event: WheelEvent) => void;
   onkeydown?: (event: KeyboardEvent) => void;
   onkeyup?: (event: KeyboardEvent) => void;

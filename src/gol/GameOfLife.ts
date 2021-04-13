@@ -1,7 +1,7 @@
 import { FrameBuffer } from '../gl/buffers/FrameBuffer';
 import { Deletable } from '../gl/gl-utils';
 import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { Dimension, SandboxContainer, SandboxParams } from '../gl/sandbox/GLSandbox';
+import { Dimension, SandboxContainer } from '../gl/sandbox/GLSandbox';
 import { QuadBuffers } from '../gl/sandbox/QuadBuffers';
 import { Program } from '../gl/shader/Program';
 import { GLTexture2D } from '../gl/texture/GLTexture';
@@ -13,15 +13,6 @@ import {
   TextureMagFilter,
   TextureWrappingMode
 } from '../gl/texture/TextureEnums';
-
-function safeParseInt(s: string | undefined, def: number): number {
-  if (s === undefined) return def;
-  const i = parseInt(s);
-  if (isNaN(i)) return def;
-  return i;
-}
-
-const DEFAULT_DIMENSION = { width: 32, height: 32 };
 
 const DATA_TEXTURE_FORMAT = {
   internalFormat: InternalFormat.R8,
@@ -58,28 +49,55 @@ function parseRule(rule: string): Uint32Array {
   return res;
 }
 
-export class GameOfLife extends AbstractGLSandbox {
-  private dataDimension: Dimension = { ...DEFAULT_DIMENSION };
+interface GolParameters {
+  rule: string;
+  width: number;
+  height: number;
+}
+
+function createDataDimension(params: GolParameters): Dimension {
+  return { width: params.width, height: params.height <= 0 ? params.width : params.height };
+}
+
+interface RenderUniforms {
+  data: WebGLUniformLocation | null;
+}
+
+interface UpdateUniforms {
+  data: WebGLUniformLocation | null;
+  states_matrix: WebGLUniformLocation | null;
+}
+
+export class GameOfLife extends AbstractGLSandbox<GolParameters> {
+  private dataDimension: Dimension = { width: 0, height: 0 };
 
   private _resources?: Resources;
-  private renderUniforms = { data: null };
-  private updateUniforms = { data: null, states_matrix: null };
+  private renderUniforms: RenderUniforms = { data: null };
+  private updateUniforms: UpdateUniforms = { data: null, states_matrix: null };
   private dataIndex = 0;
   private running = false;
   private lastCellIndex = -1;
 
   constructor() {
-    super('gol');
+    super('gol', { rule: 'B3S23', width: 16, height: -1 });
   }
 
   async setup(container: SandboxContainer): Promise<void> {
     super.setup(container);
     const programs = await Promise.all([
-      this.loadProgram('shaders/quad.vs.glsl', 'shaders/gol/gol-render.fs.glsl'),
-      this.loadProgram('shaders/quad.vs.glsl', 'shaders/gol/gol-update.fs.glsl')
+      this.loadProgram({
+        vsSource: 'shaders/quad.vs.glsl',
+        fsSource: 'shaders/gol/gol-render.fs.glsl',
+        uniformLocations: this.renderUniforms
+      }),
+      this.loadProgram({
+        vsSource: 'shaders/quad.vs.glsl',
+        fsSource: 'shaders/gol/gol-update.fs.glsl',
+        uniformLocations: this.updateUniforms
+      })
     ]);
 
-    this.dataDimension = this.parseSize(container.params);
+    this.dataDimension = createDataDimension(this.parameters);
     this.dataIndex = 0;
 
     const resources: Resources = {
@@ -99,10 +117,10 @@ export class GameOfLife extends AbstractGLSandbox {
     };
 
     this._resources = resources;
-    resources.renderProgram.use().uniformLocations(this.renderUniforms);
+    resources.renderProgram.use();
     this.gl.uniform1i(this.renderUniforms.data, 0);
 
-    resources.updateProgram.use().uniformLocations(this.updateUniforms);
+    resources.updateProgram.use();
     this.gl.uniform1i(this.updateUniforms.data, 0);
 
     this.updateRule();
@@ -142,8 +160,8 @@ export class GameOfLife extends AbstractGLSandbox {
     }
   }
 
-  onParamsChanged(newParams: SandboxParams) {
-    this.dataDimension = this.parseSize(newParams);
+  onParametersChanged() {
+    this.dataDimension = createDataDimension(this.parameters);
     if (this._resources) {
       this._resources.data = this.createData();
       this.randomizeData();
@@ -209,23 +227,9 @@ export class GameOfLife extends AbstractGLSandbox {
   }
 
   private updateRule() {
-    let rule = this.container.params['r'];
-    if (!rule) rule = 'B3S23';
-    const stateMatrix = parseRule(rule);
+    const stateMatrix = parseRule(this.parameters.rule);
     this.resources.updateProgram.use();
     this.gl.uniform1uiv(this.updateUniforms.states_matrix, stateMatrix);
-  }
-
-  private parseSize(params: { [key: string]: string }): Dimension {
-    const s = parseInt(params['s']);
-    if (!isNaN(s)) {
-      return { width: s, height: s };
-    }
-
-    return {
-      width: safeParseInt(params['w'], DEFAULT_DIMENSION.width),
-      height: safeParseInt(params['h'], DEFAULT_DIMENSION.height)
-    };
   }
 
   private get dataTexture(): GLTexture2D {

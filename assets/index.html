@@ -20,7 +20,11 @@
   </head>
 
   <body>
-    <div class="full-screen" id="sandbox" tabindex="0"></div>
+    <div class="full-screen" id="sandbox" tabindex="0">
+      <canvas id="glcanvas"></canvas>
+      <div id="fps" class="overlay">? FPS</div>
+      <div id="sandbox-panel" class="overlay hidden"></div>
+    </div>
     <script type="module" src="index.js"></script>
   </body>
 </html>

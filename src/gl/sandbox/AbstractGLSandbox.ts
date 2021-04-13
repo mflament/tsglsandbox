@@ -1,12 +1,12 @@
-import { Program } from '../shader/Program';
+import { Program, ProgramConfiguration } from '../shader/Program';
 import { ShaderLoader } from '../shader/ShaderLoader';
 import { GLSandbox, Dimension, SandboxContainer } from './GLSandbox';
 
-export abstract class AbstractGLSandbox implements GLSandbox {
+export abstract class AbstractGLSandbox<P> implements GLSandbox<P> {
   protected readonly shaderLoader = new ShaderLoader();
   protected _container?: SandboxContainer;
 
-  constructor(readonly name: string) {}
+  constructor(readonly name: string, readonly parameters: P) {}
 
   abstract render(runningSeconds: number): void;
 
@@ -27,14 +27,9 @@ export abstract class AbstractGLSandbox implements GLSandbox {
     return this.container.dimension;
   }
 
-  protected async loadProgram(vsSource: string, fsSource: string, varyings?: string[]): Promise<Program> {
-    const vss = await this.shaderLoader.loadShader(vsSource);
-    const fss = await this.shaderLoader.loadShader(fsSource);
-    return new Program({
-      gl: this.gl,
-      vsSource: vss,
-      fsSource: fss,
-      varyings: varyings
-    });
+  protected async loadProgram<T = any>(configuration: Omit<ProgramConfiguration<T>, 'gl'>): Promise<Program<T>> {
+    const vss = await this.shaderLoader.loadShader(configuration.vsSource);
+    const fss = await this.shaderLoader.loadShader(configuration.fsSource);
+    return new Program({ gl: this.gl, ...configuration, vsSource: vss, fsSource: fss });
   }
 }

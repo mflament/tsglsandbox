@@ -31,6 +31,12 @@ export enum DrawMode {
   TRIANGLES = WebGL2RenderingContext.TRIANGLES
 }
 
+export enum TransformFeedbackDrawMode {
+  POINTS = WebGL2RenderingContext.POINTS,
+  LINES = WebGL2RenderingContext.LINES,
+  TRIANGLES = WebGL2RenderingContext.TRIANGLES
+}
+
 export enum VertexComponentType {
   BYTE = WebGL2RenderingContext.BYTE,
   SHORT = WebGL2RenderingContext.SHORT,

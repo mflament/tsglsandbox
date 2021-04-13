@@ -22,8 +22,6 @@ body {
 }
 
 #sandbox {
-  padding: 10px;
-
   display: grid;
   grid-template-columns: repeat(1, auto);
   grid-template-rows: repeat(1, auto);
@@ -34,4 +32,35 @@ body {
     border: none;
     outline: none;
   }
+}
+
+.hidden {
+  display: none;
+}
+
+.overlay {
+  position: absolute;
+  z-index: 5;
+}
+
+#fps {
+  right: 10px;
+  top: 10px;
+  color: #39ff14;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+#sandbox-panel {
+  right: 10px;
+  bottom: 10px;
+
+  max-width: 160px;
+  height: auto;
+  overflow: hidden;
+  color: #e8e8e8;
+}
+
+#sandbox.gol {
+  padding: 10px;
 }

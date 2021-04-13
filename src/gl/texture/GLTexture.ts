@@ -91,9 +91,7 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
       this._height = param.source.height;
     } else if (isLoadImageData(param)) {
       loadImage(param.uri).then(image =>
-        this.bind()
-          .data({ ...param, source: image, generateMipmap: true } as ImageSourceData)
-          .unbind()
+        this.bind().data({ ...param, source: image, generateMipmap: true } as ImageSourceData)
       );
       return this;
     }

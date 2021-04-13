@@ -19,7 +19,7 @@ export class IndexBuffer extends AbstractBuffer {
   }
 
   unbind(): IndexBuffer {
-    super.bind();
+    super.unbind();
     return this;
   }
 
@@ -31,7 +31,7 @@ export class IndexBuffer extends AbstractBuffer {
     this.gl.drawElements(mode, count, this._type, offset);
   }
 
-  data(
+  setdata(
     source: Uint8Array | Uint16Array | Uint32Array,
     usage = BufferUsage.STATIC_READ,
     srcOffset = 0,
@@ -45,7 +45,7 @@ export class IndexBuffer extends AbstractBuffer {
       this._type = IndexComponentType.UNSIGNED_INT;
     }
     this._count = length;
-    super.data(source, usage, srcOffset, length);
+    super.setdata(source, usage, srcOffset, length);
     return this;
   }
 }

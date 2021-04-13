@@ -1,21 +1,20 @@
 'use strict';
 import { checkNull } from '../gl-utils';
 
-export interface ProgramConfiguration {
+export interface ProgramConfiguration<T = any> {
   gl: WebGL2RenderingContext;
   vsSource: string;
   fsSource: string;
   varyings?: string[];
+  uniformLocations: T;
 }
 
-export type UniformLocations = {
-  [name: string]: WebGLUniformLocation | null;
-};
-
-export class Program {
+export class Program<T = any> {
   private readonly gl: WebGL2RenderingContext;
   private readonly program: WebGLProgram;
-  constructor(config: ProgramConfiguration) {
+  private readonly _uniformLocations: T;
+
+  constructor(config: ProgramConfiguration<T>) {
     const gl = config.gl;
     this.gl = gl;
     this.program = checkNull(() => gl.createProgram());
@@ -33,19 +32,12 @@ export class Program {
       this.gl.deleteProgram(this.program);
       throw 'Error linking program ' + log;
     }
+    this.use();
+    this._uniformLocations = this.configureUniformLocations(config.uniformLocations);
   }
 
-  uniformLocation(name: string): WebGLUniformLocation | null {
-    return this.gl.getUniformLocation(this.program, name);
-  }
-
-  uniformLocations<T extends UniformLocations>(locations: T): T {
-    const names = Object.keys(locations);
-    const target = locations as any;
-    for (const name of names) {
-      target[name] = this.uniformLocation(name);
-    }
-    return locations;
+  get uniformLocations(): T {
+    return this._uniformLocations;
   }
 
   use(): Program {
@@ -70,5 +62,14 @@ export class Program {
     let log = gl.getShaderInfoLog(shader);
     gl.deleteShader(shader);
     throw 'Error creating shader ' + source + '\n' + log;
+  }
+
+  private configureUniformLocations(locations: T): T {
+    const names = Object.keys(locations);
+    const target = locations as any;
+    for (const name of names) {
+      target[name] = this.gl.getUniformLocation(this.program, name);
+    }
+    return locations;
   }
 }
