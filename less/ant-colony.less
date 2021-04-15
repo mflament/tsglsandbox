@@ -38,23 +38,38 @@ body {
   display: none;
 }
 
-.overlay {
-  position: absolute;
+#overlay {
   z-index: 5;
+  .top {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+  }
+
+  .bottom {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+  }
 }
 
 #fps {
-  right: 10px;
-  top: 10px;
   color: #39ff14;
   font-size: 16px;
   font-weight: bold;
 }
 
-#sandbox-panel {
-  right: 10px;
-  bottom: 10px;
+#sandboxes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: #ddd;
+  a:visited {
+    color: #ddd;
+  }
+}
 
+#sandbox-panel {
   max-width: 160px;
   height: auto;
   overflow: hidden;

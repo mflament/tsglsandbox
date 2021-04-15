@@ -191,12 +191,12 @@ const COMBINATIONS: CombinationConfiguration[] = [
   }
 ];
 
-export function validateFormatsCombination(combination: Combination) {
+export function validateFormatsCombination(combination: Combination): void {
   if (COMBINATIONS.filter(c => match(c, combination)).length === 0)
     throw new Error('Invalid formats combination ' + JSON.stringify(combination));
 }
 
-export function validateBufferType(buffer: ArrayBuffer, componentType: TextureComponentType) {
+export function validateBufferType(buffer: ArrayBuffer, componentType: TextureComponentType): void {
   const name = buffer.constructor.name;
   const types = ArrayBufferComponentTypes[name];
   if (types.indexOf(componentType) < 0)

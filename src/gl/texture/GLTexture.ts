@@ -90,9 +90,9 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
       this._width = param.source.width;
       this._height = param.source.height;
     } else if (isLoadImageData(param)) {
-      loadImage(param.uri).then(image =>
-        this.bind().data({ ...param, source: image, generateMipmap: true } as ImageSourceData)
-      );
+      loadImage(param.uri).then(image => {
+        this.bind().data({ ...param, source: image, generateMipmap: true } as ImageSourceData);
+      });
       return this;
     }
     if (param.generateMipmap) this.generateMimap();
@@ -121,7 +121,7 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     return this;
   }
 
-  generateMimap() {
+  generateMimap(): void {
     this.gl.generateMipmap(TARGET);
   }
 
@@ -173,6 +173,7 @@ interface ImageSourceData {
 
 interface LoadImageData {
   uri: string;
+  flipy?: boolean;
   onload?: (texture: GLTexture2D) => any;
 }
 

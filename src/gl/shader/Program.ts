@@ -28,7 +28,7 @@ export class Program<T = any> {
     gl.deleteShader(vs);
     gl.deleteShader(fs);
     if (!gl.getProgramParameter(this.program, WebGL2RenderingContext.LINK_STATUS)) {
-      let log = this.gl.getProgramInfoLog(this.program);
+      const log = this.gl.getProgramInfoLog(this.program);
       this.gl.deleteProgram(this.program);
       throw 'Error linking program ' + log;
     }
@@ -45,13 +45,13 @@ export class Program<T = any> {
     return this;
   }
 
-  delete() {
+  delete(): void {
     this.gl.deleteProgram(this.program);
   }
 
   private createShader(type: number, source: string): WebGLShader {
     const gl = this.gl;
-    let shader = checkNull(() => gl.createShader(type));
+    const shader = checkNull(() => gl.createShader(type));
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (gl.getShaderParameter(shader, WebGL2RenderingContext.COMPILE_STATUS)) {
@@ -59,7 +59,7 @@ export class Program<T = any> {
       return shader;
     }
 
-    let log = gl.getShaderInfoLog(shader);
+    const log = gl.getShaderInfoLog(shader);
     gl.deleteShader(shader);
     throw 'Error creating shader ' + source + '\n' + log;
   }

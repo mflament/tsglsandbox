@@ -22,8 +22,15 @@
   <body>
     <div class="full-screen" id="sandbox" tabindex="0">
       <canvas id="glcanvas"></canvas>
-      <div id="fps" class="overlay">? FPS</div>
-      <div id="sandbox-panel" class="overlay hidden"></div>
+      <div id="overlay" class="hidden">
+        <div class="top">
+          <div id="fps">? FPS</div>
+          <ul id="sandboxes"></ul>
+        </div>
+        <div class="bottom">
+          <div id="sandbox-panel" class="hidden"></div>
+        </div>
+      </div>
     </div>
     <script type="module" src="index.js"></script>
   </body>

@@ -23,7 +23,7 @@ export type ArrayBuffer =
   | Uint32Array
   | Float32Array;
 
-export function isArrayBuffer(obj: any): obj is ArrayBuffer {
+export function isArrayBuffer(obj: unknown): obj is ArrayBuffer {
   return (
     obj instanceof Int8Array ||
     obj instanceof Uint8Array ||
@@ -54,7 +54,7 @@ export function parseColor(s: string, normalize = true): { r: number; g: number;
   return { r: r, g: g, b: b, a: a };
 }
 
-export function safeDelete(deletable?: Deletable | null) {
+export function safeDelete(deletable?: Deletable | null): void {
   if (deletable) deletable.delete;
 }
 

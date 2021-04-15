@@ -66,7 +66,7 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
   };
 
   constructor() {
-    super('particles', { count: 100000, accel: 2, speed: 1.2 });
+    super('particles', { count: 500000, accel: 4, speed: 2 });
   }
 
   async setup(container: SandboxContainer): Promise<void> {
@@ -104,13 +104,13 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     container.canvas.addEventListener('mouseleave', this.mouseleave);
   }
 
-  onParametersChanged() {
+  onParametersChanged(): void {
     if (!this._resources) return;
     this.dirty.params = true;
     this.overlayContent.innerHTML = this.createOverlaySpan();
   }
 
-  delete() {
+  delete(): void {
     if (this._resources) {
       this._resources.delete();
       this._resources = undefined;
@@ -118,11 +118,11 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     }
   }
 
-  onmousemove(event: MouseEvent) {
+  onmousemove(event: MouseEvent): void {
     this.setClientTarget(event.offsetX, event.offsetY);
   }
 
-  onmousedown(event: MouseEvent) {
+  onmousedown(event: MouseEvent): void {
     let mode: TargetMode;
     switch (event.button) {
       case 0:
@@ -138,21 +138,21 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     this.mode = mode;
   }
 
-  onmouseup(_event: MouseEvent) {
+  onmouseup(): void {
     this.mode = TargetMode.ATTRACT;
   }
 
-  ontouchstart(event: TouchEvent) {
+  ontouchstart(event: TouchEvent): void {
     this.setClientTarget(event.touches[0].clientX, event.touches[0].clientY);
     this.mode = TargetMode.REPUSLE;
   }
 
-  ontouchmove(event: TouchEvent) {
+  ontouchmove(event: TouchEvent): void {
     this.setClientTarget(event.touches[0].clientX, event.touches[0].clientY);
     if (this.mode === TargetMode.REPUSLE) this.mode = TargetMode.ATTRACT;
   }
 
-  ontouchend(_event: TouchEvent) {
+  ontouchend(): void {
     this.mode = TargetMode.ATTRACT;
   }
 
@@ -220,7 +220,7 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     res.particleBuffers.swap();
   }
 
-  private mouseleave(_event: MouseEvent) {
+  private mouseleave(): void {
     if (!this._resources) return;
     this.setViewportTarget(0, 0);
   }
@@ -336,8 +336,8 @@ class ParticleBuffers {
   addParticles(count: number) {
     const buffer = this._newParticlesBuffer;
     count = Math.min(count, buffer.length / PARTICLES_FLOATS);
-    let range = Math.sqrt(this.params.speed * 2);
-    let halfRange = range / 2;
+    const range = Math.sqrt(this.params.speed * 2);
+    const halfRange = range / 2;
     let pos = 0;
     for (let i = 0; i < count; i++) {
       // position

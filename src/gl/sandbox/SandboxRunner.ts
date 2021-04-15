@@ -15,7 +15,8 @@ export class SandboxRunner implements SandboxContainer {
     if (!container) throw new Error('No container');
     this.containerElement = container;
     this.canvas = checkNull(() => document.getElementById('glcanvas') as HTMLCanvasElement);
-    this.overlay = new OverlayPanel(container);
+    this.overlay = new OverlayPanel(container, sandboxes);
+    //this.overlay.toggle();
 
     this.gl = checkNull(() => this.canvas.getContext('webgl2', { desynchronized: true, preserveDrawingBuffer: true }));
     window.addEventListener('resize', () => this.onresize());
@@ -37,12 +38,9 @@ export class SandboxRunner implements SandboxContainer {
     this.hashchanged();
   }
 
-  start() {
-    const loop = (time: number) => {
-      this.render(time);
-      requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
+  start(): void {
+    this.render = this.render.bind(this);
+    requestAnimationFrame(this.render);
   }
 
   get clientArea(): Dimension {
@@ -72,6 +70,7 @@ export class SandboxRunner implements SandboxContainer {
     }
     this.gl.flush();
     this.overlay.frames++;
+    requestAnimationFrame(this.render);
   }
 
   private onmousedown(e: MouseEvent) {
@@ -129,22 +128,17 @@ export class SandboxRunner implements SandboxContainer {
       if (this.sandbox) {
         this.containerElement.classList.remove(this.sandbox.name);
         if (this.sandbox.delete) this.sandbox.delete();
-        this.sandbox = undefined;
-      }
-
-      this.containerElement.classList.add(newSandbox.name);
-
-      if (!this.sandbox) {
+      } else {
         // initialize first sandbox parameters from hash parameters
         getHashParams(newSandbox.parameters);
       }
 
+      this.containerElement.classList.add(newSandbox.name);
       if (newSandbox.setup) await newSandbox.setup(this);
       this.sandbox = newSandbox;
       // replace current hash parameters with new sandbox parameters
       updateHashParameters(newSandbox.name, newSandbox.parameters);
       this.overlay.overlayContent = newSandbox.overlayContent;
-
       this.onresize();
     } else if (this.sandbox?.onParametersChanged) {
       getHashParams(this.sandbox.parameters);
@@ -160,7 +154,17 @@ export class SandboxRunner implements SandboxContainer {
   }
 }
 
+function sandboxLink(sb: GLSandbox): HTMLElement {
+  const a = document.createElement('a');
+  a.href = '#/' + sb.name;
+  a.text = sb.name;
+  const li = document.createElement('li');
+  li.appendChild(a);
+  return li;
+}
+
 class OverlayPanel {
+  private readonly overlayElement: HTMLElement;
   private readonly fpsElement: HTMLElement;
   private readonly sandboxPanel: HTMLElement;
   private fpsTimeout = 0;
@@ -168,19 +172,20 @@ class OverlayPanel {
   private dataElement?: HTMLElement;
   frames = 0;
 
-  constructor(readonly container: HTMLElement) {
+  constructor(readonly container: HTMLElement, readonly sandboxes: GLSandbox[]) {
+    this.overlayElement = checkNull(() => document.getElementById('overlay'));
     this.fpsElement = checkNull(() => document.getElementById('fps'));
     this.sandboxPanel = checkNull(() => document.getElementById('sandbox-panel'));
-    this.startFPSTimer();
+
+    const sandboxesElement = checkNull(() => document.getElementById('sandboxes'));
+    sandboxes.forEach(sb => sandboxesElement.appendChild(sandboxLink(sb)));
   }
 
   toggle() {
-    if (this.fpsElement.classList.toggle('hidden')) {
+    if (this.overlayElement.classList.toggle('hidden')) {
       window.clearTimeout(this.fpsTimeout);
-      if (this.dataElement) this.sandboxPanel.classList.add('hidden');
     } else {
       this.startFPSTimer();
-      if (this.dataElement) this.sandboxPanel.classList.remove('hidden');
     }
   }
 

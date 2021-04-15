@@ -11,6 +11,7 @@ export function hashPath(): string {
   return hash.substring(1, index);
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function getHashParams(params: any): void {
   const hash = window.location.hash;
   let index = hash.indexOf('?');
@@ -32,11 +33,12 @@ export function getHashParams(params: any): void {
       if (index2 < 0) index2 = hash.length;
       value = decodeURIComponent(hash.substring(index, index2));
     }
-    if (params.hasOwnProperty(key)) params[key] = parseValue(value, params[key]);
+    if (Object.prototype.hasOwnProperty.call(params, key)) params[key] = parseValue(value, params[key]);
     index = index2 + 1;
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function updateHashParameters(path: string, params: any): void {
   let hash = '#/' + path;
   const keys = Object.keys(params);

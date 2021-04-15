@@ -20,7 +20,7 @@ export class FrameBuffer implements Bindable, Deletable {
     return this;
   }
 
-  delete() {
+  delete(): void {
     this.gl.deleteFramebuffer(this.fb);
   }
 

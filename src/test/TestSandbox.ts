@@ -29,8 +29,8 @@ export class TestSandbox extends AbstractGLSandbox<any> {
     super.setup(container);
 
     const program = await this.loadProgram({
-      vsSource: 'shaders/quad-vs.glsl',
-      fsSource: 'shaders/test/test-fs.glsl',
+      vsSource: 'shaders/quad.vs.glsl',
+      fsSource: 'shaders/test/test.fs.glsl',
       uniformLocations: this.uniformLocations
     });
 
@@ -58,7 +58,7 @@ export class TestSandbox extends AbstractGLSandbox<any> {
     }
   }
 
-  onresize(dimension: Dimension) {
+  onresize(dimension: Dimension): void {
     this.gl.uniform2f(this.uniformLocations.viewportSize, dimension.width, dimension.height);
   }
 

@@ -79,7 +79,7 @@ export class GameOfLife extends AbstractGLSandbox<GolParameters> {
   private lastCellIndex = -1;
 
   constructor() {
-    super('gol', { rule: 'B3S23', width: 16, height: -1 });
+    super('gol', { rule: 'B3S23', width: 512, height: -1 });
   }
 
   async setup(container: SandboxContainer): Promise<void> {
@@ -130,7 +130,7 @@ export class GameOfLife extends AbstractGLSandbox<GolParameters> {
     this.allocateTargetTexture();
   }
 
-  onkeydown(e: KeyboardEvent) {
+  onkeydown(e: KeyboardEvent): void {
     if (!this._resources) return;
     if (e.key === ' ') {
       this.running = !this.running;
@@ -144,23 +144,23 @@ export class GameOfLife extends AbstractGLSandbox<GolParameters> {
     }
   }
 
-  onmousedown(e: MouseEvent) {
+  onmousedown(e: MouseEvent): void {
     if (e.button === 0) {
-      this.toggle(this.togrid(e));
+      this.toggle(this.toGrid(e));
     }
   }
 
-  onmouseup(e: MouseEvent) {
+  onmouseup(e: MouseEvent): void {
     if (e.button === 0) this.lastCellIndex = -1;
   }
 
-  onmousemove(e: MouseEvent) {
+  onmousemove(e: MouseEvent): void {
     if (this.isDrawing) {
-      this.toggle(this.togrid(e));
+      this.toggle(this.toGrid(e));
     }
   }
 
-  onParametersChanged() {
+  onParametersChanged(): void {
     this.dataDimension = createDataDimension(this.parameters);
     if (this._resources) {
       this._resources.data = this.createData();
@@ -187,7 +187,7 @@ export class GameOfLife extends AbstractGLSandbox<GolParameters> {
     }
   }
 
-  render(_elapsedSeconds: number): void {
+  render(): void {
     if (this._resources) {
       if (this.running) {
         this.update(this._resources);
@@ -200,7 +200,7 @@ export class GameOfLife extends AbstractGLSandbox<GolParameters> {
     return this.lastCellIndex >= 0;
   }
 
-  private togrid(e: MouseEvent): { x: number; y: number } {
+  private toGrid(e: MouseEvent): { x: number; y: number } {
     return {
       x: Math.floor((e.offsetX / this.dimension.width) * this.dataDimension.width),
       y: Math.floor((1 - e.offsetY / this.dimension.height) * this.dataDimension.height)
@@ -254,7 +254,7 @@ export class GameOfLife extends AbstractGLSandbox<GolParameters> {
       .bind()
       .minFilter(TextureMinFilter.NEAREST)
       .magFilter(TextureMagFilter.NEAREST)
-      .wrap(TextureWrappingMode.CLAMP_TO_EDGE)
+      .wrap(TextureWrappingMode.REPEAT)
       .unbind();
   }
 

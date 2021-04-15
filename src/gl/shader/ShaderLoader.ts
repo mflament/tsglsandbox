@@ -1,8 +1,6 @@
 export class ShaderLoader {
   private readonly cache: { [file: string]: string } = {};
 
-  constructor() {}
-
   async loadShader(path: string): Promise<string> {
     path = path.trim();
     if (!this.cache[path]) {
