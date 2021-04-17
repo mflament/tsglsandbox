@@ -8,9 +8,36 @@ import commonjs from '@rollup/plugin-commonjs';
 
 import replace from '@rollup/plugin-replace';
 
-import { terser } from "rollup-plugin-terser";
+import { terser } from 'rollup-plugin-terser';
+import { dataToEsm } from 'rollup-pluginutils';
+import fs from 'fs';
 
 const env = "production";
+
+function glsl() {
+  function filter(name) {
+    return name.match(/.*\.glsl/)
+  }
+
+  return {
+    name: 'bundle-shader',
+    resolveId(source) {
+      if (filter(source)) return source;
+      return null;
+    },
+    load(source) {
+      if (filter(source)) {
+        return fs.readFileSync(source, { encoding: 'utf-8' });
+      }
+      return null;
+    },
+    transform(code, id) {
+      if (filter(id)) {
+        return dataToEsm(code);
+      }
+    }
+  };
+}
 
 export default [{
   input: './src/index.ts',
@@ -20,7 +47,7 @@ export default [{
     sourcemap: true,
     plugins: [terser()]
   },
-  manualChunks(id) {
+  manualChunks: id => {
     if (id.includes('node_modules')) {
       return 'vendor';
     }
@@ -31,8 +58,9 @@ export default [{
       'process.env.NODE_ENV': JSON.stringify(env)
     }),
     commonjs(),
+    glsl(),
     eslint({ ignore: false }),
-    typescript({ typescript: require("typescript"), clean: true }),
+    typescript(),
     tstreeshaking()
   ]
 }

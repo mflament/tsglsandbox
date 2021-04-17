@@ -1,6 +1,15 @@
+import { Program } from '../shader/Program';
+
 export interface Dimension {
   width: number;
   height: number;
+}
+
+export interface PartialProgramConfiguration<T = any> {
+  vsSource: string | Promise<string>;
+  fsSource: string | Promise<string>;
+  varyings?: string[];
+  uniformLocations: T;
 }
 
 export interface SandboxContainer {
@@ -9,18 +18,27 @@ export interface SandboxContainer {
   readonly canvas: HTMLCanvasElement;
   readonly clientArea: Dimension;
   dimension: Dimension;
+
+  loadProgram<T = any>(configuration: PartialProgramConfiguration<T>): Promise<Program<T>>;
 }
 
+export type SandboxFactory<P = any> = (container: SandboxContainer, name: string) => Promise<GLSandbox<P>>;
+
 export interface GLSandbox<P = any> {
-  name: string;
-  parameters: P;
-  overlayContent?: HTMLElement;
+  readonly name: string;
+  readonly parameters: P;
+  readonly overlayContent?: HTMLElement;
+  running: boolean;
 
-  render(runningSeconds: number): void;
-  setup?: (container: SandboxContainer) => Promise<void>;
+  render(): void;
+
+  /**
+   * time: current time in ms
+   * dt: delta time
+   */
+  update?: (time: number, dt: number) => void;
+
   delete?: () => void;
-
-  onParametersChanged?: () => void;
 
   onresize?: (dimension: Dimension) => Dimension | void;
 

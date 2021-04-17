@@ -1,4 +1,4 @@
-import { ArrayBuffer, checkNull } from '../gl-utils';
+import { ArrayBuffer, checkNull } from '../GLUtils';
 import {
   InternalFormat,
   TextureComponentType,
@@ -8,7 +8,7 @@ import {
   TextureParameter,
   TextureWrappingMode
 } from './TextureEnums';
-import { Bindable, Deletable } from '../gl-utils';
+import { Bindable, Deletable } from '../GLUtils';
 import {
   defaultFormat,
   defaultType as defaultComponentType,

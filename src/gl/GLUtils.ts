@@ -7,6 +7,10 @@ export interface Deletable {
   delete(): void;
 }
 
+export interface Drawable {
+  draw(): void;
+}
+
 export function checkNull<T>(creator: () => T | null): T {
   const res = creator();
   if (res == null) throw Error('Error creating object');

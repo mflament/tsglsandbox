@@ -1,71 +1,90 @@
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { Dimension, SandboxContainer } from '../gl/sandbox/GLSandbox';
-import { QuadBuffers } from '../gl/sandbox/QuadBuffers';
+import { Deletable } from '../gl/GLUtils';
+import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { Dimension, SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
+import { QuadBuffers } from '../gl/buffers/QuadBuffers';
 import { Program } from '../gl/shader/Program';
 import { GLTexture2D } from '../gl/texture/GLTexture';
 
-interface UniformLocation {
-  viewportSize: WebGLUniformLocation | null;
-  seconds: WebGLUniformLocation | null;
-  texture: WebGLUniformLocation | null;
-}
+// @ts-ignore
+import quadVertexShader from 'assets/shaders/quad.vs.glsl';
+// @ts-ignore
+import testFragmentShader from 'assets/shaders/test/test.fs.glsl';
 
-type Resources = { program: Program; quadBuffers: QuadBuffers; texture: GLTexture2D };
-
-export class TestSandbox extends AbstractGLSandbox<any> {
-  private _resources?: Resources;
-  private uniformLocations: UniformLocation = { viewportSize: null, seconds: null, texture: null };
-
-  constructor() {
-    super('test', {});
-  }
-
-  private get resources(): Resources {
-    if (!this._resources) throw new Error('Not initialized');
-    return this._resources;
-  }
-
-  async setup(container: SandboxContainer): Promise<void> {
-    super.setup(container);
-
-    const program = await this.loadProgram({
-      vsSource: 'shaders/quad.vs.glsl',
-      fsSource: 'shaders/test/test.fs.glsl',
-      uniformLocations: this.uniformLocations
-    });
-
-    program.use();
-    this.gl.uniform2f(this.uniformLocations.viewportSize, container.dimension.width, container.dimension.height);
-    this.gl.uniform1f(this.uniformLocations.seconds, 0);
-
-    const quadBuffers = new QuadBuffers(this.gl).bind();
-    const texture = new GLTexture2D(this.gl);
-    texture
+class TestResources implements Deletable {
+  readonly quadBuffers: QuadBuffers;
+  readonly texture: GLTexture2D;
+  constructor(
+    readonly container: SandboxContainer,
+    readonly renderProgram: Program<{
+      viewportSize: null;
+      seconds: null;
+      u_sampler: null;
+    }>
+  ) {
+    this.texture = new GLTexture2D(container.gl)
       .bind()
       .data({ width: 1, height: 1, buffer: new Uint8Array([0, 255, 0, 255]) })
       .data({ uri: 'images/momotte.jpg' })
       .activate(0);
-    this.gl.uniform1i(this.uniformLocations.texture, 0);
-    this._resources = { texture: texture, program: program, quadBuffers: quadBuffers };
+    renderProgram.use();
+    container.gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
+    this.quadBuffers = new QuadBuffers(container.gl).bind();
+  }
+  delete(): void {
+    this.quadBuffers.unbind().delete();
+    this.texture.unbind().delete();
+    this.container.gl.useProgram(null);
+    this.renderProgram.delete();
+  }
+}
+
+async function loadResources(container: SandboxContainer): Promise<TestResources> {
+  const program = await container.loadProgram({
+    vsSource: quadVertexShader,
+    fsSource: testFragmentShader,
+    uniformLocations: {
+      viewportSize: null,
+      seconds: null,
+      u_sampler: null
+    }
+  });
+  return new TestResources(container, program);
+}
+
+class TestSandbox extends AbstractGLSandbox<TestResources, never> {
+  private newDimension?: Dimension;
+  constructor(container: SandboxContainer, name: string, resources: TestResources) {
+    super(container, name, resources, {} as never);
+    this.newDimension = container.dimension;
   }
 
   delete(): void {
-    if (this._resources) {
-      this._resources.quadBuffers.delete();
-      this._resources.program.delete();
-      this._resources.texture.delete();
-      this._resources = undefined;
-    }
+    this.resources.delete();
+    super.delete();
   }
 
   onresize(dimension: Dimension): void {
-    this.gl.uniform2f(this.uniformLocations.viewportSize, dimension.width, dimension.height);
+    this.newDimension = dimension;
   }
 
-  render(elapsedSeconds: number): void {
-    this.gl.uniform1f(this.uniformLocations.seconds, elapsedSeconds);
-    // this.gl.activeTexture(WebGL2RenderingContext.TEXTURE0);
+  render(): void {
+    if (this.newDimension) {
+      this.gl.uniform2f(
+        this.resources.renderProgram.uniformLocations.viewportSize,
+        this.newDimension.width,
+        this.newDimension.height
+      );
+      this.newDimension = undefined;
+    }
     const resources = this.resources;
     resources.quadBuffers.draw();
   }
+
+  update(time: number) {
+    this.gl.uniform1f(this.resources.renderProgram.uniformLocations.seconds, time / 1000);
+  }
+}
+
+export function test(): SandboxFactory {
+  return sandboxFactory(loadResources, (container, name, resources) => new TestSandbox(container, name, resources));
 }

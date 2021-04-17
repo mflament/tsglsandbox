@@ -1,11 +1,20 @@
-import { BufferUsage, TransformFeedbackDrawMode, VertexComponentType } from '../gl/buffers/BufferEnums';
-import { VertexBuffer } from '../gl/buffers/VertexBuffer';
+import { BufferUsage, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
 import { VertextArray } from '../gl/buffers/VertextArray';
-import { Deletable } from '../gl/gl-utils';
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { SandboxContainer } from '../gl/sandbox/GLSandbox';
+import { Deletable } from '../gl/GLUtils';
+import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 import { TransformFeedback } from '../gl/shader/TransformFeedback';
+
+// @ts-ignore
+import renderParticleVS from 'assets/shaders/particles/particles-render.vs.glsl';
+// @ts-ignore
+import renderParticleFS from 'assets/shaders/particles/particles-render.fs.glsl';
+// @ts-ignore
+import updateParticleVS from 'assets/shaders/particles/particles-update.vs.glsl';
+// @ts-ignore
+import updateParticleFS from 'assets/shaders/particles/particles-update.fs.glsl';
+import { VertexBuffer } from '../gl/buffers/GLBuffers';
 
 interface ParticlesParameters {
   count: number;
@@ -23,10 +32,6 @@ enum TargetMode {
   RELAX = 2
 }
 
-interface RenderUniforms {
-  maxSpeed: WebGLUniformLocation | null;
-}
-
 interface UpdateUniforms {
   acceleration: WebGLUniformLocation | null;
   maxSpeed: WebGLUniformLocation | null;
@@ -35,27 +40,65 @@ interface UpdateUniforms {
   target: WebGLUniformLocation | null;
 }
 
-interface Resources extends Deletable {
-  particleBuffers: ParticleBuffers;
-  renderProgram: Program<RenderUniforms>;
-  updateProgram: Program<UpdateUniforms>;
-  transformFeedback: TransformFeedback;
-  overlayContent: HTMLElement;
+class ParticlesResources implements Deletable {
+  readonly particleBuffers: ParticleBuffers;
+  readonly transformFeedback: TransformFeedback;
+  readonly overlayContent: HTMLElement;
+  readonly countSpan: HTMLElement;
+  constructor(
+    readonly container: SandboxContainer,
+    readonly renderProgram: Program<{ maxSpeed: WebGLUniformLocation | null }>,
+    readonly updateProgram: Program<UpdateUniforms>,
+    readonly parameters: ParticlesParameters
+  ) {
+    this.particleBuffers = new ParticleBuffers(container.gl, this.parameters);
+    this.transformFeedback = new TransformFeedback(container.gl);
+    this.overlayContent = document.createElement('div');
+    this.countSpan = document.createElement('span');
+    this.overlayContent.appendChild(this.countSpan);
+    this.updateOverlay();
+  }
+
+  delete(): void {
+    this.particleBuffers.dataBuffer.unbind();
+    this.particleBuffers.delete();
+    this.transformFeedback.delete();
+    this.container.gl.useProgram(null);
+    this.renderProgram.delete();
+    this.updateProgram.delete();
+  }
+
+  updateOverlay(): void {
+    this.countSpan.textContent = `${this.particleBuffers.count.toLocaleString()} particles`;
+  }
 }
 
-export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
-  private renderUniforms: RenderUniforms = { maxSpeed: null };
+async function loadResources(container: SandboxContainer): Promise<ParticlesResources> {
+  const programs = await Promise.all([
+    container.loadProgram({
+      vsSource: renderParticleVS,
+      fsSource: renderParticleFS,
+      uniformLocations: { maxSpeed: null }
+    }),
+    container.loadProgram({
+      vsSource: updateParticleVS,
+      fsSource: updateParticleFS,
+      uniformLocations: {
+        acceleration: null,
+        maxSpeed: null,
+        mode: null,
+        elapsed: null,
+        target: null
+      },
+      varyings: ['outputPosition', 'outputSpeed']
+    })
+  ]);
+  const parameters = { count: 500_000, accel: 4, speed: 2 };
+  window.hashlocation.parseParams(parameters);
+  return new ParticlesResources(container, programs[0], programs[1], parameters);
+}
 
-  private updateUniforms: UpdateUniforms = {
-    acceleration: null,
-    maxSpeed: null,
-    mode: null,
-    elapsed: null,
-    target: null
-  };
-
-  private _resources?: Resources;
-  private lastTime = -1;
+class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParameters> {
   private _mode: TargetMode = TargetMode.ATTRACT;
 
   private readonly target = { x: 0, y: 0 };
@@ -65,57 +108,79 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     target: true
   };
 
-  constructor() {
-    super('particles', { count: 500000, accel: 4, speed: 2 });
-  }
-
-  async setup(container: SandboxContainer): Promise<void> {
-    super.setup(container);
-
-    const programs = await Promise.all([
-      this.loadProgram({
-        vsSource: 'shaders/particles/particles-render.vs.glsl',
-        fsSource: 'shaders/particles/particles-render.fs.glsl',
-        uniformLocations: this.renderUniforms
-      }),
-      this.loadProgram({
-        vsSource: 'shaders/particles/particles-update.vs.glsl',
-        fsSource: 'shaders/particles/particles-update.fs.glsl',
-        uniformLocations: this.updateUniforms,
-        varyings: ['outputPosition', 'outputSpeed']
-      })
-    ]);
-
-    this._resources = {
-      renderProgram: programs[0],
-      updateProgram: programs[1],
-      particleBuffers: new ParticleBuffers(this.gl, this.parameters),
-      transformFeedback: new TransformFeedback(this.gl),
-      overlayContent: this.createOverlayContent(),
-      delete() {
-        this.renderProgram.delete();
-        this.updateProgram.delete();
-        this.particleBuffers.delete();
-        this.transformFeedback.delete;
-      }
-    };
-
+  constructor(container: SandboxContainer, name: string, resources: ParticlesResources) {
+    super(container, name, resources, resources.parameters);
     this.mouseleave = this.mouseleave.bind(this);
     container.canvas.addEventListener('mouseleave', this.mouseleave);
+    resources.particleBuffers.dataBuffer.bind();
+    this.running = true;
   }
 
-  onParametersChanged(): void {
-    if (!this._resources) return;
-    this.dirty.params = true;
-    this.overlayContent.innerHTML = this.createOverlaySpan();
+  render(): void {
+    const particleBuffers = this.resources.particleBuffers;
+    const renderProgram = this.resources.renderProgram;
+    renderProgram.use();
+    if (this.dirty.params) {
+      particleBuffers.dataBuffer.bind();
+
+      const updateProgram = this.resources.updateProgram;
+      updateProgram.use();
+      this.gl.uniform1f(updateProgram.uniformLocations.acceleration, this.parameters.accel);
+      this.gl.uniform1f(updateProgram.uniformLocations.maxSpeed, this.parameters.speed);
+
+      renderProgram.use();
+      this.gl.uniform1f(this.resources.renderProgram.uniformLocations.maxSpeed, this.parameters.speed);
+
+      this.dirty.params = false;
+    }
+
+    if (particleBuffers.count < this.parameters.count) {
+      particleBuffers.addParticles(this.parameters.count - particleBuffers.count);
+      this.resources.updateOverlay();
+    } else if (particleBuffers.count > this.parameters.count) {
+      particleBuffers.count = this.parameters.count;
+      this.resources.updateOverlay();
+    }
+    particleBuffers.draw();
+  }
+
+  update(_time: number, dt: number): void {
+    const updateProgram = this.resources.updateProgram;
+    updateProgram.use();
+    if (this.dirty.mode) {
+      this.gl.uniform1i(updateProgram.uniformLocations.mode, this._mode);
+      this.dirty.mode = false;
+    }
+
+    if (this.dirty.target) {
+      this.gl.uniform2f(updateProgram.uniformLocations.target, this.target.x, this.target.y);
+      this.dirty.target = false;
+    }
+
+    this.gl.uniform1f(updateProgram.uniformLocations.elapsed, dt);
+
+    const tf = this.resources.transformFeedback;
+    tf.bind().bindBuffer(0, this.resources.particleBuffers.targetBuffer.vbo);
+    this.gl.enable(WebGL2RenderingContext.RASTERIZER_DISCARD);
+
+    tf.begin(TransformFeedbackDrawMode.POINTS);
+    this.resources.particleBuffers.draw();
+    tf.end();
+
+    this.gl.disable(WebGL2RenderingContext.RASTERIZER_DISCARD);
+    tf.unbindBuffer(0).unbind();
+
+    this.resources.particleBuffers.swap();
   }
 
   delete(): void {
-    if (this._resources) {
-      this._resources.delete();
-      this._resources = undefined;
-      this.container.canvas.removeEventListener('mouseleave', this.mouseleave);
-    }
+    super.delete();
+    this.resources.delete();
+    this.container.canvas.removeEventListener('mouseleave', this.mouseleave);
+  }
+
+  onParametersChanged(): void {
+    this.dirty.params = true;
   }
 
   onmousemove(event: MouseEvent): void {
@@ -160,68 +225,7 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     return this.resources.overlayContent;
   }
 
-  render(time: number): void {
-    if (!this._resources) return;
-    const resources = this._resources;
-    this.resources.updateProgram.use();
-
-    if (this.dirty.params) {
-      resources.particleBuffers.ensureCapacity(this.parameters.count);
-
-      resources.renderProgram.use();
-      this.gl.uniform1f(this.renderUniforms.maxSpeed, this.parameters.speed);
-
-      resources.updateProgram.use();
-      this.gl.uniform1f(this.updateUniforms.acceleration, this.parameters.accel);
-      this.gl.uniform1f(this.updateUniforms.maxSpeed, this.parameters.speed);
-
-      this.dirty.params = false;
-      resources.particleBuffers.dataBuffer.bind();
-    }
-
-    if (resources.particleBuffers.count < this.parameters.count) {
-      resources.particleBuffers.addParticles(this.parameters.count - resources.particleBuffers.count);
-    } else if (resources.particleBuffers.count > this.parameters.count) {
-      resources.particleBuffers.count = this.parameters.count;
-    }
-
-    if (this.dirty.mode) {
-      this.gl.uniform1i(this.updateUniforms.mode, this._mode);
-      this.dirty.mode = false;
-    }
-
-    if (this.dirty.target) {
-      this.gl.uniform2f(this.updateUniforms.target, this.target.x, this.target.y);
-      this.dirty.target = false;
-    }
-
-    const dt = this.lastTime < 0 ? 0 : (time - this.lastTime) / 1000;
-    this.gl.uniform1f(this.updateUniforms.elapsed, dt);
-    this.update(resources);
-
-    resources.renderProgram.use();
-    resources.particleBuffers.draw();
-
-    this.lastTime = time;
-  }
-
-  private update(res: Resources) {
-    const tf = res.transformFeedback;
-    tf.bind().bindBuffer(0, res.particleBuffers.targetBuffer.vbo);
-    this.gl.enable(WebGL2RenderingContext.RASTERIZER_DISCARD);
-
-    tf.begin(TransformFeedbackDrawMode.POINTS);
-    res.particleBuffers.draw();
-    tf.end();
-
-    this.gl.disable(WebGL2RenderingContext.RASTERIZER_DISCARD);
-    tf.unbindBuffer(0).unbind();
-
-    res.particleBuffers.swap();
-  }
-
   private mouseleave(): void {
-    if (!this._resources) return;
     this.setViewportTarget(0, 0);
   }
 
@@ -245,22 +249,6 @@ export class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     this._mode = mode;
     this.dirty.mode = true;
   }
-
-  private createOverlayContent(): HTMLElement {
-    const element = document.createElement('div');
-    element.innerHTML = this.createOverlaySpan();
-    return element;
-  }
-
-  private createOverlaySpan(): string {
-    const count = this.parameters.count.toLocaleString();
-    return `<span>${count} particles</span>`;
-  }
-
-  private get resources(): Resources {
-    if (!this._resources) throw new Error('Not initialized');
-    return this._resources;
-  }
 }
 
 class ParticleBuffer {
@@ -271,24 +259,26 @@ class ParticleBuffer {
     this.vbo = new VertexBuffer(gl).bind();
     this.vao = new VertextArray(gl).bind();
     this.vao
-      .withAttribute(0, 2, VertexComponentType.FLOAT, false, PARTICLES_BYTES, 0)
-      .withAttribute(1, 2, VertexComponentType.FLOAT, false, PARTICLES_BYTES, 2 * FLOAT_BYTES)
+      .withAttribute({ size: 2, stride: PARTICLES_BYTES })
+      .withAttribute({ size: 2, stride: PARTICLES_BYTES, offset: 2 * FLOAT_BYTES })
       .unbind();
     this.vbo.unbind();
     this.vao.unbind();
   }
 
-  bind() {
+  bind(): ParticleBuffer {
     this.vbo.bind();
     this.vao.bind();
+    return this;
   }
 
-  unbind() {
+  unbind(): ParticleBuffer {
     this.vao.unbind();
     this.vbo.unbind();
+    return this;
   }
 
-  delete() {
+  delete(): void {
     this.vao.delete();
     this.vbo.delete();
   }
@@ -301,10 +291,11 @@ class ParticleBuffers {
   private _capacity = 0;
   private _count = 0;
   private _dataIndex = 0;
-  private _newParticlesBuffer = new Float32Array(10000 * PARTICLES_FLOATS);
+  private _newParticlesBuffer = new Float32Array(25000 * PARTICLES_FLOATS);
 
   constructor(readonly gl: WebGL2RenderingContext, readonly params: ParticlesParameters) {
     this.buffers = [new ParticleBuffer(gl), new ParticleBuffer(gl)];
+    this.createParticles(params.count);
   }
 
   get count(): number {
@@ -323,19 +314,42 @@ class ParticleBuffers {
     return this.buffers[1 - this._dataIndex];
   }
 
-  ensureCapacity(requiredCapacity: number) {
+  addParticles(count: number): number {
+    this.ensureCapacity(this.count + count);
+    const buffer = this._newParticlesBuffer;
+    count = Math.min(count, buffer.length / PARTICLES_FLOATS);
+    this.randomizeParticles(buffer, count);
+    this.dataBuffer.vbo.setsubdata(buffer, this._count * PARTICLES_BYTES, 0, count * PARTICLES_FLOATS);
+    this._count += count;
+    return this._count;
+  }
+
+  createParticles(count: number): void {
+    this.ensureCapacity(count);
+    const particles = new Float32Array(count * PARTICLES_FLOATS);
+    this.randomizeParticles(particles);
+    this.dataBuffer.bind().vbo.setsubdata(particles, 0);
+    this._count = count;
+  }
+
+  private ensureCapacity(requiredCapacity: number): void {
     if (this._capacity < requiredCapacity) {
       const newSize = requiredCapacity * PARTICLES_BYTES;
-      this.dataBuffer.vbo.bind().allocate(newSize, BufferUsage.DYNAMIC_DRAW).unbind();
       this.targetBuffer.vbo.bind().allocate(newSize, BufferUsage.DYNAMIC_DRAW).unbind();
+
+      this.dataBuffer.bind();
+      if (this._count > 0) {
+        const particles = new Float32Array(this._count * PARTICLES_FLOATS);
+        this.dataBuffer.vbo.getsubdata(particles).allocate(newSize, BufferUsage.DYNAMIC_DRAW).setsubdata(particles, 0);
+      } else {
+        this.dataBuffer.vbo.allocate(newSize, BufferUsage.DYNAMIC_DRAW);
+      }
+
       this._capacity = requiredCapacity;
-      this._count = 0;
     }
   }
 
-  addParticles(count: number) {
-    const buffer = this._newParticlesBuffer;
-    count = Math.min(count, buffer.length / PARTICLES_FLOATS);
+  private randomizeParticles(buffer: Float32Array, count = buffer.length): void {
     const range = Math.sqrt(this.params.speed * 2);
     const halfRange = range / 2;
     let pos = 0;
@@ -347,8 +361,6 @@ class ParticleBuffers {
       buffer[pos++] = Math.random() * range - halfRange;
       buffer[pos++] = Math.random() * range - halfRange;
     }
-    this.dataBuffer.vbo.setsubdata(buffer, this._count * PARTICLES_BYTES, 0, count * PARTICLES_FLOATS);
-    this._count += count;
   }
 
   swap() {
@@ -363,4 +375,8 @@ class ParticleBuffers {
   delete() {
     this.buffers.forEach(buffer => buffer.delete());
   }
+}
+
+export function glparticles(): SandboxFactory<ParticlesParameters> {
+  return sandboxFactory(loadResources, (container, name, resources) => new GLParticles(container, name, resources));
 }

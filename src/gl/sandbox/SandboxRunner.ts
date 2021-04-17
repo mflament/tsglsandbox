@@ -1,6 +1,8 @@
-import { getHashParams, hashPath, updateHashParameters } from '../../utils/HashUtils';
-import { checkNull } from '../gl-utils';
-import { Dimension, GLSandbox, SandboxContainer } from './GLSandbox';
+import { checkNull } from '../GLUtils';
+import { Program } from '../shader/Program';
+import { Dimension, GLSandbox, SandboxContainer, SandboxFactory, PartialProgramConfiguration } from './GLSandbox';
+
+type SandboxFactories = { [name: string]: SandboxFactory };
 
 export class SandboxRunner implements SandboxContainer {
   readonly containerElement: HTMLElement;
@@ -11,10 +13,16 @@ export class SandboxRunner implements SandboxContainer {
 
   private sandbox?: GLSandbox;
 
-  constructor(readonly sandboxes: GLSandbox[], container = document.getElementById('sandbox')) {
+  private lastUpdate?: number;
+
+  private lastFPSUpdate = performance.now();
+  private frames = 0;
+
+  constructor(readonly sandboxes: SandboxFactories, container = document.getElementById('sandbox')) {
     if (!container) throw new Error('No container');
     this.containerElement = container;
     this.canvas = checkNull(() => document.getElementById('glcanvas') as HTMLCanvasElement);
+    this.containerElement.focus();
     this.overlay = new OverlayPanel(container, sandboxes);
     //this.overlay.toggle();
 
@@ -31,6 +39,7 @@ export class SandboxRunner implements SandboxContainer {
     this.canvas.oncontextmenu = e => e.preventDefault();
 
     this.canvas.onwheel = e => this.onwheel(e);
+
     this.containerElement.onkeydown = e => this.onkeydown(e);
     this.containerElement.onkeyup = e => this.onkeyup(e);
 
@@ -62,14 +71,35 @@ export class SandboxRunner implements SandboxContainer {
     this.gl.viewport(0, 0, dimension.width, dimension.height);
   }
 
+  async loadProgram<T = any>(configuration: PartialProgramConfiguration<T>): Promise<Program<T>> {
+    const vss = await configuration.vsSource;
+    const fss = await configuration.fsSource;
+    return new Program({ gl: this.gl, ...configuration, vsSource: vss, fsSource: fss });
+  }
+
   private render(time: number): void {
     this.gl.clearColor(0, 0, 0, 1);
     this.gl.clear(WebGL2RenderingContext.COLOR_BUFFER_BIT);
+
     if (this.sandbox) {
-      this.sandbox.render(time);
+      this.sandbox.render();
+      if (this.sandbox.running && this.sandbox.update) {
+        const dt = this.lastUpdate === undefined ? 0 : (time - this.lastUpdate) / 1000;
+        this.lastUpdate = time;
+        this.sandbox.update(time, dt);
+      }
     }
+
     this.gl.flush();
-    this.overlay.frames++;
+    this.frames++;
+
+    const fpsTime = (time - this.lastFPSUpdate) / 1000;
+    if (fpsTime > 1) {
+      this.overlay.fps = Math.round(this.frames / fpsTime);
+      this.frames = 0;
+      this.lastFPSUpdate = time;
+    }
+
     requestAnimationFrame(this.render);
   }
 
@@ -102,9 +132,18 @@ export class SandboxRunner implements SandboxContainer {
   }
 
   private onkeydown(e: KeyboardEvent) {
-    if (this.sandbox?.onkeydown) this.sandbox.onkeydown(e);
-    if (!e.defaultPrevented) {
-      if (e.key === 'd' && !e.altKey) this.overlay.toggle();
+    if (!this.sandbox) return;
+    const sb = this.sandbox;
+    if (sb.onkeydown) sb.onkeydown(e);
+    if (e.defaultPrevented || e.altKey) return;
+    switch (e.key) {
+      case 'd':
+        this.overlay.toggle();
+        break;
+      case ' ':
+        this.lastUpdate = undefined;
+        sb.running = !sb.running;
+        break;
     }
   }
 
@@ -123,70 +162,56 @@ export class SandboxRunner implements SandboxContainer {
   }
 
   private async hashchanged(): Promise<void> {
-    const newSandbox = this.findSandbox(hashPath());
-    if (newSandbox && newSandbox !== this.sandbox) {
+    const newName = this.sandboxName(window.hashlocation.path);
+    // const newSandbox = this.sandboxFactory(hashPath());
+    if (newName !== this.sandbox?.name) {
       if (this.sandbox) {
-        this.containerElement.classList.remove(this.sandbox.name);
         if (this.sandbox.delete) this.sandbox.delete();
-      } else {
-        // initialize first sandbox parameters from hash parameters
-        getHashParams(newSandbox.parameters);
+        this.containerElement.classList.remove(this.sandbox.name);
+        this.sandbox = undefined;
       }
 
-      this.containerElement.classList.add(newSandbox.name);
-      if (newSandbox.setup) await newSandbox.setup(this);
-      this.sandbox = newSandbox;
-      // replace current hash parameters with new sandbox parameters
-      updateHashParameters(newSandbox.name, newSandbox.parameters);
-      this.overlay.overlayContent = newSandbox.overlayContent;
+      this.lastUpdate = undefined;
+      this.containerElement.classList.add(newName);
+      this.sandbox = await this.sandboxes[newName](this, newName);
+      this.overlay.sandbox = newName;
+      this.overlay.overlayContent = this.sandbox.overlayContent;
       this.onresize();
-    } else if (this.sandbox?.onParametersChanged) {
-      getHashParams(this.sandbox.parameters);
-      this.sandbox.onParametersChanged();
     }
   }
 
-  private findSandbox(sandboxName: string): GLSandbox {
-    if (sandboxName.startsWith('/')) sandboxName = sandboxName.substring(1);
-    let newSandbox = this.sandboxes.filter(s => s.name === sandboxName)[0];
-    if (!newSandbox) newSandbox = this.sandboxes[0];
-    return newSandbox;
+  private sandboxName(path: string): string {
+    if (path.startsWith('/')) path = path.substring(1);
+    const factory = this.sandboxes[path];
+    if (!factory) return Object.keys(this.sandboxes)[0];
+    return path;
   }
-}
-
-function sandboxLink(sb: GLSandbox): HTMLElement {
-  const a = document.createElement('a');
-  a.href = '#/' + sb.name;
-  a.text = sb.name;
-  const li = document.createElement('li');
-  li.appendChild(a);
-  return li;
 }
 
 class OverlayPanel {
   private readonly overlayElement: HTMLElement;
   private readonly fpsElement: HTMLElement;
   private readonly sandboxPanel: HTMLElement;
-  private fpsTimeout = 0;
-  private fpsStart = 0;
   private dataElement?: HTMLElement;
-  frames = 0;
 
-  constructor(readonly container: HTMLElement, readonly sandboxes: GLSandbox[]) {
+  constructor(readonly container: HTMLElement, readonly sandboxes: SandboxFactories) {
     this.overlayElement = checkNull(() => document.getElementById('overlay'));
     this.fpsElement = checkNull(() => document.getElementById('fps'));
     this.sandboxPanel = checkNull(() => document.getElementById('sandbox-panel'));
 
     const sandboxesElement = checkNull(() => document.getElementById('sandboxes'));
-    sandboxes.forEach(sb => sandboxesElement.appendChild(sandboxLink(sb)));
+    Object.keys(sandboxes).forEach(name => sandboxesElement.appendChild(sandboxLink(name)));
   }
 
   toggle() {
-    if (this.overlayElement.classList.toggle('hidden')) {
-      window.clearTimeout(this.fpsTimeout);
-    } else {
-      this.startFPSTimer();
-    }
+    this.overlayElement.classList.toggle('hidden');
+  }
+
+  set sandbox(name: string) {
+    let li = this.overlayElement.querySelector('li.active');
+    li?.classList.remove('active');
+    li = this.overlayElement.querySelector('li.' + name);
+    li?.classList.add('active');
   }
 
   set overlayContent(dataElement: HTMLElement | undefined) {
@@ -201,16 +226,18 @@ class OverlayPanel {
     }
   }
 
-  private startFPSTimer() {
-    this.fpsStart = performance.now();
-    this.frames = 0;
-    this.fpsTimeout = window.setTimeout(() => this.updateFPS(), 1000);
+  set fps(fps: number) {
+    this.fpsElement.textContent = Math.round(fps) + ' FPS';
   }
+}
 
-  private updateFPS() {
-    const fps = Math.round((this.frames / (performance.now() - this.fpsStart)) * 1000);
-    this.fpsElement.textContent = fps + ' FPS';
-    this.frames = 0;
-    this.fpsStart = performance.now();
-  }
+function sandboxLink(name: string): HTMLElement {
+  const a = document.createElement('a');
+  a.href = '#/' + name;
+  a.text = name;
+  a.tabIndex = -1;
+  const li = document.createElement('li');
+  li.classList.add(name);
+  li.appendChild(a);
+  return li;
 }

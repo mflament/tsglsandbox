@@ -50,3 +50,20 @@ export enum IndexComponentType {
   UNSIGNED_SHORT = WebGL2RenderingContext.UNSIGNED_SHORT,
   UNSIGNED_INT = WebGL2RenderingContext.UNSIGNED_INT
 }
+
+export function sizeOf(gltype: VertexComponentType | IndexComponentType): number {
+  switch (gltype) {
+    case WebGL2RenderingContext.BYTE:
+    case WebGL2RenderingContext.UNSIGNED_BYTE:
+      return 1;
+    case WebGL2RenderingContext.SHORT:
+    case WebGL2RenderingContext.UNSIGNED_SHORT:
+      return 2;
+    case WebGL2RenderingContext.UNSIGNED_INT:
+    case WebGL2RenderingContext.INT:
+    case WebGL2RenderingContext.FLOAT:
+      return 4;
+    default:
+      throw new Error('Unhandled tpye ' + gltype);
+  }
+}

@@ -1,4 +1,7 @@
-import { VertextArray, IndexBuffer, VertexBuffer, VertexComponentType } from '../buffers/gl-buffers';
+import { DrawMode } from './BufferEnums';
+import { IndexBuffer, VertexBuffer } from './GLBuffers';
+
+import { VertextArray } from './VertextArray';
 
 /**
  * VAO + VBO + IBO for a simple quad with vec2 position attributes:
@@ -20,9 +23,12 @@ export class QuadBuffers {
 
   constructor(readonly gl: WebGL2RenderingContext) {
     this.vao = new VertextArray(gl).bind();
+
     this.vbo = new VertexBuffer(gl).bind().setdata(new Float32Array(QuadBuffers.VERTICES));
-    this.vao.withAttribute(0, 2, VertexComponentType.FLOAT);
-    this.ibo = new IndexBuffer(gl).bind().setdata(new Uint8Array(QuadBuffers.INDICES));
+    this.vao.withAttribute({ size: 2 });
+
+    this.ibo = new IndexBuffer(gl);
+    this.ibo.bind().setdata(new Uint8Array(QuadBuffers.INDICES));
   }
 
   bind(): QuadBuffers {
@@ -40,7 +46,7 @@ export class QuadBuffers {
   }
 
   draw(): QuadBuffers {
-    this.ibo.draw();
+    this.gl.drawElements(DrawMode.TRIANGLES, QuadBuffers.INDICES.length, WebGL2RenderingContext.UNSIGNED_BYTE, 0);
     return this;
   }
 
