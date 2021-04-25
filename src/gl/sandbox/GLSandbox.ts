@@ -1,15 +1,8 @@
-import { Program } from '../shader/Program';
+import { ProgramLoader } from '../shader/Program';
 
 export interface Dimension {
   width: number;
   height: number;
-}
-
-export interface PartialProgramConfiguration<T = any> {
-  vsSource: string | Promise<string>;
-  fsSource: string | Promise<string>;
-  varyings?: string[];
-  uniformLocations: T;
 }
 
 export interface SandboxContainer {
@@ -18,8 +11,7 @@ export interface SandboxContainer {
   readonly canvas: HTMLCanvasElement;
   readonly clientArea: Dimension;
   dimension: Dimension;
-
-  loadProgram<T = any>(configuration: PartialProgramConfiguration<T>): Promise<Program<T>>;
+  programLoader: ProgramLoader;
 }
 
 export type SandboxFactory<P = any> = (container: SandboxContainer, name: string) => Promise<GLSandbox<P>>;

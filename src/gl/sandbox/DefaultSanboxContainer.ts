@@ -1,13 +1,15 @@
-import { checkNull } from '../GLUtils';
-import { Program } from '../shader/Program';
-import { Dimension, GLSandbox, SandboxContainer, SandboxFactory, PartialProgramConfiguration } from './GLSandbox';
+import { checkNull } from '../utils/GLUtils';
+import { ProgramLoader } from '../shader/Program';
+import { Dimension, GLSandbox, SandboxContainer, SandboxFactory } from './GLSandbox';
 
 type SandboxFactories = { [name: string]: SandboxFactory };
 
-export class SandboxRunner implements SandboxContainer {
+export class DefaultSandboxContainer implements SandboxContainer {
   readonly containerElement: HTMLElement;
   readonly canvas: HTMLCanvasElement;
   readonly gl: WebGL2RenderingContext;
+
+  readonly programLoader: ProgramLoader;
 
   private readonly overlay: OverlayPanel;
 
@@ -29,6 +31,8 @@ export class SandboxRunner implements SandboxContainer {
     this.gl = checkNull(() => this.canvas.getContext('webgl2', { desynchronized: true, preserveDrawingBuffer: true }));
     window.addEventListener('resize', () => this.onresize());
     this.onresize();
+
+    this.programLoader = new ProgramLoader(this.gl);
 
     this.canvas.onmousedown = e => this.onmousedown(e);
     this.canvas.ontouchstart = e => this.ontouchstart(e);
@@ -71,16 +75,7 @@ export class SandboxRunner implements SandboxContainer {
     this.gl.viewport(0, 0, dimension.width, dimension.height);
   }
 
-  async loadProgram<T = any>(configuration: PartialProgramConfiguration<T>): Promise<Program<T>> {
-    const vss = await configuration.vsSource;
-    const fss = await configuration.fsSource;
-    return new Program({ gl: this.gl, ...configuration, vsSource: vss, fsSource: fss });
-  }
-
   private render(time: number): void {
-    this.gl.clearColor(0, 0, 0, 1);
-    this.gl.clear(WebGL2RenderingContext.COLOR_BUFFER_BIT);
-
     if (this.sandbox) {
       this.sandbox.render();
       if (this.sandbox.running && this.sandbox.update) {
@@ -136,7 +131,7 @@ export class SandboxRunner implements SandboxContainer {
     const sb = this.sandbox;
     if (sb.onkeydown) sb.onkeydown(e);
     if (e.defaultPrevented || e.altKey) return;
-    switch (e.key) {
+    switch (e.key.toLowerCase()) {
       case 'd':
         this.overlay.toggle();
         break;

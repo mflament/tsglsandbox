@@ -1,3 +1,4 @@
+import { vec4 } from 'gl-matrix';
 import { GLSandbox, Dimension, SandboxContainer, SandboxFactory } from './GLSandbox';
 
 export function sandboxFactory<R, P>(
@@ -37,6 +38,12 @@ export abstract class AbstractGLSandbox<R, P> implements GLSandbox<P> {
   }
 
   abstract render(): void;
+
+  protected clear(color: vec4 = [0, 0, 0, 1], mask = WebGL2RenderingContext.COLOR_BUFFER_BIT): void {
+    this.gl.colorMask(true, true, true, true);
+    this.gl.clearColor(color[0], color[1], color[2], color[3]);
+    this.gl.clear(mask);
+  }
 
   delete(): void {
     window.removeEventListener('hashchange', this.hashchanged);

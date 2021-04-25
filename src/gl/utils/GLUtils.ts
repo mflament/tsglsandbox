@@ -7,37 +7,10 @@ export interface Deletable {
   delete(): void;
 }
 
-export interface Drawable {
-  draw(): void;
-}
-
 export function checkNull<T>(creator: () => T | null): T {
   const res = creator();
   if (res == null) throw Error('Error creating object');
   return res;
-}
-
-export type ArrayBuffer =
-  | Int8Array
-  | Uint8Array
-  | Uint8ClampedArray
-  | Int16Array
-  | Uint16Array
-  | Int32Array
-  | Uint32Array
-  | Float32Array;
-
-export function isArrayBuffer(obj: unknown): obj is ArrayBuffer {
-  return (
-    obj instanceof Int8Array ||
-    obj instanceof Uint8Array ||
-    obj instanceof Uint8ClampedArray ||
-    obj instanceof Int16Array ||
-    obj instanceof Uint16Array ||
-    obj instanceof Int32Array ||
-    obj instanceof Uint32Array ||
-    obj instanceof Float32Array
-  );
 }
 
 /**

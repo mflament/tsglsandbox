@@ -1,4 +1,4 @@
-import { Bindable, checkNull, Deletable } from '../GLUtils';
+import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
 import { GLTexture2D } from '../texture/GLTexture';
 
 const TARGET = WebGL2RenderingContext.FRAMEBUFFER;

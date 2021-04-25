@@ -1,8 +1,8 @@
-import { Bindable, checkNull, Deletable } from '../GLUtils';
+import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
 import { VertexComponentType } from './BufferEnums';
 
-export interface VertexAttrib {
-  index: number;
+export interface VertexAttribute {
+  location: number;
   size: number;
   type: VertexComponentType;
   normalized: boolean;
@@ -10,32 +10,37 @@ export interface VertexAttrib {
   offset: number;
   attribDivisor?: number;
 }
-export type PartialVertexAttrib = Partial<VertexAttrib> & {
+
+export type PartialVertexAttribute = Partial<VertexAttribute> & {
+  location: number;
   size: number;
 };
 
 export class VertextArray implements Bindable, Deletable {
   readonly vao: WebGLVertexArrayObject;
-  private readonly attributes: VertexAttrib[] = [];
+  private readonly attributes: VertexAttribute[] = [];
 
   constructor(readonly gl: WebGL2RenderingContext) {
     this.vao = checkNull(() => gl.createVertexArray());
   }
 
-  withAttribute(attribute: PartialVertexAttrib): VertextArray {
-    const a: VertexAttrib = {
-      index: this.attributes.length,
+  withAttribute(attribute: PartialVertexAttribute): VertextArray {
+    const a: VertexAttribute = {
       type: WebGL2RenderingContext.FLOAT,
       normalized: false,
       offset: 0,
       stride: 0,
       ...attribute
     };
-    this.gl.enableVertexAttribArray(a.index);
-    this.gl.vertexAttribPointer(a.index, a.size, a.type, a.normalized, a.stride, a.offset);
-    if (typeof a.attribDivisor === 'number') this.gl.vertexAttribDivisor(a.index, a.attribDivisor);
+    this.gl.enableVertexAttribArray(a.location);
+    this.gl.vertexAttribPointer(a.location, a.size, a.type, a.normalized, a.stride, a.offset);
+    if (typeof a.attribDivisor === 'number') this.gl.vertexAttribDivisor(a.location, a.attribDivisor);
     this.attributes.push(a);
     return this;
+  }
+
+  get lastAttribute(): VertexAttribute {
+    return this.attributes[this.attributes.length - 1];
   }
 
   bind(): VertextArray {

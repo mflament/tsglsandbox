@@ -1,6 +1,7 @@
-import { ArrayBuffer, checkNull } from '../GLUtils';
+import { checkNull } from '../utils/GLUtils';
 import {
   InternalFormat,
+  TextureArrayBuffer,
   TextureComponentType,
   TextureFormat,
   TextureMagFilter,
@@ -8,7 +9,7 @@ import {
   TextureParameter,
   TextureWrappingMode
 } from './TextureEnums';
-import { Bindable, Deletable } from '../GLUtils';
+import { Bindable, Deletable } from '../utils/GLUtils';
 import {
   defaultFormat,
   defaultType as defaultComponentType,
@@ -65,6 +66,13 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     return this;
   }
 
+  async load(param: LoadImageData): Promise<GLTexture2D> {
+    const image = await loadImage(param.uri);
+    this.bind().data({ ...param, source: image, generateMipmap: true });
+    if (param.onload) param.onload(this);
+    return this;
+  }
+
   data(param: TextureData): GLTexture2D {
     const intformat = param.internalFormat ? param.internalFormat : InternalFormat.RGBA;
     const format = param.format ? param.format : defaultFormat(intformat);
@@ -92,6 +100,7 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     } else if (isLoadImageData(param)) {
       loadImage(param.uri).then(image => {
         this.bind().data({ ...param, source: image, generateMipmap: true } as ImageSourceData);
+        if (param.onload) param.onload(this);
       });
       return this;
     }
@@ -159,7 +168,7 @@ interface SizedData {
 }
 
 interface BufferData extends SizedData {
-  buffer: ArrayBuffer;
+  buffer: TextureArrayBuffer;
   srcOffset?: number;
 }
 
@@ -173,7 +182,6 @@ interface ImageSourceData {
 
 interface LoadImageData {
   uri: string;
-  flipy?: boolean;
   onload?: (texture: GLTexture2D) => any;
 }
 

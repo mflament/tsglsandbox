@@ -1,6 +1,6 @@
 import { BufferUsage, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
 import { VertextArray } from '../gl/buffers/VertextArray';
-import { Deletable } from '../gl/GLUtils';
+import { Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
@@ -47,8 +47,8 @@ class ParticlesResources implements Deletable {
   readonly countSpan: HTMLElement;
   constructor(
     readonly container: SandboxContainer,
-    readonly renderProgram: Program<{ maxSpeed: WebGLUniformLocation | null }>,
-    readonly updateProgram: Program<UpdateUniforms>,
+    readonly renderProgram: Program<any, { maxSpeed: WebGLUniformLocation | null }>,
+    readonly updateProgram: Program<any, UpdateUniforms>,
     readonly parameters: ParticlesParameters
   ) {
     this.particleBuffers = new ParticleBuffers(container.gl, this.parameters);
@@ -75,14 +75,16 @@ class ParticlesResources implements Deletable {
 
 async function loadResources(container: SandboxContainer): Promise<ParticlesResources> {
   const programs = await Promise.all([
-    container.loadProgram({
+    container.programLoader.loadProgram({
       vsSource: renderParticleVS,
       fsSource: renderParticleFS,
+      attributeLocations: {},
       uniformLocations: { maxSpeed: null }
     }),
-    container.loadProgram({
+    container.programLoader.loadProgram({
       vsSource: updateParticleVS,
       fsSource: updateParticleFS,
+      attributeLocations: {},
       uniformLocations: {
         acceleration: null,
         maxSpeed: null,
@@ -117,6 +119,7 @@ class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParamet
   }
 
   render(): void {
+    this.clear();
     const particleBuffers = this.resources.particleBuffers;
     const renderProgram = this.resources.renderProgram;
     renderProgram.use();
@@ -259,8 +262,8 @@ class ParticleBuffer {
     this.vbo = new VertexBuffer(gl).bind();
     this.vao = new VertextArray(gl).bind();
     this.vao
-      .withAttribute({ size: 2, stride: PARTICLES_BYTES })
-      .withAttribute({ size: 2, stride: PARTICLES_BYTES, offset: 2 * FLOAT_BYTES })
+      .withAttribute({ location: 0, size: 2, stride: PARTICLES_BYTES })
+      .withAttribute({ location: 1, size: 2, stride: PARTICLES_BYTES, offset: 2 * FLOAT_BYTES })
       .unbind();
     this.vbo.unbind();
     this.vao.unbind();
@@ -332,6 +335,19 @@ class ParticleBuffers {
     this._count = count;
   }
 
+  swap() {
+    this._dataIndex = 1 - this._dataIndex;
+    this.dataBuffer.bind();
+  }
+
+  draw() {
+    this.gl.drawArrays(WebGLRenderingContext.POINTS, 0, this._count);
+  }
+
+  delete() {
+    this.buffers.forEach(buffer => buffer.delete());
+  }
+
   private ensureCapacity(requiredCapacity: number): void {
     if (this._capacity < requiredCapacity) {
       const newSize = requiredCapacity * PARTICLES_BYTES;
@@ -361,19 +377,6 @@ class ParticleBuffers {
       buffer[pos++] = Math.random() * range - halfRange;
       buffer[pos++] = Math.random() * range - halfRange;
     }
-  }
-
-  swap() {
-    this._dataIndex = 1 - this._dataIndex;
-    this.dataBuffer.bind();
-  }
-
-  draw() {
-    this.gl.drawArrays(WebGLRenderingContext.POINTS, 0, this._count);
-  }
-
-  delete() {
-    this.buffers.forEach(buffer => buffer.delete());
   }
 }
 

@@ -122,3 +122,26 @@ export enum TextureWrappingMode {
   MIRRORED_REPEAT = WebGL2RenderingContext.MIRRORED_REPEAT,
   REPEAT = WebGL2RenderingContext.REPEAT
 }
+
+export type TextureArrayBuffer =
+  | Int8Array
+  | Uint8Array
+  | Uint8ClampedArray
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array;
+
+export function isTextureArrayBuffer(obj: unknown): obj is TextureArrayBuffer {
+  return (
+    obj instanceof Int8Array ||
+    obj instanceof Uint8Array ||
+    obj instanceof Uint8ClampedArray ||
+    obj instanceof Int16Array ||
+    obj instanceof Uint16Array ||
+    obj instanceof Int32Array ||
+    obj instanceof Uint32Array ||
+    obj instanceof Float32Array
+  );
+}

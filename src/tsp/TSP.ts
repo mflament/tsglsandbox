@@ -1,5 +1,5 @@
 import { VertextArray } from '../gl/buffers/VertextArray';
-import { Bindable, Deletable } from '../gl/GLUtils';
+import { Bindable, Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
@@ -8,7 +8,7 @@ import { Program } from '../gl/shader/Program';
 import renderVS from 'shaders/tsp/tsp-render.vs.glsl';
 // @ts-ignore
 import renderFS from 'shaders/tsp/tsp-render.fs.glsl';
-import { PoissonDiscSampler, randomRange } from './PoissonDiscSampler';
+import { PoissonDiscSampler, randomRange } from '../utils/PoissonDiscSampler';
 import { VertexBuffer } from '../gl/buffers/GLBuffers';
 
 // x,y / r,g,b
@@ -26,10 +26,13 @@ class TSPResources implements Deletable {
   readonly citiesBuffer: CitiesBuffer;
   constructor(
     readonly container: SandboxContainer,
-    readonly renderProgram: Program<{
-      cityRadius: WebGLUniformLocation | null;
-      viewMatrix: WebGLUniformLocation | null;
-    }>,
+    readonly renderProgram: Program<
+      any,
+      {
+        cityRadius: WebGLUniformLocation | null;
+        viewMatrix: WebGLUniformLocation | null;
+      }
+    >,
     readonly parameters: TSPParameters
   ) {
     renderProgram.use();
@@ -66,19 +69,17 @@ class TSPResources implements Deletable {
 }
 
 async function loadResources(container: SandboxContainer): Promise<TSPResources> {
-  const programs = await Promise.all([
-    container.loadProgram({
-      vsSource: renderVS,
-      fsSource: renderFS,
-      uniformLocations: {
-        cityRadius: null,
-        viewMatrix: null
-      }
-    })
-  ]);
+  const program = await container.programLoader.loadProgram({
+    vsSource: renderVS,
+    fsSource: renderFS,
+    uniformLocations: {
+      cityRadius: null,
+      viewMatrix: null
+    }
+  });
   const parameters = { cities: 10 };
   window.hashlocation.parseParams(parameters);
-  return new TSPResources(container, programs[0], parameters);
+  return new TSPResources(container, program, parameters);
 }
 
 class TSP extends AbstractGLSandbox<TSPResources, TSPParameters> {
@@ -88,6 +89,7 @@ class TSP extends AbstractGLSandbox<TSPResources, TSPParameters> {
   }
 
   render(): void {
+    super.clear();
     this.resources.renderProgram.use();
     this.resources.citiesBuffer.draw();
   }
@@ -140,8 +142,8 @@ class CitiesBuffer implements Bindable, Deletable {
     this.vao = new VertextArray(gl).bind();
     this.citiesBuffer = new VertexBuffer(gl).bind();
     this.vao
-      .withAttribute({ size: 2, stride: CITY_BYTES })
-      .withAttribute({ size: 3, stride: CITY_BYTES, offset: 2 * FLOAT_BYTES });
+      .withAttribute({ location: 0, size: 2, stride: CITY_BYTES })
+      .withAttribute({ location: 1, size: 3, stride: CITY_BYTES, offset: 2 * FLOAT_BYTES });
   }
 
   get cities(): City[] {

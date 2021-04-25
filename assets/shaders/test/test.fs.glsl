@@ -10,6 +10,6 @@ out vec4 color;
 
 void main() {
   vec2 tc = vec2(texcoord.x + sin(seconds * 6.0 + texcoord.y * 3.0) * 0.06,
-                 1.0 - texcoord.y);
+                 texcoord.y);
   color = texture(u_sampler, tc);
 }

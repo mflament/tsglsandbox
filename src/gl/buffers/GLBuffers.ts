@@ -1,7 +1,8 @@
-import { Bindable, checkNull, Deletable } from '../GLUtils';
+import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
 import { BufferTarget, BufferUsage } from './BufferEnums';
 
-export abstract class GLBuffer<B extends ArrayBufferType> implements Bindable, Deletable {
+export abstract class GLBuffer<B extends ArrayBufferType, THIS extends GLBuffer<B, THIS>>
+  implements Bindable, Deletable {
   readonly glbuffer: WebGLBuffer;
   private _size = 0; // in bytes
 
@@ -10,66 +11,92 @@ export abstract class GLBuffer<B extends ArrayBufferType> implements Bindable, D
     this.gl.bindBuffer(this.target, this.glbuffer);
   }
 
+  /**
+   * @returns buffer size in bytes
+   */
   get size(): number {
     return this._size;
   }
 
-  bind(): GLBuffer<B> {
+  bind(): THIS {
     this.gl.bindBuffer(this.target, this.glbuffer);
-    return this;
+    return this.self();
   }
 
-  unbind(): GLBuffer<B> {
+  unbind(): THIS {
     this.gl.bindBuffer(this.target, null);
-    return this;
+    return this.self();
   }
 
-  delete(): GLBuffer<B> {
+  delete(): THIS {
     this.gl.deleteBuffer(this.glbuffer);
     this._size = 0;
-    return this;
+    return this.self();
   }
 
-  allocate(size: number, usage = BufferUsage.STATIC_DRAW): GLBuffer<B> {
+  allocate(size: number, usage = BufferUsage.STATIC_DRAW): THIS {
     this.gl.bufferData(this.target, size, usage);
     this._size = size;
-    return this;
+    return this.self();
   }
 
-  setdata(source: B, usage = BufferUsage.STATIC_DRAW, srcOffset = 0, length = 0): GLBuffer<B> {
-    const elementSize = source.BYTES_PER_ELEMENT;
-    const copyLength = length === 0 ? source.length - srcOffset : length;
-    this._size = elementSize * copyLength;
-    this.gl.bufferData(this.target, source, usage, srcOffset, length);
-    return this;
+  setdata(source: ArrayBuffer, usage?: BufferUsage): THIS;
+  setdata(source: B | number[], usage?: BufferUsage, srcOffset?: number, length?: number): THIS;
+  setdata(source: ArrayBuffer | B | number[], usage = BufferUsage.STATIC_DRAW, srcOffset = 0, length?: number): THIS {
+    if (Array.isArray(source)) source = new Float32Array(source);
+    if (source instanceof ArrayBuffer) {
+      this._size = source.byteLength;
+      this.gl.bufferData(this.target, source, usage);
+    } else {
+      const elementsCount = length === undefined ? source.length - srcOffset : length;
+      this._size = elementsCount * source.BYTES_PER_ELEMENT;
+      this.gl.bufferData(this.target, source, usage, srcOffset, length);
+    }
+    return this.self();
   }
 
-  setsubdata(source: B, dstOffset: number, srcOffset = 0, length?: number): GLBuffer<B> {
-    this.gl.bufferSubData(this.target, dstOffset, source, srcOffset, length);
-    return this;
+  setsubdata(source: ArrayBuffer | number[], dstOffset: number): THIS;
+  setsubdata(source: B | number[], dstOffset: number, srcOffset?: number, length?: number): THIS;
+  setsubdata(source: ArrayBuffer | B | number[], dstOffset: number, srcOffset = 0, length?: number): THIS {
+    if (Array.isArray(source)) source = new Float32Array(source);
+    if (source instanceof ArrayBuffer) this.gl.bufferSubData(this.target, dstOffset, source);
+    else this.gl.bufferSubData(this.target, dstOffset, source, srcOffset, length);
+    return this.self();
   }
 
-  getsubdata(destBuffer: ArrayBufferView, srcOffset = 0, destOffset?: number, length?: number): GLBuffer<B> {
+  getsubdata(destBuffer: ArrayBufferView, srcOffset = 0, destOffset?: number, length?: number): THIS {
     this.gl.getBufferSubData(this.target, srcOffset, destBuffer, destOffset, length);
-    return this;
+    return this.self();
   }
+
+  protected abstract self(): THIS;
 }
 
-export class VertexBuffer extends GLBuffer<VertexBufferType> {
+export class VertexBuffer extends GLBuffer<VertexBufferType, VertexBuffer> {
   constructor(gl: WebGL2RenderingContext) {
     super(gl, BufferTarget.ARRAY_BUFFER);
   }
-}
-
-export class IndexBuffer extends GLBuffer<IndexBufferType> {
-  constructor(gl: WebGL2RenderingContext) {
-    super(gl, BufferTarget.ELEMENT_ARRAY_BUFFER);
+  protected self(): VertexBuffer {
+    return this;
   }
 }
 
-export class UniformBuffer extends GLBuffer<VertexBufferType | IndexBufferType> {
+export class IndexBuffer extends GLBuffer<IndexBufferType, IndexBuffer> {
+  constructor(gl: WebGL2RenderingContext) {
+    super(gl, BufferTarget.ELEMENT_ARRAY_BUFFER);
+  }
+
+  protected self(): IndexBuffer {
+    return this;
+  }
+}
+
+export class UniformBuffer extends GLBuffer<ArrayBufferType, UniformBuffer> {
   constructor(gl: WebGL2RenderingContext) {
     super(gl, BufferTarget.UNIFORM_BUFFER);
+  }
+  protected self(): UniformBuffer {
+    return this;
   }
 }
 
@@ -83,7 +110,6 @@ export type VertexBufferType =
   | Uint32Array;
 
 export type IndexBufferType = Uint8Array | Uint16Array | Uint32Array;
-
 export type ArrayBufferType = VertexBufferType | IndexBufferType;
 
 export function componentType(buffer: VertexBufferType | IndexBufferType): number {

@@ -1,10 +1,17 @@
-import { SandboxRunner } from './gl/sandbox/SandboxRunner';
+import { DefaultSandboxContainer } from './gl/sandbox/DefaultSanboxContainer';
 import { test } from './test/TestSandbox';
 import { gameofLife } from './gol/GameOfLife';
 import { setupHashLocation } from './utils/HashUtils';
 import { glparticles } from './particles/GLParticles';
 import { tsp } from './tsp/TSP';
+import { boids } from './boids/Boids';
 
 setupHashLocation();
 
-new SandboxRunner({ gol: gameofLife(), particles: glparticles(), tsp: tsp(), test: test() }).start();
+new DefaultSandboxContainer({
+  gol: gameofLife(),
+  particles: glparticles(),
+  tsp: tsp(),
+  boids: boids(),
+  test: test()
+}).start();

@@ -1,8 +1,7 @@
 import { FrameBuffer } from '../gl/buffers/FrameBuffer';
-import { Deletable } from '../gl/GLUtils';
+import { Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { Dimension, SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { QuadBuffers } from '../gl/buffers/QuadBuffers';
 import { Program } from '../gl/shader/Program';
 import { GLTexture2D } from '../gl/texture/GLTexture';
 import {
@@ -20,6 +19,8 @@ import quadVertexShader from 'assets/shaders/quad.vs.glsl';
 import golRenderShader from 'assets/shaders/gol/gol-render.fs.glsl';
 // @ts-ignore
 import golUpdateShader from 'assets/shaders/gol/gol-update.fs.glsl';
+import { IndexedBufferDrawable } from '../gl/buffers/GLDrawable';
+import { newQuadBuffer } from '../gl/buffers/GLDrawables';
 
 const DATA_TEXTURE_FORMAT = {
   internalFormat: InternalFormat.R8,
@@ -34,7 +35,7 @@ interface GOLParameters {
 }
 
 class GOLResources implements Deletable {
-  readonly quadBuffers: QuadBuffers;
+  readonly quadBuffers: IndexedBufferDrawable;
   readonly textures: GLTexture2D[];
   readonly frameBuffer: FrameBuffer;
   data: Uint8Array;
@@ -43,16 +44,22 @@ class GOLResources implements Deletable {
 
   constructor(
     readonly container: SandboxContainer,
-    readonly renderProgram: Program<{
-      data: WebGLUniformLocation | null;
-    }>,
-    readonly updateProgram: Program<{
-      data: WebGLUniformLocation | null;
-      states_matrix: WebGLUniformLocation | null;
-    }>,
+    readonly renderProgram: Program<
+      any,
+      {
+        data: WebGLUniformLocation | null;
+      }
+    >,
+    readonly updateProgram: Program<
+      any,
+      {
+        data: WebGLUniformLocation | null;
+        states_matrix: WebGLUniformLocation | null;
+      }
+    >,
     readonly parameters: GOLParameters
   ) {
-    this.quadBuffers = new QuadBuffers(container.gl);
+    this.quadBuffers = newQuadBuffer(container.gl);
     this.textures = [this.createTexture(), this.createTexture()];
     this.frameBuffer = new FrameBuffer(container.gl);
     this.data = new Uint8Array();
@@ -154,18 +161,20 @@ class GOLResources implements Deletable {
 
 async function loadResources(container: SandboxContainer): Promise<GOLResources> {
   const programs = await Promise.all([
-    container.loadProgram({
+    container.programLoader.loadProgram({
       vsSource: quadVertexShader,
       fsSource: golRenderShader,
+      attributeLocations: {},
       uniformLocations: { data: null }
     }),
-    container.loadProgram({
+    container.programLoader.loadProgram({
       vsSource: quadVertexShader,
       fsSource: golUpdateShader,
+      attributeLocations: {},
       uniformLocations: { data: null, states_matrix: null }
     })
   ]);
-  const parameters = { rule: 'B3S23', width: 512, height: 0 };
+  const parameters = { rule: 'B3S23', width: 128, height: 0 };
   window.hashlocation.parseParams(parameters);
   return new GOLResources(container, programs[0], programs[1], parameters);
 }

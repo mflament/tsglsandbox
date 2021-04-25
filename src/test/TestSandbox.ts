@@ -1,7 +1,7 @@
-import { Deletable } from '../gl/GLUtils';
+import { Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { Dimension, SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { QuadBuffers } from '../gl/buffers/QuadBuffers';
+import { newQuadBuffer } from '../gl/buffers/GLDrawables';
 import { Program } from '../gl/shader/Program';
 import { GLTexture2D } from '../gl/texture/GLTexture';
 
@@ -9,17 +9,21 @@ import { GLTexture2D } from '../gl/texture/GLTexture';
 import quadVertexShader from 'assets/shaders/quad.vs.glsl';
 // @ts-ignore
 import testFragmentShader from 'assets/shaders/test/test.fs.glsl';
+import { IndexedBufferDrawable } from '../gl/buffers/GLDrawable';
 
 class TestResources implements Deletable {
-  readonly quadBuffers: QuadBuffers;
+  readonly quadBuffers: IndexedBufferDrawable;
   readonly texture: GLTexture2D;
   constructor(
     readonly container: SandboxContainer,
-    readonly renderProgram: Program<{
-      viewportSize: null;
-      seconds: null;
-      u_sampler: null;
-    }>
+    readonly renderProgram: Program<
+      any,
+      {
+        viewportSize: null;
+        seconds: null;
+        u_sampler: null;
+      }
+    >
   ) {
     this.texture = new GLTexture2D(container.gl)
       .bind()
@@ -28,7 +32,7 @@ class TestResources implements Deletable {
       .activate(0);
     renderProgram.use();
     container.gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
-    this.quadBuffers = new QuadBuffers(container.gl).bind();
+    this.quadBuffers = newQuadBuffer(container.gl).bind();
   }
   delete(): void {
     this.quadBuffers.unbind().delete();
@@ -39,9 +43,10 @@ class TestResources implements Deletable {
 }
 
 async function loadResources(container: SandboxContainer): Promise<TestResources> {
-  const program = await container.loadProgram({
+  const program = await container.programLoader.loadProgram({
     vsSource: quadVertexShader,
     fsSource: testFragmentShader,
+    attributeLocations: {},
     uniformLocations: {
       viewportSize: null,
       seconds: null,
