@@ -2,7 +2,7 @@
 
 precision mediump float;
 
-uniform sampler2D u_texture;
+uniform sampler2D u_textures[];
 
 in vec2 spriteUV;
 in vec2 textureUV;

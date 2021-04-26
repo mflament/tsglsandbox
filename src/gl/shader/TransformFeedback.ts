@@ -2,6 +2,15 @@ import { TransformFeedbackDrawMode } from '../buffers/BufferEnums';
 import { VertexBuffer } from '../buffers/GLBuffers';
 import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
 
+export enum VaryingBufferMode {
+  INTERLEAVED_ATTRIBS = WebGL2RenderingContext.INTERLEAVED_ATTRIBS,
+  SEPARATE_ATTRIBS = WebGL2RenderingContext.SEPARATE_ATTRIBS
+}
+export interface TransformFeedbackVarying {
+  name: string;
+  bufferMode: VaryingBufferMode;
+}
+
 export class TransformFeedback implements Bindable, Deletable {
   private readonly transformFeedback: WebGLTransformFeedback;
 

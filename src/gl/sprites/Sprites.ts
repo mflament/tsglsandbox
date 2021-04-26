@@ -1,80 +1,91 @@
 import { Bindable, Deletable } from '../utils/GLUtils';
-import { Dimension, SandboxContainer } from '../sandbox/GLSandbox';
+import { Dimension } from '../sandbox/GLSandbox';
 import { Program } from '../shader/Program';
-
-// @ts-ignore
-import SPRITES_VS from 'assets/shaders/sprites/sprites.vs.glsl';
-// @ts-ignore
-import SPRITES_FS from 'assets/shaders/sprites/sprites.fs.glsl';
-import { mat4, vec2, vec3 } from 'gl-matrix';
+import { mat4, vec2 } from 'gl-matrix';
 import { ArrayBufferDrawable, GLDrawable, MappedBuffer } from '../buffers/GLDrawable';
 import { BufferUsage } from '../buffers/BufferEnums';
 import { PartialVertexAttribute } from '../buffers/VertextArray';
+import { Sprite } from './Sprite';
+import { spriteFragmentShader, spriteVertexShader } from './SpriteShaders';
+import { TextureAtlas } from './TextureAtlas';
+import { UniformBuffer } from '../buffers/GLBuffers';
 
-export async function newSprites(container: SandboxContainer): Promise<Sprites> {
-  return new Sprites(
-    container.gl,
-    await container.programLoader.loadProgram({
-      vsSource: SPRITES_VS,
-      fsSource: SPRITES_FS,
-      attributeLocations: { a_vertexPos: 0, a_vertexUV: 0, a_spriteMatrix: 0 },
-      uniformLocations: { u_viewMatrix: null }
-    })
-  );
+class SpritesAttributes {
+  a_vertexPos = 0;
+  a_vertexUV = 0;
+  a_spriteMatrix = 0;
+  a_animation = 0;
 }
 
-export interface SpritesAttributes {
-  a_vertexPos: number;
-  a_vertexUV: number;
-  a_spriteMatrix: number;
-  a_textureRegion?: number;
+class SpritesUniforms {
+  u_viewMatrix: WebGLUniformLocation | null = null;
+  u_time: WebGLUniformLocation | null = null;
+  u_textures: WebGLUniformLocation | null = null;
 }
 
-export interface SpritesUniforms {
-  u_viewMatrix: WebGLUniformLocation | null;
+class SpritesUniformBlocks {
+  u_regions = 0;
 }
 
-export const FLOAT_BYTES = 4;
+type SpritesProgram = Program<SpritesAttributes, SpritesUniforms, SpritesUniformBlocks>;
 
-export interface Sprite {
-  origin: vec2;
-  pos: vec2;
-  size: vec2;
-  angle: number;
-  scale: vec2;
-  zindex: number;
-}
+const FLOAT_BYTES = 4;
+const MAT4_FLOATS = 4 * 4;
+const SPRITE_FLOATS = MAT4_FLOATS + 2;
+const SPRITE_BYTES = SPRITE_FLOATS * FLOAT_BYTES;
 
-export class Sprites<S extends Sprite = Sprite> implements Deletable, Bindable, GLDrawable {
-  private static readonly spriteMatrix = mat4.create();
-  private static readonly spriteVector = vec3.create();
-
+export class Sprites implements Deletable, Bindable, GLDrawable {
+  readonly program: SpritesProgram;
   readonly drawable: ArrayBufferDrawable;
+
   private readonly viewMatrix = mat4.create();
-  private readonly instancesBuffer: MappedBuffer;
 
-  readonly sprites: S[] = [];
+  // instances buffer
+  private readonly spritesBuffer: MappedBuffer;
 
-  constructor(
-    readonly gl: WebGL2RenderingContext,
-    readonly program: Program<SpritesAttributes, SpritesUniforms>,
-    readonly capacity = 100
-  ) {
+  private readonly textureIndices: number[] = [];
+  private readonly regionIndices: number[] = [];
+  private readonly animationIndices: number[] = [];
+  private readonly uniformBuffer: UniformBuffer;
+
+  private _capacity = 0;
+
+  readonly sprites: Sprite[] = [];
+
+  constructor(readonly gl: WebGL2RenderingContext, readonly atlases: TextureAtlas[], initialCapacity = 10) {
+    const regionsCount = atlases.map(a => a.regions.length).reduce((prev, current) => prev + current, 0);
+    const animationsCount = atlases.map(a => a.animations.length).reduce((prev, current) => prev + current, 0);
+    this.program = this.newSpritesProgram(atlases.length, regionsCount, animationsCount);
+
+    this.uniformBuffer = this.createUniformBuffer(regionsCount, animationsCount);
+
     this.drawable = new ArrayBufferDrawable(gl);
     this.newVertexBuffer();
 
-    this.instancesBuffer = this.newInstancesBufffer();
-    this.instancesBuffer.allocate(capacity * this.spriteFloats * FLOAT_BYTES, BufferUsage.DYNAMIC_DRAW);
-
+    this.spritesBuffer = this.newSpriteInstancesBufffer();
+    this.ensureCapacity(initialCapacity);
     this.updateViewMatrix(gl.canvas);
   }
 
-  add(...sprites: S[]): void {
-    const spritesBuffer = new Float32Array(sprites.length * this.spriteFloats);
-    let offset = 0;
-    sprites.forEach(sprite => (offset += this.writeSpriteAttributes(sprite, spritesBuffer, offset)));
-    this.instancesBuffer.setsubdata(spritesBuffer, this.sprites.length * this.spriteFloats * FLOAT_BYTES);
-    this.sprites.push(...sprites);
+  get capacity(): number {
+    return this._capacity;
+  }
+
+  addSprite(sprite: Partial<Sprite>): Sprite {
+    return this.addSprites([sprite])[0];
+  }
+
+  addSprites(sprites: Partial<Sprite>[]): Sprite[] {
+    this.ensureCapacity(this.sprites.length + sprites.length);
+    const offset = this.sprites.length;
+    const newSprites = sprites.map((s, i) => this.createSprite(offset + i, s));
+    this.sprites.push(...newSprites);
+    this.updateSprites(offset);
+    return newSprites;
+  }
+
+  set time(time: number) {
+    this.gl.uniform1f(this.program.uniformLocations.u_time, time);
   }
 
   updateSprite(index: number): void {
@@ -83,26 +94,27 @@ export class Sprites<S extends Sprite = Sprite> implements Deletable, Bindable, 
 
   updateSprites(offset = 0, length?: number): void {
     if (length === undefined) length = this.sprites.length - offset;
-    const spritesBuffer = new Float32Array(length * this.spriteFloats);
-    let floatOffset = 0;
-    for (let index = 0; index < length; index++) {
-      const sprite = this.sprites[offset + index];
-      floatOffset += this.writeSpriteAttributes(sprite, spritesBuffer, floatOffset);
+    const trs = mat4.create();
+    if (length > 0) {
+      const spritesBuffer = new Float32Array(length * SPRITE_FLOATS);
+      for (let index = 0; index < length; index++) {
+        const sprite = this.sprites[offset + index];
+        sprite.transformMatrix(trs);
+        const floatOffset = index * SPRITE_FLOATS;
+        spritesBuffer.set(trs, floatOffset);
+        spritesBuffer[floatOffset + MAT4_FLOATS] = sprite.animationStart;
+        if (sprite.animationStart > 0) {
+          spritesBuffer[floatOffset + MAT4_FLOATS + 1] = this.animationIndices[sprite.texture] + sprite.animation;
+        } else {
+          spritesBuffer[floatOffset + MAT4_FLOATS + 1] = this.regionIndices[sprite.texture] + sprite.region;
+        }
+      }
+      this.spritesBuffer.setsubdata(spritesBuffer, offset * SPRITE_BYTES);
     }
-    this.instancesBuffer.setsubdata(spritesBuffer, offset * this.spriteFloats * FLOAT_BYTES);
   }
 
-  /**
-   * Sprite attributes size in bytes
-   */
-  protected get spriteFloats(): number {
-    return 4 * 4;
-  }
-
-  protected writeSpriteAttributes(sprite: S, buffer: Float32Array, offset: number): number {
-    const trs = this.spriteMatrix(sprite, Sprites.spriteMatrix);
-    buffer.set(trs, offset);
-    return trs.length;
+  regionIndex(sprite: Sprite): number {
+    return this.regionIndices[sprite.texture] + sprite.region;
   }
 
   updateViewMatrix(dim: Dimension): void {
@@ -111,24 +123,82 @@ export class Sprites<S extends Sprite = Sprite> implements Deletable, Bindable, 
     this.gl.uniformMatrix4fv(this.program.uniformLocations.u_viewMatrix, false, this.viewMatrix);
   }
 
-  private spriteMatrix(sprite: S, trs: mat4): mat4 {
-    const v = Sprites.spriteVector;
-    mat4.identity(trs);
-    mat4.translate(trs, trs, vec3.set(v, sprite.pos[0], sprite.pos[1], -sprite.zindex));
-    mat4.rotateZ(trs, trs, sprite.angle);
-    mat4.scale(trs, trs, vec3.set(v, sprite.scale[0], sprite.scale[1], 1));
-    mat4.translate(trs, trs, vec3.set(v, -sprite.origin[0], -sprite.origin[1], 0));
-    mat4.scale(trs, trs, vec3.set(v, sprite.size[0], sprite.size[1], 1));
-    return trs;
+  draw(): void {
+    this.drawable.draw(6, 0, this.sprites.length);
   }
 
-  private newInstancesBufffer(): MappedBuffer {
-    const attributes = this.createInstanceAttributes({ stride: this.spriteFloats * FLOAT_BYTES, attribDivisor: 1 });
-    return this.drawable.mapInstances(attributes);
+  bind(): Sprites {
+    this.program.use();
+    this.drawable.bind();
+    this.uniformBuffer.bind(0);
+    this.atlases.forEach((a, i) => a.texture.activate(this.textureIndices[i]).bind());
+    return this;
   }
 
-  protected createInstanceAttributes(partialAttribute: Partial<PartialVertexAttribute>): PartialVertexAttribute[] {
-    const attribute = { ...partialAttribute, size: 4 };
+  unbind(): Sprites {
+    this.drawable.unbind();
+    this.uniformBuffer.unbind(0);
+    this.atlases.forEach(a => a.texture.unbind());
+    return this;
+  }
+
+  delete(): void {
+    this.drawable.delete();
+  }
+
+  private createSprite(index: number, config: Partial<Sprite>): Sprite {
+    const sprite = new Sprite(index);
+    if (config.origin) vec2.copy(sprite.origin, config.origin);
+
+    if (config.pos) vec2.copy(sprite.pos, config.pos);
+
+    if (typeof config.texture === 'number') sprite.texture = config.texture;
+    if (typeof config.region === 'number') sprite.region = config.region;
+    if (typeof config.animation === 'number') sprite.animation = config.animation;
+    if (typeof config.animationStart === 'number') sprite.animationStart = config.animationStart;
+
+    if (config.size) vec2.copy(sprite.size, config.size);
+    else {
+      const atlas = this.atlases[sprite.texture];
+      let regionIndex = sprite.region;
+      if (sprite.animationStart > 0) {
+        regionIndex = atlas.animations[sprite.animation].start;
+      }
+      const region = atlas.regions[regionIndex];
+      const texture = atlas.texture;
+      sprite.size[0] = region.textureSize[0] * texture.width;
+      sprite.size[1] = region.textureSize[1] * texture.height;
+    }
+
+    if (config.scale) vec2.copy(sprite.scale, config.scale);
+
+    if (typeof config.angle === 'number') sprite.angle = config.angle;
+
+    if (typeof config.zindex === 'number') sprite.zindex = config.zindex;
+
+    return sprite;
+  }
+
+  private ensureCapacity(required: number): void {
+    if (required > this._capacity) {
+      this.spritesBuffer.allocate(required * SPRITE_BYTES, BufferUsage.DYNAMIC_DRAW);
+      this._capacity = required;
+      this.updateSprites();
+    }
+  }
+
+  private newSpritesProgram(textures: number, regions: number, animation: number): Program {
+    const vs = spriteVertexShader(this.gl, regions, animation);
+    const fs = spriteFragmentShader(this.gl, textures);
+    return new Program(this.gl, {
+      attributeLocations: new SpritesAttributes(),
+      uniformLocations: new SpritesUniforms(),
+      uniformBlockLocations: new SpritesUniformBlocks()
+    }).link([vs, fs]);
+  }
+
+  private newSpriteInstancesBufffer(): MappedBuffer {
+    const attribute = { stride: SPRITE_BYTES, size: 4, attribDivisor: 1 };
     const attributes: PartialVertexAttribute[] = [];
     let offset = 0;
     const matrixLocation = this.program.attributeLocations.a_spriteMatrix;
@@ -136,7 +206,16 @@ export class Sprites<S extends Sprite = Sprite> implements Deletable, Bindable, 
       attributes.push({ ...attribute, location: matrixLocation + col, offset: offset });
       offset += 4 * FLOAT_BYTES;
     }
-    return attributes;
+    const animationLocation = this.program.attributeLocations.a_animation;
+    if (animationLocation > 0) {
+      attributes.push({
+        ...attribute,
+        location: animationLocation,
+        size: 2,
+        offset: offset
+      });
+    }
+    return this.drawable.mapInstances(attributes);
   }
 
   private newVertexBuffer(): MappedBuffer {
@@ -150,23 +229,48 @@ export class Sprites<S extends Sprite = Sprite> implements Deletable, Bindable, 
     return buffer;
   }
 
-  draw(): void {
-    this.drawable.draw(6, 0, this.sprites.length);
-  }
+  private createUniformBuffer(regionsCount: number, animationsCount: number): UniformBuffer {
+    const textures = new Int32Array(regionsCount * 4);
+    const regions = new Float32Array(regionsCount * 4);
+    const animations = new Float32Array(animationsCount * 4);
+    let regionIndex = 0;
+    for (let atlasIndex = 0; atlasIndex < this.atlases.length; atlasIndex++) {
+      const atlas = this.atlases[atlasIndex];
+      const textureIndex = atlas.textureIndex === undefined ? atlasIndex : atlas.textureIndex;
+      this.textureIndices[atlasIndex] = textureIndex;
+      this.regionIndices[atlasIndex] = regionIndex;
+      for (let i = 0; i < atlas.regions.length; i++) {
+        const region = atlas.regions[i];
+        const offset = regionIndex * 4;
+        textures[offset] = textureIndex;
+        regions.set(region.textureOffset, offset);
+        regions.set(region.textureSize, offset + 2);
+        regionIndex++;
+      }
+    }
 
-  bind(): Sprites {
-    this.program.use();
-    this.drawable.bind();
-    return this;
-  }
+    let animationIndex = 0;
+    for (let atlasIndex = 0; atlasIndex < this.atlases.length; atlasIndex++) {
+      const atlas = this.atlases[atlasIndex];
+      this.animationIndices[atlasIndex] = animationIndex;
+      for (let i = 0; i < atlas.animations.length; i++) {
+        const animation = atlas.animations[i];
+        const offset = animationIndex * 4;
+        animations[offset] = animation.duration;
+        animations[offset + 1] = this.regionIndices[atlasIndex] + animation.start;
+        animations[offset + 2] = animation.frames;
+        animationIndex++;
+      }
+    }
 
-  unbind(): Sprites {
-    this.drawable.unbind();
-    return this;
-  }
-
-  delete(): void {
-    this.drawable.delete();
+    const ubo = new UniformBuffer(this.gl);
+    ubo.allocate(regionsCount * 3 * 4 * 4);
+    ubo.setsubdata(textures, 0);
+    ubo.setsubdata(regions, regionsCount * 4 * 4);
+    ubo.setsubdata(animations, regionsCount * 2 * 4 * 4);
+    this.gl.uniform1iv(this.program.uniformLocations.u_textures, this.textureIndices);
+    this.program.bindUniformBlock(this.program.uniformBlockLocations.u_regions, 0);
+    return ubo;
   }
 }
 

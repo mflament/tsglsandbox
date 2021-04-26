@@ -8,7 +8,7 @@ export abstract class GLBuffer<B extends ArrayBufferType, THIS extends GLBuffer<
 
   constructor(readonly gl: WebGL2RenderingContext, readonly target: BufferTarget) {
     this.glbuffer = checkNull(() => gl.createBuffer());
-    this.gl.bindBuffer(this.target, this.glbuffer);
+    this.bind();
   }
 
   /**
@@ -95,11 +95,45 @@ export class UniformBuffer extends GLBuffer<ArrayBufferType, UniformBuffer> {
   constructor(gl: WebGL2RenderingContext) {
     super(gl, BufferTarget.UNIFORM_BUFFER);
   }
+
+  bind(index?: number): UniformBuffer {
+    super.bind();
+    if (index !== undefined) this.gl.bindBufferBase(BufferTarget.UNIFORM_BUFFER, index, this.glbuffer);
+    return this;
+  }
+
+  unbind(index?: number): UniformBuffer {
+    super.unbind();
+    if (index !== undefined) this.gl.bindBufferBase(BufferTarget.UNIFORM_BUFFER, index, null);
+    return this;
+  }
+
   protected self(): UniformBuffer {
     return this;
   }
 }
 
+export class TransformFeedbackBuffer extends GLBuffer<ArrayBufferType, TransformFeedbackBuffer> {
+  constructor(gl: WebGL2RenderingContext) {
+    super(gl, BufferTarget.TRANSFORM_FEEDBACK_BUFFER);
+  }
+
+  bind(index?: number): TransformFeedbackBuffer {
+    super.bind();
+    if (index !== undefined) this.gl.bindBufferBase(BufferTarget.TRANSFORM_FEEDBACK_BUFFER, index, this.glbuffer);
+    return this;
+  }
+
+  unbind(index?: number): TransformFeedbackBuffer {
+    super.unbind();
+    if (index !== undefined) this.gl.bindBufferBase(BufferTarget.TRANSFORM_FEEDBACK_BUFFER, index, null);
+    return this;
+  }
+
+  protected self(): TransformFeedbackBuffer {
+    return this;
+  }
+}
 export type VertexBufferType =
   | Int8Array
   | Int16Array

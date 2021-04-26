@@ -8,7 +8,7 @@ in vec2 a_vertexUV;
 // sprite attributes
 in mat4 a_spriteMatrix;
 // offset, size
-in vec4 a_textureRegion;
+in int a_textureRegion;
 
 uniform mat4 u_viewMatrix;
 

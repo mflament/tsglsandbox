@@ -2,15 +2,9 @@ import { Deletable } from '../gl/utils/GLUtils';
 import { Dimension, SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { Sprites } from '../gl/sprites/Sprites';
+import { Sprite } from '../gl/sprites/Sprite';
 import { GLTexture2D } from '../gl/texture/GLTexture';
-import {
-  createRegions,
-  newTexturedSprites,
-  TexturedSprite,
-  TexturedSprites,
-  TextureRegion
-} from '../gl/sprites/TexturedSprites';
-import { vec2 } from 'gl-matrix';
+import { splitRegions, TextureAtlas } from '../gl/sprites/TextureAtlas';
 
 interface BoidsParameters {
   count: number;
@@ -18,67 +12,34 @@ interface BoidsParameters {
   speed: number;
 }
 
-export type AntSprite = TexturedSprite & { textureIndex: number };
-
 async function loadResources(container: SandboxContainer): Promise<BoidsResources> {
-  const texture = await new GLTexture2D(container.gl).bind().load({ uri: 'images/ant-walk.png' });
-  const texturedSprites = await newTexturedSprites(container, texture);
+  // const texture = await new GLTexture2D(container.gl).bind().load({ uri: 'images/ant-walk.png' });
+  const texture1 = await new GLTexture2D(container.gl).bind().load({ uri: 'images/momotte.jpg' });
+  const texture2 = await new GLTexture2D(container.gl).bind().load({ uri: 'images/ant-walk.png' });
+  const antRegions = 8 * 8 - 2;
+  const sprites = new Sprites(container.gl, [
+    new TextureAtlas(texture1),
+    new TextureAtlas(texture2, splitRegions(8, 8, antRegions), [{ start: 0, duration: 0.8, frames: antRegions }])
+  ]).bind();
   const parameters = { count: 1, accel: 4, speed: 2 };
   window.hashlocation.parseParams(parameters);
-  return new BoidsResources(container, texturedSprites, parameters);
+  return new BoidsResources(container, sprites, parameters);
 }
 
 class BoidsResources implements Deletable {
-  readonly textureRegions: TextureRegion[];
-  readonly antSprite: AntSprite;
+  // readonly textureRegions: TextureRegion[];
+  readonly antSprite: Sprite;
 
-  constructor(
-    readonly container: SandboxContainer,
-    readonly texturedSprites: TexturedSprites,
-    readonly parameters: BoidsParameters
-  ) {
+  constructor(readonly container: SandboxContainer, readonly sprites: Sprites, readonly parameters: BoidsParameters) {
     container.gl.enable(WebGL2RenderingContext.DEPTH_TEST);
     container.gl.enable(WebGL2RenderingContext.BLEND);
     container.gl.blendFunc(WebGL2RenderingContext.SRC_ALPHA, WebGL2RenderingContext.ONE_MINUS_SRC_ALPHA);
-    this.textureRegions = createRegions(8, 8, 8 * 8 - 2);
-    const antWidht = texturedSprites.texture.width * this.textureRegions[0].textureSize[0];
-    const antHeight = texturedSprites.texture.height * this.textureRegions[0].textureSize[1];
-    this.antSprite = {
-      pos: [500, 250],
-      origin: [antWidht / 2, antHeight / 2],
-      size: [antWidht, antHeight],
-      angle: Math.PI / 2,
-      scale: [0.2, 0.2],
-      zindex: 0,
-      textureIndex: 0,
-      ...this.textureRegions[0]
-    };
-    texturedSprites.add(this.antSprite);
-  }
-
-  get sprites(): Sprites[] {
-    return [this.texturedSprites];
+    // this.sprites.addSprite({ pos: [150, 100], size: [64, 64] });
+    this.antSprite = this.sprites.addSprite({ pos: [120, 200], scale: [0.1, 0.1], texture: 1, region: 0 });
   }
 
   update(time = 0): void {
-    const textureRegions = this.textureRegions;
-    if (textureRegions.length === 0) return;
-    const mod = time % ANIMATION_TIME;
-    const newIndex = Math.floor((mod / ANIMATION_TIME) * textureRegions.length);
-    this.updateAntSprite(newIndex);
-  }
-
-  updateAntSprite(newIndex = this.antSprite.textureIndex + 1): void {
-    if (newIndex >= this.textureRegions.length) newIndex = 0;
-    //this.antSprite.angle -= Math.PI / 360;
-    vec2.add(this.antSprite.pos, this.antSprite.pos, [0.5, 0]);
-    if (newIndex !== this.antSprite.textureIndex) {
-      const region = this.textureRegions[newIndex];
-      vec2.copy(this.antSprite.textureOffset, region.textureOffset);
-      vec2.copy(this.antSprite.textureSize, region.textureSize);
-      this.antSprite.textureIndex = newIndex;
-    }
-    this.texturedSprites.updateSprite(0);
+    this.sprites.time = time / 1000;
   }
 
   updateParams(): void {
@@ -86,15 +47,12 @@ class BoidsResources implements Deletable {
   }
 
   delete(): void {
-    this.sprites.forEach(sprites => sprites.unbind().delete());
-    this.texturedSprites.texture.unbind().delete();
+    this.sprites.delete();
     this.container.gl.useProgram(null);
     this.container.gl.disable(WebGL2RenderingContext.DEPTH_TEST);
     this.container.gl.disable(WebGL2RenderingContext.BLEND);
   }
 }
-
-const ANIMATION_TIME = 800;
 
 class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
   constructor(container: SandboxContainer, name: string, resources: BoidsResources) {
@@ -105,12 +63,19 @@ class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
 
   render(): void {
     this.clear([0.9, 0.9, 0.9, 1], WebGL2RenderingContext.COLOR_BUFFER_BIT | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
-    this.resources.sprites.forEach(sprites => sprites.bind().draw());
+    this.resources.sprites.bind().draw();
+  }
+
+  protected start(): void {
+    super.start();
+    const sprite = this.resources.antSprite;
+    sprite.startAnimation(1, 0);
+    this.resources.sprites.updateSprite(sprite.index);
   }
 
   onkeydown(e: KeyboardEvent): void {
     if (e.key.toLowerCase() === 'n') {
-      this.resources.updateAntSprite();
+      // this.resources.updateAntSprite();
     }
   }
 
@@ -128,7 +93,7 @@ class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
   }
 
   onresize(dim: Dimension): void {
-    this.resources.sprites.forEach(sprites => sprites.updateViewMatrix(dim));
+    this.resources.sprites.updateViewMatrix(dim);
   }
 }
 
