@@ -12,6 +12,7 @@ export interface SandboxContainer {
   readonly clientArea: Dimension;
   dimension: Dimension;
   programLoader: ProgramLoader;
+  time: number;
 }
 
 export type SandboxFactory<P = any> = (container: SandboxContainer, name: string) => Promise<GLSandbox<P>>;

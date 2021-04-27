@@ -6,12 +6,6 @@ export interface TextureRegion {
   textureSize: vec2;
 }
 
-export interface Animation {
-  start: number;
-  frames: number;
-  duration: number;
-}
-
 function defaultRegion(): TextureRegion {
   return { textureSize: [1, 1], textureOffset: [0, 0] };
 }
@@ -20,7 +14,6 @@ export class TextureAtlas {
   constructor(
     readonly texture: GLTexture2D,
     readonly regions: TextureRegion[] = [defaultRegion()],
-    readonly animations: Animation[] = [],
     readonly textureIndex?: number
   ) {}
 }

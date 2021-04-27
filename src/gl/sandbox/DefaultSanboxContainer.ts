@@ -15,6 +15,7 @@ export class DefaultSandboxContainer implements SandboxContainer {
 
   private sandbox?: GLSandbox;
 
+  private _time = 0;
   private lastUpdate?: number;
 
   private lastFPSUpdate = performance.now();
@@ -65,6 +66,10 @@ export class DefaultSandboxContainer implements SandboxContainer {
     };
   }
 
+  get time(): number {
+    return this._time;
+  }
+
   get dimension(): Dimension {
     return { width: this.canvas.width, height: this.canvas.height };
   }
@@ -76,16 +81,17 @@ export class DefaultSandboxContainer implements SandboxContainer {
   }
 
   private render(time: number): void {
+    const dt = this.lastUpdate === undefined ? 0 : (time - this.lastUpdate) / 1000;
+    this.lastUpdate = time;
+
     if (this.sandbox) {
       this.sandbox.render();
       if (this.sandbox.running && this.sandbox.update) {
-        const dt = this.lastUpdate === undefined ? 0 : (time - this.lastUpdate) / 1000;
-        this.lastUpdate = time;
-        this.sandbox.update(time, dt);
+        this.sandbox.update(this._time, dt);
+        this._time += dt;
       }
     }
 
-    this.gl.flush();
     this.frames++;
 
     const fpsTime = (time - this.lastFPSUpdate) / 1000;
@@ -166,6 +172,7 @@ export class DefaultSandboxContainer implements SandboxContainer {
         this.sandbox = undefined;
       }
 
+      this._time = 0;
       this.lastUpdate = undefined;
       this.containerElement.classList.add(newName);
       this.sandbox = await this.sandboxes[newName](this, newName);

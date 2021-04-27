@@ -1,5 +1,11 @@
 import { mat4, vec2, vec3 } from 'gl-matrix';
 
+export interface Animation {
+  startRegion: number;
+  endRegion: number;
+  duration: number;
+}
+
 export class Sprite {
   private static readonly spriteVector = vec3.create();
 
@@ -13,24 +19,24 @@ export class Sprite {
 
   texture = 0;
   region = 0;
-  animation = 0;
-  animationStart = 0;
+
+  private _animation?: Animation;
+  animationStart = -1;
 
   constructor(readonly index: number) {}
+
+  get animation(): Animation | undefined {
+    return this._animation;
+  }
+
+  set animation(animation: Animation | undefined) {
+    this._animation = animation;
+    this.animationStart = 0;
+  }
 
   setRegion(texture: number, region: number): void {
     this.texture = texture;
     this.region = region;
-  }
-
-  startAnimation(texture: number, animation: number): void {
-    this.texture = texture;
-    this.animation = animation;
-    this.animationStart = performance.now() / 1000;
-  }
-
-  stopAnimation(): void {
-    this.animationStart = 0;
   }
 
   transformMatrix(trs: mat4): mat4 {

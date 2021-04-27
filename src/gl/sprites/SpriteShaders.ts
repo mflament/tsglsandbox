@@ -1,10 +1,9 @@
 import { ShaderType } from '../shader/Program';
 import { Shader } from '../shader/Shader';
 
-export function spriteVertexShader(gl: WebGL2RenderingContext, regions: number, animations: number): Shader {
+export function spriteVertexShader(gl: WebGL2RenderingContext, regions: number): Shader {
   return new Shader(gl, ShaderType.VERTEX_SHADER).compile(`#version 300 es
 #define REGIONS_COUNT ${regions}
-#define ANIMATIONS_COUNT ${Math.max(1, animations)}
 
 precision mediump float;
 
@@ -14,14 +13,14 @@ in vec2 a_vertexUV;
 
 // sprite attributes
 in mat4 a_spriteMatrix;
-in vec2 a_animation; // x: animationStartTime (0 if not running), y : animation index or regionIndex if not running
+// x: animationStartTime (0 if not running), y : startFrame:int(region index), z : endFrame:int(region index), w: duration in seconds 
+in vec4 a_texture; 
 
 uniform mat4 u_viewMatrix;
 uniform float u_time;
 layout(std140) uniform u_regions {
   ivec4 textures[REGIONS_COUNT];
   vec4 regions[REGIONS_COUNT];
-  vec4 animations[ANIMATIONS_COUNT]; // x: duration, y: start region, z : frames
 };
 
 out vec2 spriteUV;
@@ -32,14 +31,14 @@ out vec2 textureUV;
 void main() {
   gl_Position = u_viewMatrix * a_spriteMatrix * vec4(a_vertexPos, 0.0, 1.0);
   spriteUV = a_vertexUV;
-  float startTime = a_animation.x;
-  if (startTime > 0.0) {
-    float elapsed = u_time - startTime;
-    vec4 animation = animations[int(a_animation.y)];
-    int frame = int(mod(elapsed, animation.x) / animation.x * animation.z);
-    regionIndex = int(animation.y) + frame;
+  float startTime = a_texture.x;
+  if (startTime < 0.0) {
+    regionIndex = int(a_texture.y);
   } else {
-    regionIndex = int(a_animation.y);
+    float elapsed = u_time - startTime;
+    float a = mod(elapsed, a_texture.w) / a_texture.w;
+    regionIndex = int(mix(a_texture.y, a_texture.z, a));
+    //regionIndex = int(a_texture.y) + 10;
   }
   vec4 region = regions[regionIndex];
   textureUV = region.xy + spriteUV * region.zw;

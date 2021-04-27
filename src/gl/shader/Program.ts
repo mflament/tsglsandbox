@@ -2,7 +2,7 @@
 import { md5 } from '../../utils/MD5';
 import { checkNull, Deletable } from '../utils/GLUtils';
 import { Shader } from './Shader';
-import { TransformFeedbackVarying } from './TransformFeedback';
+import { VaryingBufferMode } from './TransformFeedback';
 
 export interface ProgramLocations<A = any, U = any, B = any> {
   attributeLocations?: A;
@@ -27,7 +27,7 @@ export class ProgramLoader implements Deletable {
       this.compileShader(ShaderType.VERTEX_SHADER, sources[0]),
       this.compileShader(ShaderType.FRAGMENT_SHADER, sources[1])
     ];
-    return new Program(this.gl, config).link(shaders);
+    return new Program(this.gl, config).link(shaders, config.varyings);
   }
 
   delete(): void {
@@ -58,12 +58,14 @@ export class Program<A = any, U = any, B = any> {
     this.uniformBlockLocations = locations?.uniformBlockLocations ? locations?.uniformBlockLocations : ({} as U);
   }
 
-  link(shaders: Shader[], varyings?: TransformFeedbackVarying[]): Program {
+  link(
+    shaders: Shader[],
+    varyings?: string[],
+    bufferMode: VaryingBufferMode = VaryingBufferMode.INTERLEAVED_ATTRIBS
+  ): Program {
     shaders.forEach(s => s.attach(this));
 
-    if (varyings) {
-      varyings.forEach(v => this.gl.transformFeedbackVaryings(this.glprogram, v.name, v.bufferMode));
-    }
+    if (varyings) this.gl.transformFeedbackVaryings(this.glprogram, varyings, bufferMode);
 
     this.gl.linkProgram(this.glprogram);
 

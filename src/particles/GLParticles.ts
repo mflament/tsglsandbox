@@ -71,33 +71,33 @@ class ParticlesResources implements Deletable {
   updateOverlay(): void {
     this.countSpan.textContent = `${this.particleBuffers.count.toLocaleString()} particles`;
   }
-}
 
-async function loadResources(container: SandboxContainer): Promise<ParticlesResources> {
-  const programs = await Promise.all([
-    container.programLoader.loadProgram({
-      vsSource: renderParticleVS,
-      fsSource: renderParticleFS,
-      attributeLocations: {},
-      uniformLocations: { maxSpeed: null }
-    }),
-    container.programLoader.loadProgram({
-      vsSource: updateParticleVS,
-      fsSource: updateParticleFS,
-      attributeLocations: {},
-      uniformLocations: {
-        acceleration: null,
-        maxSpeed: null,
-        mode: null,
-        elapsed: null,
-        target: null
-      },
-      varyings: ['outputPosition', 'outputSpeed']
-    })
-  ]);
-  const parameters = { count: 500_000, accel: 4, speed: 2 };
-  window.hashlocation.parseParams(parameters);
-  return new ParticlesResources(container, programs[0], programs[1], parameters);
+  static async create(container: SandboxContainer): Promise<ParticlesResources> {
+    const programs = await Promise.all([
+      container.programLoader.loadProgram({
+        vsSource: renderParticleVS,
+        fsSource: renderParticleFS,
+        attributeLocations: {},
+        uniformLocations: { maxSpeed: null }
+      }),
+      container.programLoader.loadProgram({
+        vsSource: updateParticleVS,
+        fsSource: updateParticleFS,
+        attributeLocations: {},
+        uniformLocations: {
+          acceleration: null,
+          maxSpeed: null,
+          mode: null,
+          elapsed: null,
+          target: null
+        },
+        varyings: ['outputPosition', 'outputSpeed']
+      })
+    ]);
+    const parameters = { count: 500_000, accel: 4, speed: 2 };
+    window.hashlocation.parseParams(parameters);
+    return new ParticlesResources(container, programs[0], programs[1], parameters);
+  }
 }
 
 class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParameters> {
@@ -381,5 +381,8 @@ class ParticleBuffers {
 }
 
 export function glparticles(): SandboxFactory<ParticlesParameters> {
-  return sandboxFactory(loadResources, (container, name, resources) => new GLParticles(container, name, resources));
+  return sandboxFactory(
+    ParticlesResources.create,
+    (container, name, resources) => new GLParticles(container, name, resources)
+  );
 }

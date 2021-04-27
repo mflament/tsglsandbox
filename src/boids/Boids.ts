@@ -12,14 +12,15 @@ interface BoidsParameters {
   speed: number;
 }
 
+const ANT_REGIONS = 8 * 8 - 2;
+
 async function loadResources(container: SandboxContainer): Promise<BoidsResources> {
   // const texture = await new GLTexture2D(container.gl).bind().load({ uri: 'images/ant-walk.png' });
   const texture1 = await new GLTexture2D(container.gl).bind().load({ uri: 'images/momotte.jpg' });
   const texture2 = await new GLTexture2D(container.gl).bind().load({ uri: 'images/ant-walk.png' });
-  const antRegions = 8 * 8 - 2;
-  const sprites = new Sprites(container.gl, [
+  const sprites = new Sprites(container, [
     new TextureAtlas(texture1),
-    new TextureAtlas(texture2, splitRegions(8, 8, antRegions), [{ start: 0, duration: 0.8, frames: antRegions }])
+    new TextureAtlas(texture2, splitRegions(8, 8, ANT_REGIONS))
   ]).bind();
   const parameters = { count: 1, accel: 4, speed: 2 };
   window.hashlocation.parseParams(parameters);
@@ -35,11 +36,14 @@ class BoidsResources implements Deletable {
     container.gl.enable(WebGL2RenderingContext.BLEND);
     container.gl.blendFunc(WebGL2RenderingContext.SRC_ALPHA, WebGL2RenderingContext.ONE_MINUS_SRC_ALPHA);
     // this.sprites.addSprite({ pos: [150, 100], size: [64, 64] });
-    this.antSprite = this.sprites.addSprite({ pos: [120, 200], scale: [0.1, 0.1], texture: 1, region: 0 });
+    const scale = 0.6;
+    this.antSprite = this.sprites.addSprite({ pos: [120, 200], scale: [scale, scale], texture: 1, region: 0 });
+    this.antSprite.animation = { startRegion: 0, endRegion: ANT_REGIONS, duration: 0.8 };
+    this.sprites.updateSprite(this.antSprite.index);
   }
 
   update(time = 0): void {
-    this.sprites.time = time / 1000;
+    this.sprites.time = time;
   }
 
   updateParams(): void {
@@ -48,7 +52,6 @@ class BoidsResources implements Deletable {
 
   delete(): void {
     this.sprites.delete();
-    this.container.gl.useProgram(null);
     this.container.gl.disable(WebGL2RenderingContext.DEPTH_TEST);
     this.container.gl.disable(WebGL2RenderingContext.BLEND);
   }
@@ -57,7 +60,6 @@ class BoidsResources implements Deletable {
 class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
   constructor(container: SandboxContainer, name: string, resources: BoidsResources) {
     super(container, name, resources, resources.parameters);
-
     // this.running = true;
   }
 
@@ -66,16 +68,21 @@ class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
     this.resources.sprites.bind().draw();
   }
 
-  protected start(): void {
-    super.start();
-    const sprite = this.resources.antSprite;
-    sprite.startAnimation(1, 0);
-    this.resources.sprites.updateSprite(sprite.index);
-  }
-
   onkeydown(e: KeyboardEvent): void {
-    if (e.key.toLowerCase() === 'n') {
-      // this.resources.updateAntSprite();
+    const sprite = this.resources.antSprite;
+    if (sprite.animation) {
+      let dirty = false;
+      switch (e.key.toLowerCase()) {
+        case '+':
+          sprite.animation.duration -= 0.1;
+          dirty = true;
+          break;
+        case '-':
+          sprite.animation.duration += 0.1;
+          dirty = true;
+          break;
+      }
+      if (dirty) this.resources.sprites.updateSprite(sprite.index);
     }
   }
 
