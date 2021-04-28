@@ -1,7 +1,7 @@
 import { VertextArray, PartialVertexAttribute, VertexAttribute } from './VertextArray';
 import { componentType, IndexBuffer, IndexBufferType, VertexBuffer } from './GLBuffers';
 import { Bindable, Deletable } from '../utils/GLUtils';
-import { BufferUsage, DrawMode, IndexComponentType } from './BufferEnums';
+import { BufferUsage, DrawMode, IndexComponentType, sizeOf } from './BufferEnums';
 
 export interface GLDrawable extends Bindable, Deletable {
   draw(count?: number, offset?: number, instances?: number): void;
@@ -9,14 +9,16 @@ export interface GLDrawable extends Bindable, Deletable {
 
 export class MappedBuffer extends VertexBuffer {
   readonly attributes: VertexAttribute[] = [];
-
   constructor(readonly gl: WebGL2RenderingContext) {
     super(gl);
     this.bind();
   }
 
   get stride(): number {
-    return this.attributes.length > 0 ? this.attributes[this.attributes.length - 1].stride : 0;
+    if (this.attributes.length === 1 && this.attributes[0].stride === 0) {
+      return sizeOf(this.attributes[0].type) * this.attributes[0].size;
+    }
+    return this.attributes.length > 0 ? this.attributes[0].stride : 0;
   }
 
   get count(): number {
@@ -80,7 +82,7 @@ abstract class AbstractBufferDrawable implements GLDrawable {
     return this._instancesBuffer;
   }
 
-  mapBuffer(pattributes: PartialVertexAttribute[]): MappedBuffer {
+  protected mapBuffer(pattributes: PartialVertexAttribute[]): MappedBuffer {
     const mbuffer = new MappedBuffer(this.gl);
     pattributes.map(a => this.mapAttribute(a)).forEach(a => mbuffer.withAttribute(a));
     this.mappedBuffers.push(mbuffer);

@@ -5,6 +5,7 @@ import { setupHashLocation } from './utils/HashUtils';
 import { glparticles } from './particles/GLParticles';
 import { tsp } from './tsp/TSP';
 import { boids } from './boids/Boids';
+import { quadTreeTest } from './test/QuadTreeTest';
 
 setupHashLocation();
 
@@ -13,5 +14,6 @@ new DefaultSandboxContainer({
   particles: glparticles(),
   tsp: tsp(),
   boids: boids(),
-  test: test()
+  test: test(),
+  qt: quadTreeTest()
 }).start();

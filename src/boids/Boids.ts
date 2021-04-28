@@ -71,18 +71,25 @@ class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
   onkeydown(e: KeyboardEvent): void {
     const sprite = this.resources.antSprite;
     if (sprite.animation) {
-      let dirty = false;
+      let newDuration = sprite.animation.duration;
       switch (e.key.toLowerCase()) {
         case '+':
-          sprite.animation.duration -= 0.1;
-          dirty = true;
+          newDuration -= 0.1;
           break;
         case '-':
-          sprite.animation.duration += 0.1;
-          dirty = true;
+          newDuration += 0.1;
           break;
       }
-      if (dirty) this.resources.sprites.updateSprite(sprite.index);
+
+      newDuration = Math.max(newDuration, 1 / 1000);
+      if (newDuration != sprite.animation.duration) {
+        const elapsed = this.container.time - sprite.animationStart;
+        const cpct = (elapsed % sprite.animation.duration) / sprite.animation.duration;
+        sprite.animation.duration = newDuration;
+        sprite.animationStart = this.container.time - newDuration * cpct;
+        console.log('new duration : ' + sprite.animation.duration);
+        this.resources.sprites.updateSprite(sprite.index);
+      }
     }
   }
 
