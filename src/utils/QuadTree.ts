@@ -3,22 +3,22 @@ import { vec2 } from 'gl-matrix';
 //https://en.wikipedia.org/wiki/Quadtree
 
 export class AABB {
-  constructor(readonly center: vec2, public halfDimension: number) {}
+  constructor(readonly center: vec2, public halfDimension: vec2) {}
 
   get xmin(): number {
-    return this.center[0] - this.halfDimension;
+    return this.center[0] - this.halfDimension[0];
   }
 
   get xmax(): number {
-    return this.center[0] + this.halfDimension;
+    return this.center[0] + this.halfDimension[0];
   }
 
   get ymin(): number {
-    return this.center[1] - this.halfDimension;
+    return this.center[1] - this.halfDimension[1];
   }
 
   get ymax(): number {
-    return this.center[1] + this.halfDimension;
+    return this.center[1] + this.halfDimension[1];
   }
 
   contains(p: vec2): boolean {
@@ -37,7 +37,7 @@ enum Quad {
   SE = 3
 }
 
-const DEFAULT_BOUNDARY = new AABB([0, 0], 1);
+const DEFAULT_BOUNDARY = new AABB([0, 0], [1, 1]);
 
 export class QuadTreeNode {
   private readonly points: vec2[] = [];
@@ -91,11 +91,11 @@ export class QuadTreeNode {
   }
 
   private split(): QuadTreeNode[] {
-    const hhd = this.boundary.halfDimension / 2;
-    const left = this.boundary.center[0] - hhd;
-    const top = this.boundary.center[1] - hhd;
-    const right = this.boundary.center[0] + hhd;
-    const bottom = this.boundary.center[1] + hhd;
+    const hhd: vec2 = [this.boundary.halfDimension[0] / 2, this.boundary.halfDimension[1] / 2];
+    const left = this.boundary.center[0] - hhd[0];
+    const right = this.boundary.center[0] + hhd[0];
+    const top = this.boundary.center[1] - hhd[1];
+    const bottom = this.boundary.center[1] + hhd[1];
     const children: QuadTreeNode[] = new Array(4);
     children[Quad.NW] = new QuadTreeNode(new AABB([left, top], hhd));
     children[Quad.NE] = new QuadTreeNode(new AABB([right, top], hhd));
