@@ -1,7 +1,7 @@
-import { vec4 } from 'gl-matrix';
-import { GLSandbox, Dimension, SandboxContainer, SandboxFactory } from './GLSandbox';
+import { vec2, vec4 } from 'gl-matrix';
+import { GLSandbox, SandboxContainer, SandboxFactory } from './GLSandbox';
 
-export function sandboxFactory<R, P>(
+export function newSandboxFactory<R, P>(
   loader: ResourceLoader<R>,
   factory: AbstractSandboxFactory<R, P>
 ): SandboxFactory<P> {
@@ -79,7 +79,7 @@ export abstract class AbstractGLSandbox<R, P> implements GLSandbox<P> {
     return this.container.gl;
   }
 
-  protected get dimension(): Dimension {
+  protected get dimension(): vec2 {
     return this.container.dimension;
   }
 }

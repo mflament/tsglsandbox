@@ -1,4 +1,4 @@
-import { IndexedBufferDrawable } from './GLDrawable';
+import { IndexedDrawable, newDrawable } from './GLDrawable';
 
 /**
  * VAO + VBO + IBO for a simple quad with vec2 position attributes:
@@ -13,9 +13,22 @@ import { IndexedBufferDrawable } from './GLDrawable';
 const VERTICES = [-1, 1, 1, 1, 1, -1, -1, -1];
 const INDICES = [3, 1, 0, 3, 2, 1];
 
-export function newQuadBuffer(gl: WebGL2RenderingContext): IndexedBufferDrawable {
-  const drawable = new IndexedBufferDrawable(gl);
-  drawable.mapPositions([{ location: 0, size: 2 }]).setdata(new Float32Array(VERTICES));
-  drawable.setIndices(new Uint8Array(INDICES));
-  return drawable;
+// @ts-ignore
+import QUAD_VS from 'assets/shaders/quad.vs.glsl';
+import { DrawMode } from './BufferEnums';
+import { BufferAttribute, VertexBuffer } from './VertexBuffer';
+import { ByteIndexBuffer } from './IndexBuffer';
+
+interface QuadAttributeLocations {
+  a_position: Readonly<BufferAttribute>;
 }
+
+export function newQuadDrawable(gl: WebGL2RenderingContext): IndexedDrawable<Uint8Array> {
+  const vertices = new VertexBuffer<QuadAttributeLocations>(gl, { a_position: { size: 2 } })
+    .bind()
+    .setdata(VERTICES);
+  const indices = new ByteIndexBuffer(gl).bind().setdata(new Uint8Array(INDICES));
+  return newDrawable(gl, vertices, { a_position: 0 }, indices, DrawMode.TRIANGLES);
+}
+
+export { QUAD_VS };

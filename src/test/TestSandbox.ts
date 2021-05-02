@@ -1,18 +1,18 @@
 import { Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
-import { Dimension, SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { newQuadBuffer } from '../gl/buffers/GLDrawables';
+import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
+import { newQuadDrawable, QUAD_VS } from '../gl/buffers/GLDrawables';
 import { Program } from '../gl/shader/Program';
 import { GLTexture2D } from '../gl/texture/GLTexture';
 
 // @ts-ignore
-import quadVertexShader from 'assets/shaders/quad.vs.glsl';
-// @ts-ignore
-import testFragmentShader from 'assets/shaders/test/test.fs.glsl';
-import { IndexedBufferDrawable } from '../gl/buffers/GLDrawable';
+import TEST_FS from 'assets/shaders/test/test.fs.glsl';
+
+import { vec2 } from 'gl-matrix';
+import { IndexedDrawable } from '../gl/buffers/GLDrawable';
 
 class TestResources implements Deletable {
-  readonly quadBuffers: IndexedBufferDrawable;
+  readonly quadBuffers: IndexedDrawable;
   readonly texture: GLTexture2D;
   constructor(
     readonly container: SandboxContainer,
@@ -32,7 +32,7 @@ class TestResources implements Deletable {
       .activate(0);
     renderProgram.use();
     container.gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
-    this.quadBuffers = newQuadBuffer(container.gl).bind();
+    this.quadBuffers = newQuadDrawable(container.gl).bind();
   }
   delete(): void {
     this.quadBuffers.unbind().delete();
@@ -44,8 +44,8 @@ class TestResources implements Deletable {
 
 async function loadResources(container: SandboxContainer): Promise<TestResources> {
   const program = await container.programLoader.loadProgram({
-    vsSource: quadVertexShader,
-    fsSource: testFragmentShader,
+    vsSource: QUAD_VS,
+    fsSource: TEST_FS,
     attributeLocations: {},
     uniformLocations: {
       viewportSize: null,
@@ -57,7 +57,7 @@ async function loadResources(container: SandboxContainer): Promise<TestResources
 }
 
 class TestSandbox extends AbstractGLSandbox<TestResources, never> {
-  private newDimension?: Dimension;
+  private newDimension?: vec2;
   constructor(container: SandboxContainer, name: string, resources: TestResources) {
     super(container, name, resources, {} as never);
     this.newDimension = container.dimension;
@@ -68,7 +68,7 @@ class TestSandbox extends AbstractGLSandbox<TestResources, never> {
     super.delete();
   }
 
-  onresize(dimension: Dimension): void {
+  onresize(dimension: vec2): void {
     this.newDimension = dimension;
   }
 
@@ -76,8 +76,8 @@ class TestSandbox extends AbstractGLSandbox<TestResources, never> {
     if (this.newDimension) {
       this.gl.uniform2f(
         this.resources.renderProgram.uniformLocations.viewportSize,
-        this.newDimension.width,
-        this.newDimension.height
+        this.newDimension[0],
+        this.newDimension[1]
       );
       this.newDimension = undefined;
     }
@@ -86,10 +86,10 @@ class TestSandbox extends AbstractGLSandbox<TestResources, never> {
   }
 
   update(time: number) {
-    this.gl.uniform1f(this.resources.renderProgram.uniformLocations.seconds, time / 1000);
+    this.gl.uniform1f(this.resources.renderProgram.uniformLocations.seconds, time);
   }
 }
 
 export function test(): SandboxFactory {
-  return sandboxFactory(loadResources, (container, name, resources) => new TestSandbox(container, name, resources));
+  return newSandboxFactory(loadResources, (container, name, resources) => new TestSandbox(container, name, resources));
 }

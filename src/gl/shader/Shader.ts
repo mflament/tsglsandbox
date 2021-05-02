@@ -1,5 +1,5 @@
 import { checkNull, Deletable } from '../utils/GLUtils';
-import { Program, ShaderType } from './Program';
+import { ShaderType } from './Program';
 
 function numberize(source: string): string {
   return source
@@ -33,16 +33,6 @@ export class Shader implements Deletable {
 
   get typeName(): string {
     return this.type === ShaderType.VERTEX_SHADER ? 'vertex' : 'fragment';
-  }
-
-  attach(program: Program): Shader {
-    this.gl.attachShader(program.glprogram, this.glshader);
-    return this;
-  }
-
-  detach(program: Program): Shader {
-    this.gl.detachShader(program.glprogram, this.glshader);
-    return this;
   }
 
   delete(): void {

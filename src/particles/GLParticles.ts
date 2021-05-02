@@ -1,7 +1,7 @@
 import { BufferUsage, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
-import { VertextArray } from '../gl/buffers/VertextArray';
+import { VertexArray } from '../gl/buffers/VertextArray';
 import { Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 import { TransformFeedback } from '../gl/shader/TransformFeedback';
@@ -14,7 +14,7 @@ import renderParticleFS from 'assets/shaders/particles/particles-render.fs.glsl'
 import updateParticleVS from 'assets/shaders/particles/particles-update.vs.glsl';
 // @ts-ignore
 import updateParticleFS from 'assets/shaders/particles/particles-update.fs.glsl';
-import { VertexBuffer } from '../gl/buffers/GLBuffers';
+import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 
 interface ParticlesParameters {
   count: number;
@@ -233,8 +233,8 @@ class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParamet
   }
 
   private setClientTarget(cx: number, cy: number) {
-    const x = (cx / this.dimension.width) * 2 - 1;
-    const y = (1 - cy / this.dimension.height) * 2 - 1;
+    const x = (cx / this.dimension[0]) * 2 - 1;
+    const y = (1 - cy / this.dimension[1]) * 2 - 1;
     this.setViewportTarget(x, y);
   }
 
@@ -254,19 +254,26 @@ class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParamet
   }
 }
 
+interface ParticleAttributes {
+  position: BufferAttribute;
+  speed: BufferAttribute;
+}
+
 class ParticleBuffer {
-  readonly vao: VertextArray;
-  readonly vbo: VertexBuffer;
+  readonly vao: VertexArray;
+  readonly vbo: VertexBuffer<ParticleAttributes>;
 
   constructor(readonly gl: WebGL2RenderingContext) {
-    this.vbo = new VertexBuffer(gl).bind();
-    this.vao = new VertextArray(gl).bind();
-    this.vao
-      .withAttribute({ location: 0, size: 2, stride: PARTICLES_BYTES })
-      .withAttribute({ location: 1, size: 2, stride: PARTICLES_BYTES, offset: 2 * FLOAT_BYTES })
-      .unbind();
-    this.vbo.unbind();
-    this.vao.unbind();
+    this.vbo = new VertexBuffer<ParticleAttributes>(gl, {
+      position: { size: 2 },
+      speed: { size: 2 }
+    }).bind();
+    this.vao = new VertexArray(gl).bind().mapAttributes(this.vbo, {
+      position: 0,
+      speed: 1
+    });
+    // this.vbo.unbind();
+    // this.vao.unbind();
   }
 
   bind(): ParticleBuffer {
@@ -294,7 +301,6 @@ class ParticleBuffers {
   private _capacity = 0;
   private _count = 0;
   private _dataIndex = 0;
-  private _newParticlesBuffer = new Float32Array(25000 * PARTICLES_FLOATS);
 
   constructor(readonly gl: WebGL2RenderingContext, readonly params: ParticlesParameters) {
     this.buffers = [new ParticleBuffer(gl), new ParticleBuffer(gl)];
@@ -319,8 +325,8 @@ class ParticleBuffers {
 
   addParticles(count: number): number {
     this.ensureCapacity(this.count + count);
-    const buffer = this._newParticlesBuffer;
-    count = Math.min(count, buffer.length / PARTICLES_FLOATS);
+    count = Math.min(count, 10_000);
+    const buffer = new Float32Array(count * PARTICLES_FLOATS);
     this.randomizeParticles(buffer, count);
     this.dataBuffer.vbo.setsubdata(buffer, this._count * PARTICLES_BYTES, 0, count * PARTICLES_FLOATS);
     this._count += count;
@@ -381,7 +387,7 @@ class ParticleBuffers {
 }
 
 export function glparticles(): SandboxFactory<ParticlesParameters> {
-  return sandboxFactory(
+  return newSandboxFactory(
     ParticlesResources.create,
     (container, name, resources) => new GLParticles(container, name, resources)
   );

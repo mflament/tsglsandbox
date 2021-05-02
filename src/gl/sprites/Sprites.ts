@@ -1,20 +1,33 @@
 import { Bindable, Deletable } from '../utils/GLUtils';
-import { Dimension, SandboxContainer } from '../sandbox/GLSandbox';
+import { SandboxContainer } from '../sandbox/GLSandbox';
 import { Program } from '../shader/Program';
 import { mat4, vec2 } from 'gl-matrix';
-import { ArrayBufferDrawable, GLDrawable, MappedBuffer } from '../buffers/GLDrawable';
-import { BufferUsage } from '../buffers/BufferEnums';
-import { PartialVertexAttribute } from '../buffers/VertextArray';
+import { InstancedDrawable, newDrawable } from '../buffers/GLDrawable';
+import { BufferUsage, DrawMode } from '../buffers/BufferEnums';
 import { Sprite } from './Sprite';
 import { spriteFragmentShader, spriteVertexShader } from './SpriteShaders';
 import { TextureAtlas } from './TextureAtlas';
-import { UniformBuffer } from '../buffers/GLBuffers';
+import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
+import { UniformBuffer } from '../buffers/UniformBuffer';
 
-class SpritesAttributes {
+class SpritesAttributeLocations {
   a_vertexPos = 0;
   a_vertexUV = 0;
   a_spriteMatrix = 0;
   a_texture = 0;
+}
+
+interface SpritesVertexAttributes {
+  a_vertexPos: BufferAttribute;
+  a_vertexUV: BufferAttribute;
+}
+
+interface SpritesInstancesAttributes {
+  a_spriteMatrix0: BufferAttribute;
+  a_spriteMatrix1: BufferAttribute;
+  a_spriteMatrix2: BufferAttribute;
+  a_spriteMatrix3: BufferAttribute;
+  a_texture: BufferAttribute;
 }
 
 class SpritesUniforms {
@@ -27,21 +40,21 @@ class SpritesUniformBlocks {
   u_regions = 0;
 }
 
-type SpritesProgram = Program<SpritesAttributes, SpritesUniforms, SpritesUniformBlocks>;
+type SpritesProgram = Program<SpritesAttributeLocations, SpritesUniforms, SpritesUniformBlocks>;
 
 const FLOAT_BYTES = 4;
 const MAT4_FLOATS = 4 * 4;
 const SPRITE_FLOATS = MAT4_FLOATS + 4;
 const SPRITE_BYTES = SPRITE_FLOATS * FLOAT_BYTES;
 
-export class Sprites implements Deletable, Bindable, GLDrawable {
+export class Sprites implements Deletable, Bindable {
   readonly program: SpritesProgram;
-  readonly drawable: ArrayBufferDrawable;
+  readonly drawable: InstancedDrawable;
 
   private readonly viewMatrix = mat4.create();
 
   // instances buffer
-  private readonly spritesBuffer: MappedBuffer;
+  private readonly spritesBuffer: VertexBuffer<SpritesInstancesAttributes>;
 
   private readonly textureIndices: number[] = [];
   private readonly regionIndices: number[] = [];
@@ -57,12 +70,40 @@ export class Sprites implements Deletable, Bindable, GLDrawable {
 
     this.uniformBuffer = this.createUniformBuffer(regionsCount);
 
-    this.drawable = new ArrayBufferDrawable(container.gl);
-    this.newVertexBuffer();
+    const vertices = new VertexBuffer<SpritesVertexAttributes>(container.gl, {
+      a_vertexPos: { size: 2 },
+      a_vertexUV: { size: 2 }
+    })
+      .bind()
+      .setdata(SPRITE_VERTICES);
 
-    this.spritesBuffer = this.newSpriteInstancesBufffer();
+    const instances = new VertexBuffer<SpritesInstancesAttributes>(container.gl, {
+      a_spriteMatrix0: { size: 4 },
+      a_spriteMatrix1: { size: 4 },
+      a_spriteMatrix2: { size: 4 },
+      a_spriteMatrix3: { size: 4 },
+      a_texture: { size: 4 }
+    });
+    const locations = this.program.attributeLocations;
+    this.drawable = newDrawable(
+      container.gl,
+      vertices,
+      instances,
+      {
+        a_vertexPos: locations.a_vertexPos,
+        a_vertexUV: locations.a_vertexUV,
+        a_spriteMatrix0: locations.a_spriteMatrix,
+        a_spriteMatrix1: locations.a_spriteMatrix + 1,
+        a_spriteMatrix2: locations.a_spriteMatrix + 2,
+        a_spriteMatrix3: locations.a_spriteMatrix + 3,
+        a_texture: locations.a_texture
+      },
+      DrawMode.TRIANGLES
+    );
+
+    this.spritesBuffer = instances;
     this.ensureCapacity(initialCapacity);
-    this.updateViewMatrix(container.canvas);
+    this.updateViewMatrix(container.dimension);
   }
 
   get gl(): WebGL2RenderingContext {
@@ -129,14 +170,14 @@ export class Sprites implements Deletable, Bindable, GLDrawable {
     return this.regionIndices[param] + (region === undefined ? 0 : region);
   }
 
-  updateViewMatrix(dim: Dimension): void {
+  updateViewMatrix(dim: vec2): void {
     this.program.use();
-    mat4.ortho(this.viewMatrix, 0, dim.width, dim.height, 0, 1, -1);
+    mat4.ortho(this.viewMatrix, 0, dim[0], dim[1], 0, 1, -1);
     this.gl.uniformMatrix4fv(this.program.uniformLocations.u_viewMatrix, false, this.viewMatrix);
   }
 
   draw(): void {
-    this.drawable.draw(6, 0, this.sprites.length);
+    this.drawable.draw();
   }
 
   bind(): Sprites {
@@ -199,43 +240,17 @@ export class Sprites implements Deletable, Bindable, GLDrawable {
     }
   }
 
-  private newSpritesProgram(textures: number, regions: number): Program {
+  private newSpritesProgram(
+    textures: number,
+    regions: number
+  ): Program<SpritesAttributeLocations, SpritesUniforms, SpritesUniformBlocks> {
     const vs = spriteVertexShader(this.gl, regions);
     const fs = spriteFragmentShader(this.gl, textures);
     return new Program(this.gl, {
-      attributeLocations: new SpritesAttributes(),
+      attributeLocations: new SpritesAttributeLocations(),
       uniformLocations: new SpritesUniforms(),
       uniformBlockLocations: new SpritesUniformBlocks()
     }).link([vs, fs]);
-  }
-
-  private newSpriteInstancesBufffer(): MappedBuffer {
-    const attribute = { stride: SPRITE_BYTES, size: 4, attribDivisor: 1 };
-    const attributes: PartialVertexAttribute[] = [];
-    let offset = 0;
-    const matrixLocation = this.program.attributeLocations.a_spriteMatrix;
-    for (let col = 0; col < 4; col++) {
-      attributes.push({ ...attribute, location: matrixLocation + col, offset: offset });
-      offset += 4 * FLOAT_BYTES;
-    }
-    const textureLocation = this.program.attributeLocations.a_texture;
-    attributes.push({
-      ...attribute,
-      location: textureLocation,
-      offset: offset
-    });
-    return this.drawable.mapInstances(attributes);
-  }
-
-  private newVertexBuffer(): MappedBuffer {
-    const stride = 2 * 2 * 4;
-    const attributes = [
-      { location: this.program.attributeLocations.a_vertexPos, size: 2, stride: stride },
-      { location: this.program.attributeLocations.a_vertexUV, size: 2, stride: stride, offset: 2 * 4 }
-    ];
-    const buffer = this.drawable.mapPositions(attributes);
-    buffer.setdata(SPRITE_VERTICES);
-    return buffer;
   }
 
   private createUniformBuffer(regionsCount: number): UniformBuffer {

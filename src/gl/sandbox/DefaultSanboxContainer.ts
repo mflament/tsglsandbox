@@ -1,6 +1,7 @@
 import { checkNull } from '../utils/GLUtils';
 import { ProgramLoader } from '../shader/Program';
-import { Dimension, GLSandbox, SandboxContainer, SandboxFactory } from './GLSandbox';
+import { GLSandbox, SandboxContainer, SandboxFactory } from './GLSandbox';
+import { vec2 } from 'gl-matrix';
 
 type SandboxFactories = { [name: string]: SandboxFactory };
 
@@ -57,27 +58,27 @@ export class DefaultSandboxContainer implements SandboxContainer {
     requestAnimationFrame(this.render);
   }
 
-  get clientArea(): Dimension {
+  get clientArea(): vec2 {
     const element = this.containerElement;
     const style = window.getComputedStyle(element);
-    return {
-      width: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
-      height: element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
-    };
+    return [
+      element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+      element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+    ];
   }
 
   get time(): number {
     return this._time;
   }
 
-  get dimension(): Dimension {
-    return { width: this.canvas.width, height: this.canvas.height };
+  get dimension(): vec2 {
+    return [this.canvas.width, this.canvas.height];
   }
 
-  set dimension(dimension: Dimension) {
-    this.canvas.width = dimension.width;
-    this.canvas.height = dimension.height;
-    this.gl.viewport(0, 0, dimension.width, dimension.height);
+  set dimension(dimension: vec2) {
+    this.canvas.width = dimension[0];
+    this.canvas.height = dimension[1];
+    this.gl.viewport(0, 0, dimension[0], dimension[1]);
   }
 
   private render(time: number): void {
@@ -153,11 +154,10 @@ export class DefaultSandboxContainer implements SandboxContainer {
   }
 
   private onresize(): void {
-    let dim = this.clientArea;
+    const dim = this.clientArea;
     if (this.sandbox?.onresize) {
       const sandboxDim = this.sandbox.onresize(dim);
-      if (sandboxDim)
-        dim = { width: Math.min(sandboxDim.width, dim.width), height: Math.min(sandboxDim.height, dim.height) };
+      if (sandboxDim) vec2.set(dim, Math.min(sandboxDim[0], dim[0]), Math.min(sandboxDim[1], dim[1]));
     }
     this.dimension = dim;
   }

@@ -4,13 +4,13 @@ import { checkNull, Deletable } from '../utils/GLUtils';
 import { Shader } from './Shader';
 import { VaryingBufferMode } from './TransformFeedback';
 
-export interface ProgramLocations<A = any, U = any, B = any> {
+export interface ProgramLocations<A = never, U = never, B = never> {
   attributeLocations?: A;
   uniformLocations?: U;
   uniformBlockLocations?: B;
 }
 
-export interface ProgramConfiguration<A = any, U = any, B = any> extends ProgramLocations<A, U, B> {
+export interface ProgramConfiguration<A = never, U = never, B = never> extends ProgramLocations<A, U, B> {
   vsSource: string | Promise<string>;
   fsSource: string | Promise<string>;
   varyings?: string[];
@@ -21,7 +21,7 @@ export class ProgramLoader implements Deletable {
 
   constructor(readonly gl: WebGL2RenderingContext) {}
 
-  async loadProgram<A = any, U = any, B = any>(config: ProgramConfiguration<A, U, B>): Promise<Program<A, U, B>> {
+  async loadProgram<A = never, U = never, B = never>(config: ProgramConfiguration<A, U, B>): Promise<Program<A, U, B>> {
     const sources = await Promise.all([config.vsSource, config.fsSource]);
     const shaders = [
       this.compileShader(ShaderType.VERTEX_SHADER, sources[0]),
@@ -45,31 +45,39 @@ export class ProgramLoader implements Deletable {
   }
 }
 
-export class Program<A = any, U = any, B = any> {
+export class Program<A = never, U = never, B = never> {
   readonly glprogram: WebGLProgram;
-  readonly attributeLocations: A;
-  readonly uniformLocations: U;
-  readonly uniformBlockLocations: B;
 
-  constructor(readonly gl: WebGL2RenderingContext, locations?: ProgramLocations) {
+  constructor(readonly gl: WebGL2RenderingContext, private readonly locations: ProgramLocations<A, U, B> = {}) {
     this.glprogram = checkNull(() => this.gl.createProgram());
-    this.attributeLocations = locations?.attributeLocations ? locations?.attributeLocations : ({} as A);
-    this.uniformLocations = locations?.uniformLocations ? locations?.uniformLocations : ({} as U);
-    this.uniformBlockLocations = locations?.uniformBlockLocations ? locations?.uniformBlockLocations : ({} as U);
+  }
+
+  get attributeLocations(): A {
+    if (!this.locations.attributeLocations) throw new Error('No attribute locations');
+    return this.locations.attributeLocations;
+  }
+  get uniformLocations(): U {
+    if (!this.locations.uniformLocations) throw new Error('No uniform locations');
+    return this.locations.uniformLocations;
+  }
+
+  get uniformBlockLocations(): B {
+    if (!this.locations.uniformBlockLocations) throw new Error('No uniform block locations');
+    return this.locations.uniformBlockLocations;
   }
 
   link(
     shaders: Shader[],
     varyings?: string[],
     bufferMode: VaryingBufferMode = VaryingBufferMode.INTERLEAVED_ATTRIBS
-  ): Program {
-    shaders.forEach(s => s.attach(this));
+  ): Program<A, U, B> {
+    shaders.forEach(shader => this.gl.attachShader(this.glprogram, shader.glshader));
 
     if (varyings) this.gl.transformFeedbackVaryings(this.glprogram, varyings, bufferMode);
 
     this.gl.linkProgram(this.glprogram);
 
-    shaders.forEach(shader => shader.detach(this));
+    shaders.forEach(shader => this.gl.detachShader(this.glprogram, shader.glshader));
 
     if (!this.gl.getProgramParameter(this.glprogram, WebGL2RenderingContext.LINK_STATUS)) {
       const log = this.gl.getProgramInfoLog(this.glprogram);
@@ -78,18 +86,34 @@ export class Program<A = any, U = any, B = any> {
     }
 
     this.use();
-    this.configureAttributeLocations();
-    this.configureUniformLocations();
-    this.configureUniformBlockLocations();
+
+    if (this.locations.attributeLocations) this.configureAttributeLocations(this.locations.attributeLocations);
+    if (this.locations.uniformLocations) this.configureUniformLocations(this.locations.uniformLocations);
+    if (this.locations.uniformBlockLocations) this.configureUniformBlockLocations(this.locations.uniformBlockLocations);
+
     return this;
   }
 
-  bindUniformBlock(blockIndex: number, blockBinding: number): Program {
+  attributeLocation(name: string): number {
+    return this.gl.getAttribLocation(this.glprogram, name);
+  }
+
+  uniformLocation(name: string): WebGLUniformLocation | null {
+    return this.gl.getUniformLocation(this.glprogram, name);
+  }
+
+  uniformBlockLocation(name: string): number {
+    let index = this.gl.getUniformBlockIndex(this.glprogram, name);
+    if (index === WebGL2RenderingContext.INVALID_INDEX) index = -1;
+    return index;
+  }
+
+  bindUniformBlock(blockIndex: number, blockBinding: number): Program<A, U, B> {
     this.gl.uniformBlockBinding(this.glprogram, blockIndex, blockBinding);
     return this;
   }
 
-  use(): Program {
+  use(): Program<A, U, B> {
     this.gl.useProgram(this.glprogram);
     return this;
   }
@@ -98,31 +122,33 @@ export class Program<A = any, U = any, B = any> {
     this.gl.deleteProgram(this.glprogram);
   }
 
-  private configureAttributeLocations(): void {
-    const names = Object.keys(this.attributeLocations);
-    const target = this.attributeLocations as any;
+  private configureAttributeLocations(locations: A): void {
+    const names = Object.keys(locations);
+    const target = locations as any;
     for (const name of names) {
-      const location = this.gl.getAttribLocation(this.glprogram, name);
+      const location = this.attributeLocation(name);
       target[name] = location;
-      if (location === WebGL2RenderingContext.INVALID_INDEX) console.error(`attribute '${name}' not found`);
+      if (location < 0 || location === WebGL2RenderingContext.INVALID_INDEX) {
+        console.error(`attribute '${name}' not found`);
+      }
     }
   }
 
-  private configureUniformLocations(): void {
-    const names = Object.keys(this.uniformLocations);
-    const target = this.uniformLocations as any;
+  private configureUniformLocations(locations: U): void {
+    const names = Object.keys(locations);
+    const target = locations as any;
     for (const name of names) {
-      const location = this.gl.getUniformLocation(this.glprogram, name);
+      const location = this.uniformLocation(name);
       if (location !== null) target[name] = location;
       else console.error(`uniform '${name}' not found`);
     }
   }
 
-  private configureUniformBlockLocations(): void {
-    const names = Object.keys(this.uniformBlockLocations);
-    const target = this.uniformBlockLocations as any;
+  private configureUniformBlockLocations(locations: B): void {
+    const names = Object.keys(locations);
+    const target = locations as any;
     for (const name of names) {
-      const location = this.gl.getUniformBlockIndex(this.glprogram, name);
+      const location = this.uniformBlockLocation(name);
       target[name] = location;
       if (location === WebGL2RenderingContext.INVALID_INDEX) console.error(`uniform block '${name}' not found`);
     }

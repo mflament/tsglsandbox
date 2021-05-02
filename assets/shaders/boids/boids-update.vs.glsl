@@ -1,42 +1,19 @@
 #version 300 es
 
+#define BOIDS 1
+
 precision mediump float;
-precision lowp int;
 
-layout(location = 0) in vec2 position;
-layout(location = 1) in vec2 speed;
+layout(location = 0) in vec2 a_position;
+layout(location = 1) in vec2 a_heading;
 
-out vec2 outputPosition;
-out vec2 outputSpeed;
+out vec2 newVelocity;
 
-uniform float maxSpeed;
-uniform float acceleration;
-uniform int mode;
-
-uniform float elapsed;
-
-uniform vec2 target;
-
-const int MODE_REPULSE = 1;
-const int MODE_RELAX = 2;
+uniform float viewDistance;
+uniform sampler2D u_world;
 
 void main() {
-  vec2 heading;
-  switch (mode) {
-    case MODE_REPULSE:
-      heading = -normalize(target - position);
-      break;
-    case MODE_RELAX:
-      heading = normalize(speed);
-      break;
-    default:
-      // attract
-      heading = normalize(target - position);
-      break;
+  vec2 pos = a_position;
+  for (int i = 0; i < viewDistance; i++) {
   }
-
-  outputSpeed = speed + heading * (acceleration * elapsed);
-  if (length(outputSpeed) > maxSpeed)
-    outputSpeed = normalize(outputSpeed) * maxSpeed;
-  outputPosition = position + outputSpeed * elapsed;
 }

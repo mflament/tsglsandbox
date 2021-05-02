@@ -1,5 +1,5 @@
 import { TransformFeedbackDrawMode } from '../buffers/BufferEnums';
-import { VertexBuffer } from '../buffers/GLBuffers';
+import { VertexBuffer } from '../buffers/VertexBuffer';
 import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
 
 export enum VaryingBufferMode {

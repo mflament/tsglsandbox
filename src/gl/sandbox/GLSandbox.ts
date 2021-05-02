@@ -1,16 +1,12 @@
+import { vec2 } from 'gl-matrix';
 import { ProgramLoader } from '../shader/Program';
-
-export interface Dimension {
-  width: number;
-  height: number;
-}
 
 export interface SandboxContainer {
   readonly gl: WebGL2RenderingContext;
   readonly containerElement: HTMLElement;
   readonly canvas: HTMLCanvasElement;
-  readonly clientArea: Dimension;
-  dimension: Dimension;
+  readonly clientArea: vec2;
+  dimension: vec2;
   programLoader: ProgramLoader;
   time: number;
 }
@@ -33,7 +29,7 @@ export interface GLSandbox<P = any> {
 
   delete?: () => void;
 
-  onresize?: (dimension: Dimension) => Dimension | void;
+  onresize?: (dimension: vec2) => vec2 | void;
 
   onmousedown?: (event: MouseEvent) => void;
   onmouseup?: (event: MouseEvent) => void;

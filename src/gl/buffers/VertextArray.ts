@@ -1,59 +1,63 @@
 import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
-import { VertexComponentType } from './BufferEnums';
+import { BufferAttribute, VertexBuffer } from './VertexBuffer';
 
-export interface VertexAttribute {
-  location: number;
-  size: number;
-  type: VertexComponentType;
-  normalized: boolean;
-  stride: number;
-  offset: number;
-  attribDivisor?: number;
-}
-
-export type PartialVertexAttribute = Partial<VertexAttribute> & {
-  location: number;
-  size: number;
+export type AttributeLocations<T = never> = {
+  [P in keyof T]: number;
 };
 
-export class VertextArray implements Bindable, Deletable {
+export class VertexArray implements Bindable, Deletable {
   readonly vao: WebGLVertexArrayObject;
-  private readonly attributes: VertexAttribute[] = [];
 
   constructor(readonly gl: WebGL2RenderingContext) {
     this.vao = checkNull(() => gl.createVertexArray());
   }
 
-  withAttribute(attribute: PartialVertexAttribute): VertextArray {
-    const a: VertexAttribute = {
-      type: WebGL2RenderingContext.FLOAT,
-      normalized: false,
-      offset: 0,
-      stride: 0,
-      ...attribute
-    };
-    this.gl.enableVertexAttribArray(a.location);
-    this.gl.vertexAttribPointer(a.location, a.size, a.type, a.normalized, a.stride, a.offset);
-    if (typeof a.attribDivisor === 'number') this.gl.vertexAttribDivisor(a.location, a.attribDivisor);
-    this.attributes.push(a);
+  mapAttributes<V>(
+    vbo: VertexBuffer<V>,
+    attributeLocations?: AttributeLocations<V>,
+    attribDivisor?: number
+  ): VertexArray {
+    if (attributeLocations) {
+      for (const name in attributeLocations) {
+        const location = attributeLocations[name];
+        if (location >= 0) {
+          const attr = vbo.attribute(name);
+          if (attr) this.mapAttribute(location, attr, attribDivisor);
+        }
+      }
+    } else {
+      for (let i = 0; i < vbo.attributesCount; i++) {
+        this.mapAttribute(i, vbo.attribute(i), attribDivisor);
+      }
+    }
     return this;
   }
 
-  get lastAttribute(): VertexAttribute {
-    return this.attributes[this.attributes.length - 1];
+  mapAttribute(location: number, attribute: BufferAttribute, attribDivisor?: number): VertexArray {
+    this.gl.enableVertexAttribArray(location);
+    this.gl.vertexAttribPointer(
+      location,
+      attribute.size,
+      attribute.type === undefined ? WebGL2RenderingContext.FLOAT : attribute.type,
+      attribute.normalized || false,
+      attribute.stride,
+      attribute.offset
+    );
+    if (typeof attribDivisor === 'number') this.gl.vertexAttribDivisor(location, attribDivisor);
+    return this;
   }
 
-  bind(): VertextArray {
+  bind(): VertexArray {
     this.gl.bindVertexArray(this.vao);
     return this;
   }
 
-  unbind(): VertextArray {
+  unbind(): VertexArray {
     this.gl.bindVertexArray(null);
     return this;
   }
 
-  delete(): VertextArray {
+  delete(): VertexArray {
     this.gl.deleteVertexArray(this.vao);
     return this;
   }

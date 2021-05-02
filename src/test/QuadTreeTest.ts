@@ -1,25 +1,30 @@
 import { Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 
 // @ts-ignore
-import quadVertexShader from 'assets/shaders/quad.vs.glsl';
+import QUADTREE_VS from 'assets/shaders/test/quadtree.vs.glsl';
 // @ts-ignore
-import quadTreeFragmentShader from 'assets/shaders/test/quadtree.fs.glsl';
-import { ArrayBufferDrawable, MappedBuffer } from '../gl/buffers/GLDrawable';
+import QUADTREE_FS from 'assets/shaders/test/quadtree.fs.glsl';
 import { BufferUsage, DrawMode } from '../gl/buffers/BufferEnums';
 import { vec2, vec4 } from 'gl-matrix';
-import { AABB, QuadTreeNode as QuadTree } from '../utils/QuadTree';
-import { VertexBuffer } from '../gl/buffers/GLBuffers';
-
-type MappedDrawable = { drawable: ArrayBufferDrawable; buffer: MappedBuffer; draw(): void };
+import { AABB, QuadTree as QuadTree } from '../utils/QuadTree';
+import { GLDrawable, newDrawable } from '../gl/buffers/GLDrawable';
+import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 
 const LINE_COLOR: vec4 = [0.7, 0.7, 0.7, 1];
 const POINT_COLOR: vec4 = [0.2, 0.2, 0.9, 1];
 const SELLINE_COLOR: vec4 = [0.3, 0.6, 0.3, 1];
 const SELPOINT_COLOR: vec4 = [0, 1, 0, 1];
 const POINT_FLOATS = 6;
+
+interface QuadTreeAttributes {
+  a_position: BufferAttribute;
+  a_color: BufferAttribute;
+}
+
+type MappedDrawable = { drawable: GLDrawable; buffer: VertexBuffer<QuadTreeAttributes>; draw(): void };
 
 class QuadTreeTestResources implements Deletable {
   readonly lines: MappedDrawable;
@@ -122,16 +127,27 @@ class QuadTreeTestResources implements Deletable {
     return 0;
   }
 
+  get gl(): WebGL2RenderingContext {
+    return this.container.gl;
+  }
+
   private newMappedDrawable(drawMode: DrawMode): MappedDrawable {
-    const drawable = new ArrayBufferDrawable(this.container.gl, drawMode);
-    const stride = 6 * 4; // vec2 pos + vec4 color
-    const buffer = drawable.mapPositions([
-      { location: 0, size: 2, stride: stride },
-      { location: 1, size: 4, stride: stride, offset: 2 * 4 }
-    ]);
+    const vertices = new VertexBuffer<QuadTreeAttributes>(this.gl, {
+      a_position: { size: 2 },
+      a_color: { size: 4 }
+    });
+    const drawable = newDrawable(
+      this.gl,
+      vertices,
+      {
+        a_position: 0,
+        a_color: 1
+      },
+      drawMode
+    );
     return {
       drawable: drawable,
-      buffer: buffer,
+      buffer: vertices,
       draw: () => drawable.bind().draw()
     };
   }
@@ -146,8 +162,8 @@ class QuadTreeTestResources implements Deletable {
 
 async function loadResources(container: SandboxContainer): Promise<QuadTreeTestResources> {
   const program = await container.programLoader.loadProgram({
-    vsSource: quadVertexShader,
-    fsSource: quadTreeFragmentShader
+    vsSource: QUADTREE_VS,
+    fsSource: QUADTREE_FS
   });
   return new QuadTreeTestResources(container, program);
 }
@@ -163,7 +179,7 @@ class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never
   onkeydown(e: KeyboardEvent): void {
     switch (e.key) {
       case 'r':
-        this.addRandomPoints(10);
+        this.addRandomPoints(50);
         break;
     }
   }
@@ -176,6 +192,7 @@ class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never
 
   onmousedown(e: MouseEvent): void {
     this._clickPos = this.toWorld(e);
+    vec2.copy(this._currentPos, this._clickPos);
   }
 
   onmouseup(): void {
@@ -189,8 +206,8 @@ class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never
   onmousemove(e: MouseEvent): void {
     if (this._clickPos) {
       this.toWorld(e, this._currentPos);
-      if (vec2.sqrDist(this._clickPos, this._currentPos) > 0) {
-        let bounds = this.resources.selbounds;
+      let bounds = this.resources.selbounds;
+      if (bounds || vec2.sqrDist(this._clickPos, this._currentPos) > 0.0001) {
         if (!bounds) bounds = new AABB([0, 0], [1, 1]);
         const xmin = Math.min(this._clickPos[0], this._currentPos[0]);
         const xmax = Math.max(this._clickPos[0], this._currentPos[0]);
@@ -207,7 +224,7 @@ class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never
 
   private toWorld(e: MouseEvent, out?: vec2): vec2 {
     out = out ? out : vec2.create();
-    vec2.set(out, (e.offsetX / this.dimension.width) * 2 - 1, (1 - e.offsetY / this.dimension.height) * 2 - 1);
+    vec2.set(out, (e.offsetX / this.dimension[0]) * 2 - 1, (1 - e.offsetY / this.dimension[1]) * 2 - 1);
     return out;
   }
 
@@ -221,14 +238,10 @@ class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never
     const resources = this.resources;
     resources.draw();
   }
-
-  update(time: number) {
-    this.gl.uniform1f(this.resources.renderProgram.uniformLocations.seconds, time / 1000);
-  }
 }
 
 export function quadTreeTest(): SandboxFactory {
-  return sandboxFactory(
+  return newSandboxFactory(
     loadResources,
     (container, name, resources) => new QuadTreeTestSandbox(container, name, resources)
   );

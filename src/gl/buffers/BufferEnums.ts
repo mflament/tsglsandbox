@@ -67,3 +67,26 @@ export function sizeOf(gltype: VertexComponentType | IndexComponentType): number
       throw new Error('Unhandled tpye ' + gltype);
   }
 }
+
+export type IndexBufferType = Uint8Array | Uint16Array | Uint32Array;
+export type VertexBufferType =
+  | Int8Array
+  | Int16Array
+  | Int32Array
+  | Float32Array
+  | Uint8Array
+  | Uint16Array
+  | Uint32Array;
+
+export type ArrayBufferType = VertexBufferType | IndexBufferType;
+
+export function componentType(buffer: VertexBufferType | IndexBufferType): number {
+  if (buffer instanceof Float32Array) return WebGL2RenderingContext.FLOAT;
+  if (buffer instanceof Uint8Array) return WebGL2RenderingContext.UNSIGNED_BYTE;
+  if (buffer instanceof Uint16Array) return WebGL2RenderingContext.UNSIGNED_SHORT;
+  if (buffer instanceof Uint32Array) return WebGL2RenderingContext.UNSIGNED_INT;
+  if (buffer instanceof Int8Array) return WebGL2RenderingContext.BYTE;
+  if (buffer instanceof Int16Array) return WebGL2RenderingContext.SHORT;
+  if (buffer instanceof Int32Array) return WebGL2RenderingContext.INT;
+  throw new Error('Unhandled buffer ' + buffer);
+}

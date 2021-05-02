@@ -39,9 +39,9 @@ enum Quad {
 
 const DEFAULT_BOUNDARY = new AABB([0, 0], [1, 1]);
 
-export class QuadTreeNode {
+export class QuadTree {
   private readonly points: vec2[] = [];
-  children?: QuadTreeNode[];
+  children?: QuadTree[];
 
   /**
    * @param boundary Axis-aligned bounding box stored as a center with half-dimensions to represent the boundaries of this quad tree
@@ -90,17 +90,17 @@ export class QuadTreeNode {
     return res;
   }
 
-  private split(): QuadTreeNode[] {
+  private split(): QuadTree[] {
     const hhd: vec2 = [this.boundary.halfDimension[0] / 2, this.boundary.halfDimension[1] / 2];
     const left = this.boundary.center[0] - hhd[0];
     const right = this.boundary.center[0] + hhd[0];
     const top = this.boundary.center[1] - hhd[1];
     const bottom = this.boundary.center[1] + hhd[1];
-    const children: QuadTreeNode[] = new Array(4);
-    children[Quad.NW] = new QuadTreeNode(new AABB([left, top], hhd));
-    children[Quad.NE] = new QuadTreeNode(new AABB([right, top], hhd));
-    children[Quad.SW] = new QuadTreeNode(new AABB([left, bottom], hhd));
-    children[Quad.SE] = new QuadTreeNode(new AABB([right, bottom], hhd));
+    const children: QuadTree[] = new Array(4);
+    children[Quad.NW] = new QuadTree(new AABB([left, top], hhd));
+    children[Quad.NE] = new QuadTree(new AABB([right, top], hhd));
+    children[Quad.SW] = new QuadTree(new AABB([left, bottom], hhd));
+    children[Quad.SE] = new QuadTree(new AABB([right, bottom], hhd));
     return children;
   }
 }

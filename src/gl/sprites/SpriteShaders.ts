@@ -38,7 +38,6 @@ void main() {
     float elapsed = u_time - startTime;
     float a = mod(elapsed, a_texture.w) / a_texture.w;
     regionIndex = int(mix(a_texture.y, a_texture.z, a));
-    //regionIndex = int(a_texture.y) + 10;
   }
   vec4 region = regions[regionIndex];
   textureUV = region.xy + spriteUV * region.zw;

@@ -1,6 +1,6 @@
-import { VertextArray } from '../gl/buffers/VertextArray';
+import { VertexArray } from '../gl/buffers/VertextArray';
 import { Bindable, Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox, sandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 
@@ -9,12 +9,10 @@ import renderVS from 'shaders/tsp/tsp-render.vs.glsl';
 // @ts-ignore
 import renderFS from 'shaders/tsp/tsp-render.fs.glsl';
 import { PoissonDiscSampler, randomRange } from '../utils/PoissonDiscSampler';
-import { VertexBuffer } from '../gl/buffers/GLBuffers';
+import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 
 // x,y / r,g,b
 const CITY_FLOATS = 5;
-const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
-const CITY_BYTES = CITY_FLOATS * FLOAT_BYTES;
 
 const CITY_RADIUS = 0.015;
 
@@ -43,7 +41,7 @@ class TSPResources implements Deletable {
 
   updateViewMatrix() {
     const dim = this.container.dimension;
-    const ar = dim.width / dim.height;
+    const ar = dim[0] / dim[1];
     const sx = Math.min(1, 1 / ar) * 2;
     const sy = Math.min(1, 1 * ar) * 2;
     /* prettier-ignore */
@@ -54,7 +52,7 @@ class TSPResources implements Deletable {
       0,  0, 0, 1,
     ]);
     this.container.gl.uniformMatrix4fv(this.renderProgram.uniformLocations.viewMatrix, false, viewMatrix);
-    this.container.gl.uniform1f(this.renderProgram.uniformLocations.cityRadius, (CITY_RADIUS * dim.width) / 2);
+    this.container.gl.uniform1f(this.renderProgram.uniformLocations.cityRadius, (CITY_RADIUS * dim[0]) / 2);
   }
 
   delete(): void {
@@ -104,7 +102,7 @@ class TSP extends AbstractGLSandbox<TSPResources, TSPParameters> {
 }
 
 export function tsp(): SandboxFactory<TSPParameters> {
-  return sandboxFactory(loadResources, (container, name, resources) => new TSP(container, name, resources));
+  return newSandboxFactory(loadResources, (container, name, resources) => new TSP(container, name, resources));
 }
 
 interface City {
@@ -130,20 +128,29 @@ function randomCity(pos: { x: number; y: number }): City {
   };
 }
 
+interface CitiesAttributes {
+  a_cityPosition: BufferAttribute;
+  a_cityColor: BufferAttribute;
+}
+
 /**
  * TODO : draw instances of quad buffer scaled, offseted, colored using an uniform buffer
  */
 class CitiesBuffer implements Bindable, Deletable {
-  readonly vao: VertextArray;
-  readonly citiesBuffer: VertexBuffer;
+  readonly vao: VertexArray;
+  readonly citiesBuffer: VertexBuffer<CitiesAttributes>;
   private _cities: City[] = [];
 
   constructor(readonly gl: WebGL2RenderingContext) {
-    this.vao = new VertextArray(gl).bind();
-    this.citiesBuffer = new VertexBuffer(gl).bind();
-    this.vao
-      .withAttribute({ location: 0, size: 2, stride: CITY_BYTES })
-      .withAttribute({ location: 1, size: 3, stride: CITY_BYTES, offset: 2 * FLOAT_BYTES });
+    this.citiesBuffer = new VertexBuffer<CitiesAttributes>(gl, {
+      a_cityPosition: { size: 2 },
+      a_cityColor: { size: 3 }
+    }).bind();
+
+    this.vao = new VertexArray(gl).bind().mapAttributes(this.citiesBuffer, {
+      a_cityPosition: 0,
+      a_cityColor: 1
+    });
   }
 
   get cities(): City[] {
