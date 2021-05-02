@@ -3,10 +3,10 @@ precision mediump float;
 
 #define PI 3.1415926538
 
-in vec2 a_position;
+layout(location = 0) in vec2 a_position;
 
-in vec4 a_boidData;  // xy: pos, z: angle, w: speed
-in vec4 a_boidColor;
+layout(location = 1) in vec4 a_boidData;  // xy: pos, z: angle, w: speed
+layout(location = 2) in vec4 a_boidColor;
 
 uniform vec2 u_boidScale;
 

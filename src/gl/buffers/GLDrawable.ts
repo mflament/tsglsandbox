@@ -6,18 +6,19 @@ import { IndexBuffer } from './IndexBuffer';
 
 export interface GLDrawable extends Bindable, Deletable {
   readonly vao: VertexArray;
-  readonly vertices: VertexBuffer;
+  vertices: VertexBuffer;
   readonly drawMode: DrawMode;
   draw(count?: number, offset?: number): void;
 }
 
 export interface InstancedDrawable extends GLDrawable {
-  readonly instances: VertexBuffer;
+  instances: VertexBuffer;
 }
 
 export interface IndexedDrawable<I extends IndexBufferType = never> extends GLDrawable {
-  readonly indices: IndexBuffer<I>;
+  indices: IndexBuffer<I>;
 }
+
 export function newDrawable<V>(
   gl: WebGL2RenderingContext,
   vertices: VertexBuffer<V>,
@@ -91,10 +92,10 @@ class BufferDrawable<I extends IndexBufferType = never> implements GLDrawable, I
   constructor(
     readonly gl: WebGL2RenderingContext,
     readonly vao: VertexArray,
-    readonly vertices: VertexBuffer,
+    private _vertices: VertexBuffer,
     readonly drawMode: DrawMode = DrawMode.TRIANGLES,
-    private readonly _instances?: VertexBuffer,
-    private readonly _indices?: IndexBuffer<I>
+    private _instances?: VertexBuffer,
+    private _indices?: IndexBuffer<I>
   ) {
     if (_instances && _indices) {
       this.draw = this.drawIndexedInstanced;
@@ -108,6 +109,14 @@ class BufferDrawable<I extends IndexBufferType = never> implements GLDrawable, I
     this.draw = this.draw.bind(this);
   }
 
+  get vertices(): VertexBuffer {
+    return this._vertices;
+  }
+
+  set vertices(vertices: VertexBuffer) {
+    this._vertices = vertices;
+  }
+
   get count(): number {
     if (this._instances) return this._instances.count;
     if (this._indices) return this._indices.count;
@@ -119,9 +128,17 @@ class BufferDrawable<I extends IndexBufferType = never> implements GLDrawable, I
     return this._instances;
   }
 
+  set instances(instances: VertexBuffer) {
+    this._instances = instances;
+  }
+
   get indices(): IndexBuffer<I> {
     if (!this._indices) throw new Error('No indices');
     return this._indices;
+  }
+
+  set indices(indices: IndexBuffer<I>) {
+    this._indices = indices;
   }
 
   bind(): BufferDrawable {

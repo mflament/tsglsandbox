@@ -2,7 +2,7 @@ import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
 import { BufferAttribute, VertexBuffer } from './VertexBuffer';
 
 export type AttributeLocations<T = never> = {
-  [P in keyof T]: number;
+  [P in keyof T]?: number;
 };
 
 export class VertexArray implements Bindable, Deletable {
@@ -20,7 +20,7 @@ export class VertexArray implements Bindable, Deletable {
     if (attributeLocations) {
       for (const name in attributeLocations) {
         const location = attributeLocations[name];
-        if (location >= 0) {
+        if (typeof location === 'number' && location >= 0) {
           const attr = vbo.attribute(name);
           if (attr) this.mapAttribute(location, attr, attribDivisor);
         }

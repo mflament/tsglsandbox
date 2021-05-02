@@ -1,7 +1,7 @@
 #version 300 es
 precision mediump float;
 
-in vec4 a_boidData;  // xy: pos, z: angle, w: speed
+layout(location = 1) in vec4 a_boidData;  // xy: pos, z: angle, w: speed
 
 out vec4 boidColor;
 

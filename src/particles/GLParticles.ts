@@ -272,8 +272,6 @@ class ParticleBuffer {
       position: 0,
       speed: 1
     });
-    // this.vbo.unbind();
-    // this.vao.unbind();
   }
 
   bind(): ParticleBuffer {
