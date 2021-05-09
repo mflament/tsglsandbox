@@ -3,38 +3,29 @@ import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { vec2, vec4 } from 'gl-matrix';
 import { BufferUsage, DrawMode, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
-import { AABB, QuadTree } from '../utils/QuadTree';
 import { Program } from '../gl/shader/Program';
+import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
+import { GLDrawable, InstancedDrawable, newDrawable } from '../gl/buffers/GLDrawable';
+import { TransformFeedback, VaryingBufferMode } from '../gl/shader/TransformFeedback';
+import { AABB, QuadTree } from '../utils/QuadTree';
 
 // @ts-ignore
 import RENDER_VS from 'assets/shaders/boids/boids-render.vs.glsl';
 // @ts-ignore
 import RENDER_FS from 'assets/shaders/boids/boids-render.fs.glsl';
-
-// @ts-ignore
-import MAP_VS from 'assets/shaders/boids/boids-map.vs.glsl';
-// @ts-ignore
-import MAP_DEBUG_FS from 'assets/shaders/boids/boids-debug.fs.glsl';
-
 // @ts-ignore
 import UPDATE_VS from 'assets/shaders/boids/boids-update.vs.glsl';
 // @ts-ignore
-import UPDATE_FS from 'assets/shaders/boids/boids-update.fs.glsl';
-
-import { GLTexture2D } from '../gl/texture/GLTexture';
-import { TextureMagFilter, TextureMinFilter } from '../gl/texture/TextureEnums';
-import { FrameBuffer } from '../gl/buffers/FrameBuffer';
-import { newQuadDrawable, QUAD_VS } from '../gl/buffers/GLDrawables';
-import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
-import { GLDrawable, InstancedDrawable, newDrawable } from '../gl/buffers/GLDrawable';
-import { TransformFeedback } from '../gl/shader/TransformFeedback';
+import MAP_VS from 'assets/shaders/boids/boids-map.vs.glsl';
+// @ts-ignore
+import PASSTHROUGH_FS from 'assets/shaders/boids/boids-passthrough.fs.glsl';
 
 interface BoidsParameters {
   count: number;
-  viewdistance: number;
-  accel: number;
-  maxspeed: number;
+  speed: number;
   turnspeed: number;
+  fov: number;
+  viewdist: number;
 }
 
 interface VertexAttributes {
@@ -43,32 +34,49 @@ interface VertexAttributes {
 
 interface BoidAttributes {
   a_boidData: BufferAttribute;
-  a_boidColor: BufferAttribute;
 }
 
 class RenderUniforms {
   u_boidScale: WebGLUniformLocation | null = null;
+  u_boidColor: WebGLUniformLocation | null = null;
 }
 
 class UpdateUniforms {
   u_boidConfig: WebGLUniformLocation | null = null;
-  u_boidsMap: WebGLUniformLocation | null = null;
   u_elapsedSeconds: WebGLUniformLocation | null = null;
 }
-
-class DebugUniforms {
-  u_boidsMap: WebGLUniformLocation | null = null;
+class MapUniforms {
+  u_boidConfig: WebGLUniformLocation | null = null;
 }
 
-const attributeLocations = {
-  a_position: 0,
-  a_boidData: 1,
-  a_boidColor: 2
-};
+interface Boid {
+  pos: vec2;
+  angle: number;
+}
+
+const MAX_BOIDS = 1000;
+const BOID_FLOATS = 3;
+const BOID_COLOR: vec4 = [0, 1, 0, 1];
+
+// prettier-ignore
+const BOIDS_VERTICES = [
+  -1, -1,
+  0, -0.5,
+  0, 1,
+  0, -0.5,
+  1, -1,
+  0, 1
+];
 
 class BoidsResources implements Deletable {
   static async create(container: SandboxContainer): Promise<BoidsResources> {
-    const parameters: BoidsParameters = { count: 1, accel: 0.5, maxspeed: 1, turnspeed: Math.PI, viewdistance: 0.1 };
+    const parameters: BoidsParameters = {
+      count: 1,
+      speed: 1,
+      turnspeed: Math.PI * 0.8,
+      fov: 180,
+      viewdist: 8
+    };
     window.hashlocation.parseParams(parameters);
     const renderProgram = await container.programLoader.loadProgram({
       vsSource: RENDER_VS,
@@ -77,208 +85,204 @@ class BoidsResources implements Deletable {
     });
     const updateProgram = await container.programLoader.loadProgram({
       vsSource: UPDATE_VS,
-      fsSource: UPDATE_FS,
+      fsSource: PASSTHROUGH_FS,
       uniformLocations: new UpdateUniforms(),
-      varyings: ['newData', 'newColor']
+      varyings: { names: ['newData'], mode: VaryingBufferMode.INTERLEAVED_ATTRIBS }
     });
     const mapProgram = await container.programLoader.loadProgram({
       vsSource: MAP_VS,
-      fsSource: RENDER_FS
+      fsSource: PASSTHROUGH_FS,
+      uniformLocations: new MapUniforms(),
+      varyings: { names: ['target_dist'], mode: VaryingBufferMode.INTERLEAVED_ATTRIBS }
     });
-    const debugProgram = await container.programLoader.loadProgram({
-      vsSource: QUAD_VS,
-      fsSource: MAP_DEBUG_FS,
-      uniformLocations: new DebugUniforms()
-    });
-    return new BoidsResources(container, parameters, renderProgram, updateProgram, mapProgram, debugProgram);
+    return new BoidsResources(container, parameters, renderProgram, updateProgram, mapProgram);
   }
 
   readonly boidSize: vec2 = [0, 0];
 
   readonly vertices: VertexBuffer<VertexAttributes>;
 
-  frontBuffer: BoidsBuffers;
-  backBuffer: BoidsBuffers;
+  frontDrawable: BoidsDrawable;
+  backDrawable: BoidsDrawable;
 
-  readonly mapTexture: GLTexture2D;
-  readonly frameBuffer: FrameBuffer;
   readonly transformFeedback: TransformFeedback;
 
-  readonly debugDrawable: GLDrawable;
+  private _boidsCount = 0;
 
   constructor(
     readonly container: SandboxContainer,
     readonly parameters: BoidsParameters,
     readonly renderProgram: Program<never, RenderUniforms>,
     readonly updateProgram: Program<never, UpdateUniforms>,
-    readonly mapProgram: Program,
-    readonly debugProgram: Program<never, DebugUniforms>
+    readonly mapProgram: Program<never, MapUniforms>
   ) {
-    this.vertices = new VertexBuffer<VertexAttributes>(this.gl, {
-      a_position: { size: 2 }
-    })
-      .bind()
-      .setdata(BOIDS_VERTICES);
+    this.vertices = new VertexBuffer<VertexAttributes>(this.gl, { a_position: { size: 2 } });
+    this.vertices.bind().setdata(BOIDS_VERTICES);
 
-    this.frontBuffer = new BoidsBuffers(this);
-    this.backBuffer = new BoidsBuffers(this);
-
-    this.mapTexture = new GLTexture2D(this.gl)
-      .bind()
-      .minFilter(TextureMinFilter.NEAREST)
-      .magFilter(TextureMagFilter.NEAREST);
-    this.frameBuffer = new FrameBuffer(this.gl);
+    this.backDrawable = new BoidsDrawable(this);
+    this.frontDrawable = new BoidsDrawable(this);
     this.transformFeedback = new TransformFeedback(this.gl);
 
-    this.updateBoidSize(container.dimension);
-
-    this.updateProgram.use();
-    this.updateParams();
-    this.gl.uniform1i(this.updateProgram.uniformLocations.u_boidsMap, 0);
-
-    this.setBoids([
-      { pos: [0.5, 0.25], angle: 2.5, speed: 0, color: BOID_COLOR },
-      { pos: [-0.5, -0.25], angle: 1, speed: 0, color: BOID_COLOR }
-    ]);
-
-    this.drawMap();
-
-    //BoidBuffer.randomizedBoids(container.dimension, 10).update();
-    this.debugDrawable = this.newDebugDrawable();
-  }
-
-  setBoidsConfig(config: BoidsParameters): void {
-    this.updateProgram.use();
-    // x: view distance, y: acceleration, z: max speed, w: rot speed
-    this.gl.uniform4f(
-      this.updateProgram.uniformLocations.u_boidConfig,
-      config.viewdistance,
-      config.accel,
-      config.maxspeed,
-      config.turnspeed
-    );
-  }
-
-  setBoids(boids: Boid[]) {
-    new BoidBuffer(boids.length).push(boids).update(this.frontBuffer.boidsBuffer);
-    this.backBuffer.boidsBuffer.bind().allocate(this.frontBuffer.boidsBuffer.size);
-  }
-
-  render(): void {
     this.renderProgram.use();
-    this.frontBuffer.renderDrawable.bind().draw();
-  }
-
-  update(dt: number): void {
-    this.drawMap();
-    this.updateProgram.use();
-    this.gl.uniform1f(this.updateProgram.uniformLocations.u_elapsedSeconds, dt);
-
-    this.transformFeedback.bind().bindBuffer(0, this.backBuffer.boidsBuffer);
-    this.gl.enable(WebGL2RenderingContext.RASTERIZER_DISCARD);
-
-    this.transformFeedback.begin(TransformFeedbackDrawMode.POINTS);
-    this.backBuffer.updateDrawable.draw();
-    this.transformFeedback.end();
-
-    this.gl.disable(WebGL2RenderingContext.RASTERIZER_DISCARD);
-    this.transformFeedback.unbindBuffer(0).unbind();
-
-    const swap = this.frontBuffer;
-    this.frontBuffer = this.backBuffer;
-    this.backBuffer = swap;
-  }
-
-  drawBoidsMap() {
-    this.debugProgram.use();
-    this.mapTexture.bind().activate(0);
-    this.debugDrawable.bind().draw();
-  }
-
-  private drawMap(): void {
-    this.mapTexture.bind();
-    this.frameBuffer.bind().attach(this.mapTexture);
-
-    this.gl.viewport(0, 0, this.mapTexture.width, this.mapTexture.height);
-    this.gl.clearColor(0, 0, 0, 1);
-    this.gl.clear(WebGL2RenderingContext.COLOR_BUFFER_BIT);
-
-    this.mapProgram.use();
-    this.frontBuffer.updateDrawable.bind().draw();
-
-    this.frameBuffer.detach().unbind();
-
-    const dim = this.container.dimension;
-    this.gl.viewport(0, 0, dim[0], dim[1]);
+    this.gl.uniform4f(
+      renderProgram.uniformLocations.u_boidColor,
+      BOID_COLOR[0],
+      BOID_COLOR[1],
+      BOID_COLOR[2],
+      BOID_COLOR[3]
+    );
+    this.updateBoidSize(container.dimension);
+    this.updateParams();
+    this.frontDrawable.renderDrawable.bind();
   }
 
   get gl(): WebGL2RenderingContext {
     return this.container.gl;
   }
 
-  private newDebugDrawable(): GLDrawable {
-    const drawable = newQuadDrawable(this.gl);
-    this.debugProgram.use();
-    this.gl.uniform1i(this.debugProgram.uniformLocations.u_boidsMap, 0);
-    return drawable;
+  render(): void {
+    this.frontDrawable.render(this._boidsCount);
   }
 
-  private updateBoidSize(dim: vec2): void {
-    const width = 0.025;
-    vec2.set(this.boidSize, width, width * (dim[0] / dim[1]));
+  update(dt: number): void {
+    this.updateProgram.use();
+    this.gl.uniform1f(this.updateProgram.uniformLocations.u_elapsedSeconds, dt);
+
+    this.transformFeedback.bind().bindBuffer(0, this.backDrawable.boidsBuffer);
+    this.gl.enable(WebGL2RenderingContext.RASTERIZER_DISCARD);
+
+    this.transformFeedback.begin(TransformFeedbackDrawMode.POINTS);
+    this.frontDrawable.update(this._boidsCount);
+    this.transformFeedback.end();
+
+    this.gl.disable(WebGL2RenderingContext.RASTERIZER_DISCARD);
+    this.transformFeedback.unbindBuffer(0).unbind();
+
+    const swap = this.frontDrawable;
+    this.frontDrawable = this.backDrawable;
+    this.backDrawable = swap;
+
+    this.frontDrawable.renderDrawable.bind();
     this.renderProgram.use();
-    this.gl.uniform2f(this.renderProgram.uniformLocations.u_boidScale, this.boidSize[0] / 2, this.boidSize[1] / 2);
-    this.mapTexture.bind().data({
-      width: 2 / this.boidSize[0],
-      height: 2 / this.boidSize[1]
-    });
   }
 
   updateParams(): void {
-    this.setBoidsConfig(this.parameters);
+    this.updateProgram.use();
+    // x: boid speed, y: turn speed
+    this.gl.uniform2f(
+      this.updateProgram.uniformLocations.u_boidConfig,
+      this.parameters.speed,
+      this.parameters.turnspeed
+    );
+
+    this.mapProgram.use();
+    this.gl.uniform2f(
+      this.mapProgram.uniformLocations.u_boidConfig,
+      Math.cos((this.parameters.fov / 2) * (Math.PI / 180)),
+      this.boidSize[1] * this.parameters.viewdist
+    );
+
+    this.renderProgram.use();
+    this.parameters.count = Math.min(MAX_BOIDS, this.parameters.count);
+    if (this.parameters.count < this._boidsCount) {
+      this._boidsCount = this.parameters.count;
+    } else if (this.parameters.count > this._boidsCount) {
+      const missing = this.parameters.count - this._boidsCount;
+      const newBoids = this.randomizedBoids(missing);
+      this.pushBoids(newBoids);
+    }
   }
 
   delete(): void {
-    this.frontBuffer.delete();
-    this.backBuffer.delete();
-    this.debugDrawable.delete();
-    this.frameBuffer.delete();
+    this.frontDrawable.delete();
+    this.backDrawable.delete();
     this.transformFeedback.delete();
-    this.mapTexture.delete();
     this.renderProgram.delete();
     this.updateProgram.delete();
-    this.mapProgram.delete();
-    this.debugProgram.delete();
+  }
+
+  private updateMap(): void {}
+
+  private pushBoids(boids: Boid[]) {
+    const dstOffset = this._boidsCount * BOID_FLOATS * 4;
+    const array = this.boidsData(boids);
+    this.frontDrawable.boidsBuffer.setsubdata(array, dstOffset);
+    this._boidsCount += boids.length;
+  }
+
+  private boidsData(boids: Boid | Boid[]): Float32Array {
+    if (!Array.isArray(boids)) boids = [boids];
+    const array = new Float32Array(boids.length * BOID_FLOATS);
+    boids.forEach((boid, index) => {
+      const offset = index * BOID_FLOATS;
+      array.set(boid.pos, offset); // xy
+      array[offset + 2] = boid.angle; //z
+    });
+    return array;
+  }
+
+  updateBoidSize(dim: vec2): void {
+    const width = 0.025;
+    vec2.set(this.boidSize, width, width * (dim[0] / dim[1]));
+    this.gl.uniform2f(this.renderProgram.uniformLocations.u_boidScale, this.boidSize[0] / 2, this.boidSize[1] / 2);
+  }
+
+  private randomizedBoids(count: number): Boid[] {
+    const quadTree = new QuadTree();
+    const bbox = new AABB([0, 0], [this.boidSize[0] / 2, this.boidSize[1] / 2]);
+    const boids: Boid[] = [];
+    for (let index = 0; index < count; index++) {
+      const pos: vec2 = [0, 0];
+      vec2.copy(bbox.center, this.randomPoint(pos));
+      while (quadTree.query(bbox).length > 0) {
+        vec2.copy(bbox.center, this.randomPoint(pos));
+      }
+      boids.push({ pos: pos, angle: Math.random() * 2 * Math.PI });
+    }
+    return boids;
+  }
+
+  private randomPoint(out: vec2): vec2 {
+    return vec2.set(out, Math.random() * 2 - 1, Math.random() * 2 - 1);
   }
 }
 
-class BoidsBuffers {
+class BoidsDrawable implements Deletable {
   readonly boidsBuffer: VertexBuffer<BoidAttributes>;
   readonly renderDrawable: InstancedDrawable;
   readonly updateDrawable: GLDrawable;
+
   constructor(readonly resources: BoidsResources) {
     this.boidsBuffer = new VertexBuffer<BoidAttributes>(resources.gl, {
-      a_boidData: { size: 4 },
-      a_boidColor: { size: 4 }
-    });
+      a_boidData: { size: 3 }
+    }).allocate(MAX_BOIDS * BOID_FLOATS * 4, BufferUsage.DYNAMIC_DRAW);
+
     this.renderDrawable = newDrawable(
       resources.gl,
       resources.vertices,
       this.boidsBuffer,
-      attributeLocations,
+      { a_position: 0, a_boidData: 1 },
       DrawMode.TRIANGLES
     );
-    this.updateDrawable = newDrawable(resources.gl, this.boidsBuffer, attributeLocations, DrawMode.POINTS);
+
+    this.updateDrawable = newDrawable(resources.gl, this.boidsBuffer, { a_boidData: 0 }, DrawMode.POINTS);
   }
+
+  render(count: number): void {
+    this.renderDrawable.draw(count);
+  }
+
+  update(count: number): void {
+    this.updateDrawable.bind().draw(count);
+  }
+
   delete() {
     this.boidsBuffer.delete();
     this.renderDrawable.delete();
-    this.updateDrawable.delete();
   }
 }
 
 class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
-  private drawMap = false;
   constructor(container: SandboxContainer, name: string, resources: BoidsResources) {
     super(container, name, resources, resources.parameters);
     // this.running = true;
@@ -286,8 +290,7 @@ class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
 
   render(): void {
     this.clear([0.1, 0.1, 0.1, 1], WebGL2RenderingContext.COLOR_BUFFER_BIT | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
-    if (this.drawMap) this.resources.drawBoidsMap();
-    else this.resources.render();
+    this.resources.render();
   }
 
   update(_time: number, dt: number): void {
@@ -296,9 +299,6 @@ class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
 
   onkeydown(e: KeyboardEvent): void {
     switch (e.key.toLowerCase()) {
-      case 'm':
-        this.drawMap = !this.drawMap;
-        break;
       case 'n':
         this.resources.update(0);
         break;
@@ -315,85 +315,9 @@ class GLBoids extends AbstractGLSandbox<BoidsResources, BoidsParameters> {
   }
 
   onresize(dim: vec2): void {
-    // TODO
+    this.resources.updateBoidSize(dim);
   }
 }
-
-/**
- * vec2 pos
- * vec2 heading
- * float speed
- * vec4 color
- */
-interface Boid {
-  pos: vec2;
-  angle: number;
-  speed: number;
-  color: vec4;
-}
-
-const BOID_FLOATS = 8;
-const BOID_COLOR: vec4 = [0, 1, 0, 1];
-
-class BoidBuffer {
-  readonly array: Float32Array;
-  private _count = 0;
-  constructor(capacity: number) {
-    this.array = new Float32Array(capacity * BOID_FLOATS);
-  }
-
-  get count(): number {
-    return this._count;
-  }
-
-  push(boids: Boid | Boid[]): BoidBuffer {
-    if (!Array.isArray(boids)) boids = [boids];
-    boids.forEach(boid => {
-      const offset = this._count * BOID_FLOATS;
-      this.array.set(boid.pos, offset);
-      this.array[offset + 2] = boid.angle;
-      this.array[offset + 3] = boid.speed;
-      this.array.set(boid.color, offset + 4);
-      this._count++;
-    });
-    return this;
-  }
-
-  update(buffer: VertexBuffer): void {
-    buffer.bind().setdata(this.array, BufferUsage.DYNAMIC_DRAW, 0, this._count * BOID_FLOATS);
-  }
-
-  static randomizedBoids(boidSize: vec2, count: number): BoidBuffer {
-    const quadTree = new QuadTree();
-    const bbox = new AABB([0, 0], [boidSize[0] / 2, boidSize[1] / 2]);
-    const buffer = new BoidBuffer(count);
-    for (let index = 0; index < count; index++) {
-      const pos: vec2 = [0, 0];
-      vec2.copy(bbox.center, this.randomPoint(pos));
-      while (quadTree.query(bbox).length > 0) {
-        vec2.copy(bbox.center, this.randomPoint(pos));
-      }
-      const angle = Math.random() * 2 * Math.PI;
-      const boid: Boid = { pos: pos, angle: angle, speed: Math.random(), color: BOID_COLOR };
-      buffer.push(boid);
-    }
-    return buffer;
-  }
-
-  static randomPoint(out: vec2): vec2 {
-    return vec2.set(out, Math.random() * 2 - 1, Math.random() * 2 - 1);
-  }
-}
-
-// prettier-ignore
-const BOIDS_VERTICES = [
-  -1, -1,
-  0, -0.5,
-  0, 1,
-  0, -0.5,
-  1, -1,
-  0, 1
-];
 
 export function boids(): SandboxFactory<BoidsParameters> {
   return newSandboxFactory(
