@@ -88,7 +88,7 @@ export function newDrawable<V, E>(
 }
 
 class BufferDrawable<I extends IndexBufferType = never> implements GLDrawable, InstancedDrawable, IndexedDrawable<I> {
-  draw: (count?: number, offset?: number, instances?: number) => void;
+  readonly draw: (count?: number, offset?: number, instances?: number) => void;
   constructor(
     readonly gl: WebGL2RenderingContext,
     readonly vao: VertexArray,
@@ -97,16 +97,17 @@ class BufferDrawable<I extends IndexBufferType = never> implements GLDrawable, I
     private _instances?: VertexBuffer,
     private _indices?: IndexBuffer<I>
   ) {
+    let draw;
     if (_instances && _indices) {
-      this.draw = this.drawIndexedInstanced;
+      draw = this.drawIndexedInstanced;
     } else if (_instances) {
-      this.draw = this.drawInstanced;
+      draw = this.drawInstanced;
     } else if (_indices) {
-      this.draw = this.drawIndexed;
+      draw = this.drawIndexed;
     } else {
-      this.draw = this.drawVertices;
+      draw = this.drawVertices;
     }
-    this.draw = this.draw.bind(this);
+    this.draw = draw.bind(this);
   }
 
   get vertices(): VertexBuffer {
@@ -142,10 +143,10 @@ class BufferDrawable<I extends IndexBufferType = never> implements GLDrawable, I
   }
 
   bind(): BufferDrawable {
-    this.vao.bind();
     this.vertices.bind();
     this._instances?.bind();
     this._indices?.bind();
+    this.vao.bind();
     return this;
   }
 

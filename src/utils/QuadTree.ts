@@ -83,6 +83,7 @@ export class QuadTree {
 
     // Terminate here, if there are no children
     if (this.children === undefined) return res;
+
     for (const child of this.children) {
       res.push(...child.query(range));
     }

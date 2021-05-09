@@ -1,12 +1,22 @@
 #version 300 es
+
 precision mediump float;
 
-layout(location = 1) in vec4 a_boidData;  // xy: pos, z: angle, w: speed
+layout(location = 0) in vec3 a_boidData;    // xy: pos, z: angle
+layout(location = 1) in vec3 a_targetData;  // xy: pos, z: angle
 
-out vec4 boidColor;
+out float target_dist;  // -1 if not in sight
+
+uniform vec2 u_boidConfig;  // x: fov, y: view distance
 
 void main() {
-  gl_PointSize = 1.0;
-  gl_Position = vec4(a_boidData.xy, 0.0, 1.0);
-  boidColor = vec4(1.0, 0.0, 0.0, 1.0);
+  vec2 td = a_targetData.xy - a_boidData.xy;
+  float dist = length(td);
+  if (dist > u_boidConfig.y) {
+    target_dist = -1.0;
+  } else {
+    float angle = a_boidData.z;
+    vec2 heading = vec2(sin(angle), cos(angle));
+    target_dist = dot(heading, normalize(td)) > u_boidConfig.y ? -1.0 : dist;
+  }
 }

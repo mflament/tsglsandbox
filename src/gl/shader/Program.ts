@@ -9,11 +9,15 @@ export interface ProgramLocations<A = never, U = never, B = never> {
   uniformLocations?: U;
   uniformBlockLocations?: B;
 }
+export interface Varyings {
+  names: string[];
+  mode: VaryingBufferMode;
+}
 
 export interface ProgramConfiguration<A = never, U = never, B = never> extends ProgramLocations<A, U, B> {
   vsSource: string | Promise<string>;
   fsSource: string | Promise<string>;
-  varyings?: string[];
+  varyings?: Varyings;
 }
 
 export class ProgramLoader implements Deletable {
@@ -66,14 +70,10 @@ export class Program<A = never, U = never, B = never> {
     return this.locations.uniformBlockLocations;
   }
 
-  link(
-    shaders: Shader[],
-    varyings?: string[],
-    bufferMode: VaryingBufferMode = VaryingBufferMode.INTERLEAVED_ATTRIBS
-  ): Program<A, U, B> {
+  link(shaders: Shader[], varyings?: Varyings): Program<A, U, B> {
     shaders.forEach(shader => this.gl.attachShader(this.glprogram, shader.glshader));
 
-    if (varyings) this.gl.transformFeedbackVaryings(this.glprogram, varyings, bufferMode);
+    if (varyings) this.gl.transformFeedbackVaryings(this.glprogram, varyings.names, varyings.mode);
 
     this.gl.linkProgram(this.glprogram);
 

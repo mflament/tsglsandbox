@@ -4,7 +4,7 @@ import { Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
-import { TransformFeedback } from '../gl/shader/TransformFeedback';
+import { TransformFeedback, VaryingBufferMode } from '../gl/shader/TransformFeedback';
 
 // @ts-ignore
 import renderParticleVS from 'assets/shaders/particles/particles-render.vs.glsl';
@@ -91,7 +91,7 @@ class ParticlesResources implements Deletable {
           elapsed: null,
           target: null
         },
-        varyings: ['outputPosition', 'outputSpeed']
+        varyings: { names: ['outputPosition', 'outputSpeed'], mode: VaryingBufferMode.INTERLEAVED_ATTRIBS }
       })
     ]);
     const parameters = { count: 500_000, accel: 4, speed: 2 };
