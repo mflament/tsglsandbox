@@ -1,6 +1,6 @@
 export interface Bindable {
-  bind(): any;
-  unbind(): any;
+  bind(): Bindable;
+  unbind(): Bindable;
 }
 
 export interface Deletable {

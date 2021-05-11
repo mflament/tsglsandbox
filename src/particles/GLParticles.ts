@@ -1,19 +1,10 @@
 import { BufferUsage, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
-import { VertexArray } from '../gl/buffers/VertextArray';
+import { VertexArray } from '../gl/drawable/VertextArray';
 import { Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { Program } from '../gl/shader/Program';
-import { TransformFeedback, VaryingBufferMode } from '../gl/shader/TransformFeedback';
-
-// @ts-ignore
-import renderParticleVS from 'assets/shaders/particles/particles-render.vs.glsl';
-// @ts-ignore
-import renderParticleFS from 'assets/shaders/particles/particles-render.fs.glsl';
-// @ts-ignore
-import updateParticleVS from 'assets/shaders/particles/particles-update.vs.glsl';
-// @ts-ignore
-import updateParticleFS from 'assets/shaders/particles/particles-update.fs.glsl';
+import { Program, VaryingBufferMode } from '../gl/shader/Program';
+import { TransformFeedback } from '../gl/shader/TransformFeedback';
 import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 
 interface ParticlesParameters {
@@ -32,23 +23,43 @@ enum TargetMode {
   RELAX = 2
 }
 
-interface UpdateUniforms {
-  acceleration: WebGLUniformLocation | null;
-  maxSpeed: WebGLUniformLocation | null;
-  mode: WebGLUniformLocation | null;
-  elapsed: WebGLUniformLocation | null;
-  target: WebGLUniformLocation | null;
+class RenderUniforms {
+  maxSpeed: WebGLUniformLocation | null = null;
+}
+
+class UpdateUniforms {
+  acceleration: WebGLUniformLocation | null = null;
+  maxSpeed: WebGLUniformLocation | null = null;
+  mode: WebGLUniformLocation | null = null;
+  elapsed: WebGLUniformLocation | null = null;
+  target: WebGLUniformLocation | null = null;
 }
 
 class ParticlesResources implements Deletable {
+  static async create(container: SandboxContainer): Promise<ParticlesResources> {
+    const programs = await Promise.all([
+      container.programLoader.load({
+        path: 'particles/particles-render.glsl',
+        uniformLocations: new RenderUniforms()
+      }),
+      container.programLoader.load({
+        path: 'particles/particles-update.glsl',
+        uniformLocations: new UpdateUniforms(),
+        varyingMode: VaryingBufferMode.INTERLEAVED
+      })
+    ]);
+    const parameters = { count: 500_000, accel: 4, speed: 2 };
+    window.hashlocation.parseParams(parameters);
+    return new ParticlesResources(container, programs[0], programs[1], parameters);
+  }
   readonly particleBuffers: ParticleBuffers;
   readonly transformFeedback: TransformFeedback;
   readonly overlayContent: HTMLElement;
   readonly countSpan: HTMLElement;
   constructor(
     readonly container: SandboxContainer,
-    readonly renderProgram: Program<any, { maxSpeed: WebGLUniformLocation | null }>,
-    readonly updateProgram: Program<any, UpdateUniforms>,
+    readonly renderProgram: Program<RenderUniforms>,
+    readonly updateProgram: Program<UpdateUniforms>,
     readonly parameters: ParticlesParameters
   ) {
     this.particleBuffers = new ParticleBuffers(container.gl, this.parameters);
@@ -70,33 +81,6 @@ class ParticlesResources implements Deletable {
 
   updateOverlay(): void {
     this.countSpan.textContent = `${this.particleBuffers.count.toLocaleString()} particles`;
-  }
-
-  static async create(container: SandboxContainer): Promise<ParticlesResources> {
-    const programs = await Promise.all([
-      container.programLoader.loadProgram({
-        vsSource: renderParticleVS,
-        fsSource: renderParticleFS,
-        attributeLocations: {},
-        uniformLocations: { maxSpeed: null }
-      }),
-      container.programLoader.loadProgram({
-        vsSource: updateParticleVS,
-        fsSource: updateParticleFS,
-        attributeLocations: {},
-        uniformLocations: {
-          acceleration: null,
-          maxSpeed: null,
-          mode: null,
-          elapsed: null,
-          target: null
-        },
-        varyings: { names: ['outputPosition', 'outputSpeed'], mode: VaryingBufferMode.INTERLEAVED_ATTRIBS }
-      })
-    ]);
-    const parameters = { count: 500_000, accel: 4, speed: 2 };
-    window.hashlocation.parseParams(parameters);
-    return new ParticlesResources(container, programs[0], programs[1], parameters);
   }
 }
 

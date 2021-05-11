@@ -3,14 +3,10 @@ import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSa
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 
-// @ts-ignore
-import QUADTREE_VS from 'assets/shaders/test/quadtree.vs.glsl';
-// @ts-ignore
-import QUADTREE_FS from 'assets/shaders/test/quadtree.fs.glsl';
 import { BufferUsage, DrawMode } from '../gl/buffers/BufferEnums';
 import { vec2, vec4 } from 'gl-matrix';
 import { AABB, QuadTree as QuadTree } from '../utils/QuadTree';
-import { GLDrawable, newDrawable } from '../gl/buffers/GLDrawable';
+import { GLDrawable, newDrawable } from '../gl/drawable/GLDrawable';
 import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 
 const LINE_COLOR: vec4 = [0.7, 0.7, 0.7, 1];
@@ -24,9 +20,18 @@ interface QuadTreeAttributes {
   a_color: BufferAttribute;
 }
 
-type MappedDrawable = { drawable: GLDrawable; buffer: VertexBuffer<QuadTreeAttributes>; draw(): void };
+type MappedDrawable = {
+  drawable: GLDrawable<QuadTreeAttributes>;
+  buffer: VertexBuffer<QuadTreeAttributes>;
+  draw(): void;
+};
 
 class QuadTreeTestResources implements Deletable {
+  static async create(container: SandboxContainer): Promise<QuadTreeTestResources> {
+    const program = await container.programLoader.load({ path: 'test/quadtree.glsl' });
+    return new QuadTreeTestResources(container, program);
+  }
+
   readonly lines: MappedDrawable;
   readonly points: MappedDrawable;
   readonly sellines: MappedDrawable;
@@ -160,14 +165,6 @@ class QuadTreeTestResources implements Deletable {
   }
 }
 
-async function loadResources(container: SandboxContainer): Promise<QuadTreeTestResources> {
-  const program = await container.programLoader.loadProgram({
-    vsSource: QUADTREE_VS,
-    fsSource: QUADTREE_FS
-  });
-  return new QuadTreeTestResources(container, program);
-}
-
 class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never> {
   private _clickPos?: vec2;
   private readonly _currentPos: vec2 = [0, 0];
@@ -242,7 +239,7 @@ class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never
 
 export function quadTreeTest(): SandboxFactory {
   return newSandboxFactory(
-    loadResources,
+    QuadTreeTestResources.create,
     (container, name, resources) => new QuadTreeTestSandbox(container, name, resources)
   );
 }

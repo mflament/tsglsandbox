@@ -3,6 +3,34 @@ import { GLTexture2D } from '../texture/GLTexture';
 
 const TARGET = WebGL2RenderingContext.FRAMEBUFFER;
 
+export enum FrameBufferStatus {
+  COMPLETE = WebGL2RenderingContext.FRAMEBUFFER_COMPLETE,
+  INCOMPLETE_ATTACHMENT = WebGL2RenderingContext.FRAMEBUFFER_INCOMPLETE_ATTACHMENT,
+  MISSING_ATTACHMENT = WebGL2RenderingContext.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT,
+  INCOMPLETE_DIMENSIONS = WebGL2RenderingContext.FRAMEBUFFER_INCOMPLETE_DIMENSIONS,
+  UNSUPPORTED = WebGL2RenderingContext.FRAMEBUFFER_UNSUPPORTED,
+  INCOMPLETE_MULTISAMPLE = WebGL2RenderingContext.FRAMEBUFFER_INCOMPLETE_MULTISAMPLE
+}
+
+export function frameBufferStatusName(status: FrameBufferStatus): string {
+  switch (status) {
+    case FrameBufferStatus.COMPLETE:
+      return 'COMPLETE';
+    case FrameBufferStatus.INCOMPLETE_ATTACHMENT:
+      return 'INCOMPLETE_ATTACHMENT';
+    case FrameBufferStatus.MISSING_ATTACHMENT:
+      return 'MISSING_ATTACHMENT';
+    case FrameBufferStatus.INCOMPLETE_DIMENSIONS:
+      return 'INCOMPLETE_DIMENSIONS';
+    case FrameBufferStatus.UNSUPPORTED:
+      return 'UNSUPPORTED';
+    case FrameBufferStatus.INCOMPLETE_MULTISAMPLE:
+      return 'INCOMPLETE_MULTISAMPLE';
+    default:
+      return 'Uknown status ' + status;
+  }
+}
+
 export class FrameBuffer implements Bindable, Deletable {
   private readonly fb: WebGLFramebuffer;
 
@@ -44,5 +72,9 @@ export class FrameBuffer implements Bindable, Deletable {
       level
     );
     return this;
+  }
+
+  get status(): FrameBufferStatus {
+    return this.gl.checkFramebufferStatus(WebGL2RenderingContext.FRAMEBUFFER);
   }
 }

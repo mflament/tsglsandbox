@@ -1,5 +1,5 @@
 import { checkNull } from '../utils/GLUtils';
-import { ProgramLoader } from '../shader/Program';
+import { ProgramLoader } from '../shader/ProgramLoader';
 import { GLSandbox, SandboxContainer, SandboxFactory } from './GLSandbox';
 import { vec2 } from 'gl-matrix';
 

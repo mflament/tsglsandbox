@@ -2,20 +2,12 @@ import { Bindable, Deletable } from '../utils/GLUtils';
 import { SandboxContainer } from '../sandbox/GLSandbox';
 import { Program } from '../shader/Program';
 import { mat4, vec2 } from 'gl-matrix';
-import { InstancedDrawable, newDrawable } from '../buffers/GLDrawable';
+import { InstancedDrawable, newInstancedDrawable } from '../drawable/GLDrawable';
 import { BufferUsage, DrawMode } from '../buffers/BufferEnums';
 import { Sprite } from './Sprite';
-import { spriteFragmentShader, spriteVertexShader } from './SpriteShaders';
 import { TextureAtlas } from './TextureAtlas';
 import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
 import { UniformBuffer } from '../buffers/UniformBuffer';
-
-class SpritesAttributeLocations {
-  a_vertexPos = 0;
-  a_vertexUV = 0;
-  a_spriteMatrix = 0;
-  a_texture = 0;
-}
 
 interface SpritesVertexAttributes {
   a_vertexPos: BufferAttribute;
@@ -40,7 +32,7 @@ class SpritesUniformBlocks {
   u_regions = 0;
 }
 
-type SpritesProgram = Program<SpritesAttributeLocations, SpritesUniforms, SpritesUniformBlocks>;
+type SpritesProgram = Program<SpritesUniforms, SpritesUniformBlocks>;
 
 const FLOAT_BYTES = 4;
 const MAT4_FLOATS = 4 * 4;
@@ -48,7 +40,21 @@ const SPRITE_FLOATS = MAT4_FLOATS + 4;
 const SPRITE_BYTES = SPRITE_FLOATS * FLOAT_BYTES;
 
 export class Sprites implements Deletable, Bindable {
-  readonly program: SpritesProgram;
+  static async create(
+    container: SandboxContainer,
+    atlases: TextureAtlas[],
+    initialCapacity?: number
+  ): Promise<Sprites> {
+    const regionsCount = atlases.map(a => a.regions.length).reduce((prev, current) => prev + current, 0);
+    const program = await container.programLoader.load({
+      path: 'sprites/sprites.glsl',
+      uniformLocations: new SpritesUniforms(),
+      uniformBlockLocations: new SpritesUniformBlocks(),
+      defines: { REGIONS_COUNT: regionsCount, TEXTURES_COUNT: atlases.length }
+    });
+    return new Sprites(container, atlases, program, regionsCount, initialCapacity);
+  }
+
   readonly drawable: InstancedDrawable;
 
   private readonly viewMatrix = mat4.create();
@@ -64,12 +70,14 @@ export class Sprites implements Deletable, Bindable {
 
   readonly sprites: Sprite[] = [];
 
-  constructor(readonly container: SandboxContainer, readonly atlases: TextureAtlas[], initialCapacity = 10) {
-    const regionsCount = atlases.map(a => a.regions.length).reduce((prev, current) => prev + current, 0);
-    this.program = this.newSpritesProgram(atlases.length, regionsCount);
-
-    this.uniformBuffer = this.createUniformBuffer(regionsCount);
-
+  private constructor(
+    readonly container: SandboxContainer,
+    readonly atlases: TextureAtlas[],
+    readonly program: SpritesProgram,
+    readonly regionsCount: number,
+    initialCapacity = 10
+  ) {
+    this.uniformBuffer = this.createUniformBuffer();
     const vertices = new VertexBuffer<SpritesVertexAttributes>(container.gl, {
       a_vertexPos: { size: 2 },
       a_vertexUV: { size: 2 }
@@ -84,19 +92,20 @@ export class Sprites implements Deletable, Bindable {
       a_spriteMatrix3: { size: 4 },
       a_texture: { size: 4 }
     });
-    const locations = this.program.attributeLocations;
-    this.drawable = newDrawable(
+    this.drawable = newInstancedDrawable(
       container.gl,
       vertices,
+      {
+        a_vertexPos: 0,
+        a_vertexUV: 1
+      },
       instances,
       {
-        a_vertexPos: locations.a_vertexPos,
-        a_vertexUV: locations.a_vertexUV,
-        a_spriteMatrix0: locations.a_spriteMatrix,
-        a_spriteMatrix1: locations.a_spriteMatrix + 1,
-        a_spriteMatrix2: locations.a_spriteMatrix + 2,
-        a_spriteMatrix3: locations.a_spriteMatrix + 3,
-        a_texture: locations.a_texture
+        a_spriteMatrix0: 2,
+        a_spriteMatrix1: 3,
+        a_spriteMatrix2: 4,
+        a_spriteMatrix3: 5,
+        a_texture: 6
       },
       DrawMode.TRIANGLES
     );
@@ -197,7 +206,6 @@ export class Sprites implements Deletable, Bindable {
 
   delete(): void {
     this.drawable.delete();
-    this.gl.useProgram(null);
     this.program.delete();
   }
 
@@ -240,22 +248,9 @@ export class Sprites implements Deletable, Bindable {
     }
   }
 
-  private newSpritesProgram(
-    textures: number,
-    regions: number
-  ): Program<SpritesAttributeLocations, SpritesUniforms, SpritesUniformBlocks> {
-    const vs = spriteVertexShader(this.gl, regions);
-    const fs = spriteFragmentShader(this.gl, textures);
-    return new Program(this.gl, {
-      attributeLocations: new SpritesAttributeLocations(),
-      uniformLocations: new SpritesUniforms(),
-      uniformBlockLocations: new SpritesUniformBlocks()
-    }).link([vs, fs]);
-  }
-
-  private createUniformBuffer(regionsCount: number): UniformBuffer {
-    const textures = new Int32Array(regionsCount * 4);
-    const regions = new Float32Array(regionsCount * 4);
+  private createUniformBuffer(): UniformBuffer {
+    const textures = new Int32Array(this.regionsCount * 4);
+    const regions = new Float32Array(this.regionsCount * 4);
     let regionIndex = 0;
     for (let atlasIndex = 0; atlasIndex < this.atlases.length; atlasIndex++) {
       const atlas = this.atlases[atlasIndex];
@@ -273,9 +268,9 @@ export class Sprites implements Deletable, Bindable {
     }
 
     const ubo = new UniformBuffer(this.gl);
-    ubo.allocate(regionsCount * 8 * 4); // foreach region : sizeof(ivec4 + vec4)
+    ubo.allocate(this.regionsCount * 8 * 4); // foreach region : sizeof(ivec4 + vec4)
     ubo.setsubdata(textures, 0);
-    ubo.setsubdata(regions, regionsCount * 4 * 4); // skip first floats
+    ubo.setsubdata(regions, this.regionsCount * 4 * 4); // skip first floats
     this.gl.uniform1iv(this.program.uniformLocations.u_textures, this.textureIndices);
     this.program.bindUniformBlock(this.program.uniformBlockLocations.u_regions, 0);
     return ubo;

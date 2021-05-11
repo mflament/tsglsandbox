@@ -27,14 +27,14 @@ function isPartialAttribute(o: any): o is PartialBufferAttribute {
 }
 
 export class VertexBuffer<A = any> extends AbstractBuffer<VertexBufferType, VertexBuffer<A>> {
-  private readonly _attributeNames: (keyof A)[];
+  private readonly _attributeNames: string[];
   private readonly _attributes: BufferAttributes<A>;
   readonly stride: number;
 
   constructor(gl: WebGL2RenderingContext, attributes: PartialBufferAttributes<A>) {
     super(gl, BufferTarget.ARRAY_BUFFER);
 
-    this._attributeNames = Object.keys(attributes) as (keyof A)[];
+    this._attributeNames = Object.keys(attributes);
     if (this._attributeNames.length === 0) throw Error('No attributes');
 
     const attrBytes = Object.values(attributes).filter(isPartialAttribute).map(attributeBytes);
@@ -69,7 +69,7 @@ export class VertexBuffer<A = any> extends AbstractBuffer<VertexBufferType, Vert
   }
 
   attribute(p: keyof A | number): BufferAttribute {
-    if (typeof p === 'number') return this._attributes[this._attributeNames[p]];
+    if (typeof p === 'number') return this._attributes[this._attributeNames[p] as keyof A];
     return this._attributes[p];
   }
 

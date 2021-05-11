@@ -17,7 +17,8 @@ const ANT_REGIONS = 8 * 8 - 2;
 
 async function loadResources(container: SandboxContainer): Promise<AntsResources> {
   const texture = await new GLTexture2D(container.gl).bind().load({ uri: 'images/ant-walk.png' });
-  const sprites = new Sprites(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]).bind();
+  const sprites = await Sprites.create(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]);
+  sprites.bind();
   const parameters = { count: 1, accel: 4, speed: 2 };
   window.hashlocation.parseParams(parameters);
   return new AntsResources(container, sprites, parameters);

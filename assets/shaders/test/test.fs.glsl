@@ -2,7 +2,6 @@
 precision mediump float;
 
 uniform float seconds;
-uniform vec2 viewportSize;
 uniform sampler2D u_sampler;
 
 in vec2 texcoord;

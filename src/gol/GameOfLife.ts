@@ -13,15 +13,9 @@ import {
   TextureWrappingMode
 } from '../gl/texture/TextureEnums';
 
-// @ts-ignore
-import quadVertexShader from 'assets/shaders/quad.vs.glsl';
-// @ts-ignore
-import golRenderShader from 'assets/shaders/gol/gol-render.fs.glsl';
-// @ts-ignore
-import golUpdateShader from 'assets/shaders/gol/gol-update.fs.glsl';
-import { newQuadDrawable } from '../gl/buffers/GLDrawables';
+import { newQuadDrawable, QUAD_VS } from '../gl/drawable/QuadDrawable';
 import { vec2 } from 'gl-matrix';
-import { IndexedDrawable } from '../gl/buffers/GLDrawable';
+import { IndexedDrawable } from '../gl/drawable/GLDrawable';
 
 const DATA_TEXTURE_FORMAT = {
   internalFormat: InternalFormat.R8,
@@ -35,35 +29,49 @@ interface GOLParameters {
   height: number;
 }
 
+class RenderUnforms {
+  data: WebGLUniformLocation | null = null;
+}
+class UpdateUnforms {
+  data: WebGLUniformLocation | null = null;
+  states_matrix: WebGLUniformLocation | null = null;
+}
+
 class GOLResources implements Deletable {
+  static async create(container: SandboxContainer): Promise<GOLResources> {
+    const renderProgram = await container.programLoader.load({
+      vspath: QUAD_VS,
+      fspath: 'gol/gol-render.fs.glsl',
+      uniformLocations: new RenderUnforms()
+    });
+    const updateProgram = await container.programLoader.load({
+      vspath: QUAD_VS,
+      fspath: 'gol/gol-update.fs.glsl',
+      uniformLocations: new UpdateUnforms()
+    });
+    const parameters = { rule: 'B3S23', width: 128, height: 0 };
+    window.hashlocation.parseParams(parameters);
+    return new GOLResources(container, renderProgram, updateProgram, parameters);
+  }
+
   readonly quadBuffers: IndexedDrawable;
-  readonly textures: GLTexture2D[];
   readonly frameBuffer: FrameBuffer;
-  data: Uint8Array;
-  dataDimension: vec2 = [0, 0];
-  dataIndex = 0;
+  readonly dataDimension: vec2 = [0, 0];
+  frontTexture: GLTexture2D;
+  backTexture: GLTexture2D;
+  data: Uint8Array = new Uint8Array();
 
   constructor(
     readonly container: SandboxContainer,
-    readonly renderProgram: Program<
-      any,
-      {
-        data: WebGLUniformLocation | null;
-      }
-    >,
-    readonly updateProgram: Program<
-      any,
-      {
-        data: WebGLUniformLocation | null;
-        states_matrix: WebGLUniformLocation | null;
-      }
-    >,
+    readonly renderProgram: Program<RenderUnforms>,
+    readonly updateProgram: Program<UpdateUnforms>,
     readonly parameters: GOLParameters
   ) {
     this.quadBuffers = newQuadDrawable(container.gl);
-    this.textures = [this.createTexture(), this.createTexture()];
+    this.frontTexture = this.createTexture();
+    this.backTexture = this.createTexture();
+    this.frontTexture.bind().activate(0);
     this.frameBuffer = new FrameBuffer(container.gl);
-    this.data = new Uint8Array();
     this.renderProgram.use();
     container.gl.uniform1i(renderProgram.uniformLocations.data, 0);
 
@@ -78,14 +86,19 @@ class GOLResources implements Deletable {
     this.updateProgram.use();
     const stateMatrix = parseRule(this.parameters.rule);
     this.container.gl.uniform1uiv(this.updateProgram.uniformLocations.states_matrix, stateMatrix);
+    this.renderProgram.use();
   }
 
   updateTexturesSize(): boolean {
     const newDimension = this.parseDimmension();
-    if (newDimension[0] !== this.dataDimension[0] || newDimension[1] != this.dataDimension[1]) {
-      this.dataDimension = newDimension;
-      this.updateTexture.bind().data({ ...DATA_TEXTURE_FORMAT, width: newDimension[0], height: newDimension[1] });
-      this.data = new Uint8Array(newDimension[0] * newDimension[1]);
+    if (!vec2.equals(newDimension, this.dataDimension)) {
+      vec2.copy(this.dataDimension, newDimension);
+      this.data = new Uint8Array(this.dataDimension[0] * this.dataDimension[1]);
+      this.backTexture.bind().data({
+        ...DATA_TEXTURE_FORMAT,
+        width: this.dataDimension[0],
+        height: this.dataDimension[1]
+      });
       this.randomizeData();
       return true;
     }
@@ -93,32 +106,38 @@ class GOLResources implements Deletable {
   }
 
   randomizeData(odds = 0.8): void {
-    this.data.fill(0);
     for (let index = 0; index < this.data.length; index++) {
       this.data[index] = Math.random() >= odds ? 0xff : 0x0;
     }
-    this.dataTexture
-      .bind()
-      .data({ ...DATA_TEXTURE_FORMAT, width: this.dataDimension[0], height: this.dataDimension[1], buffer: this.data });
+    this.frontTexture.bind().data({
+      ...DATA_TEXTURE_FORMAT,
+      width: this.dataDimension[0],
+      height: this.dataDimension[1],
+      buffer: this.data
+    });
   }
 
   swapTexture() {
-    this.dataIndex = 1 - this.dataIndex;
-    this.dataTexture.bind();
+    const buf = this.frontTexture;
+    this.frontTexture = this.backTexture;
+    this.backTexture = buf;
+    this.frontTexture.bind().activate(0);
   }
 
   delete(): void {
-    this.quadBuffers.unbind().delete();
-    this.textures.forEach(t => t.unbind().delete());
-    this.frameBuffer.delete();
-    this.container.gl.useProgram(null);
-    this.renderProgram.delete();
-    this.updateProgram.delete();
+    [
+      this.quadBuffers,
+      this.frontTexture,
+      this.backTexture,
+      this.frameBuffer,
+      this.renderProgram,
+      this.updateProgram
+    ].forEach(d => d.delete());
   }
 
   toggle(index: number, pos: { x: number; y: number }) {
     this.data[index] = this.data[index] ? 0 : 0xff;
-    this.dataTexture.subdata({
+    this.frontTexture.subdata({
       ...DATA_TEXTURE_FORMAT,
       ...pos,
       width: 1,
@@ -130,20 +149,12 @@ class GOLResources implements Deletable {
 
   clearData() {
     this.data.fill(0);
-    this.dataTexture.bind().data({
+    this.frontTexture.bind().data({
       ...DATA_TEXTURE_FORMAT,
       width: this.dataDimension[0],
       height: this.dataDimension[1],
       buffer: this.data
     });
-  }
-
-  get dataTexture(): GLTexture2D {
-    return this.textures[this.dataIndex];
-  }
-
-  get updateTexture(): GLTexture2D {
-    return this.textures[1 - this.dataIndex];
   }
 
   private parseDimmension(): vec2 {
@@ -163,42 +174,21 @@ class GOLResources implements Deletable {
   }
 }
 
-async function loadResources(container: SandboxContainer): Promise<GOLResources> {
-  const programs = await Promise.all([
-    container.programLoader.loadProgram({
-      vsSource: quadVertexShader,
-      fsSource: golRenderShader,
-      attributeLocations: {},
-      uniformLocations: { data: null }
-    }),
-    container.programLoader.loadProgram({
-      vsSource: quadVertexShader,
-      fsSource: golUpdateShader,
-      attributeLocations: {},
-      uniformLocations: { data: null, states_matrix: null }
-    })
-  ]);
-  const parameters = { rule: 'B3S23', width: 128, height: 0 };
-  window.hashlocation.parseParams(parameters);
-  return new GOLResources(container, programs[0], programs[1], parameters);
-}
-
 export class GameOfLife extends AbstractGLSandbox<GOLResources, GOLParameters> {
   private lastCellIndex = -1;
 
   constructor(container: SandboxContainer, name: string, resources: GOLResources) {
     super(container, name, resources, resources.parameters);
     resources.quadBuffers.bind();
-    resources.dataTexture.bind().activate(0);
+    this.resources.renderProgram.use();
   }
 
   render(): void {
-    this.resources.renderProgram.use();
     this.resources.quadBuffers.draw();
   }
 
   update(): void {
-    this.resources.frameBuffer.bind().attach(this.resources.updateTexture);
+    this.resources.frameBuffer.bind().attach(this.resources.backTexture);
 
     this.gl.viewport(0, 0, this.dataWidth, this.dataHeight);
     this.gl.clearColor(0, 0, 0, 1);
@@ -211,13 +201,13 @@ export class GameOfLife extends AbstractGLSandbox<GOLResources, GOLParameters> {
 
     this.gl.viewport(0, 0, this.dimension[0], this.dimension[1]);
     this.resources.swapTexture();
+
+    this.resources.renderProgram.use();
   }
 
   delete(): void {
-    super.delete();
-    this.resources.dataTexture.unbind();
-    this.gl.useProgram(null);
     this.resources.delete();
+    super.delete();
   }
 
   onkeydown(e: KeyboardEvent): void {
@@ -305,5 +295,8 @@ function parseRule(rule: string): Uint32Array {
 }
 
 export function gameofLife(): SandboxFactory<GOLParameters> {
-  return newSandboxFactory(loadResources, (container, name, resources) => new GameOfLife(container, name, resources));
+  return newSandboxFactory(
+    GOLResources.create,
+    (container, name, resources) => new GameOfLife(container, name, resources)
+  );
 }

@@ -3,6 +3,7 @@
 precision mediump float;
 precision lowp int;
 
+// in vs
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 speed;
 
@@ -40,3 +41,8 @@ void main() {
     outputSpeed = normalize(outputSpeed) * maxSpeed;
   outputPosition = position + outputSpeed * elapsed;
 }
+
+// in fs
+out vec4 color;
+
+void main() { color = vec4(1.0); }

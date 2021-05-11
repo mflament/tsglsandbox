@@ -2,6 +2,7 @@
 
 precision mediump float;
 
+// in vs
 layout(location = 0) in vec3 a_boidData;  // xy: pos, z angle
 
 out vec3 newData;
@@ -24,3 +25,8 @@ void main() {
   if (o.x >= 0.0) newData.x = -1.0 + o.x;
   if (o.y >= 0.0) newData.y = -1.0 + o.y;
 }
+
+// in fs
+out vec4 color;
+
+void main() { color = vec4(1.0); }

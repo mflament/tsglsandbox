@@ -1,16 +1,8 @@
 import { checkNull, Deletable } from '../utils/GLUtils';
-import { ShaderType } from './Program';
 
-function numberize(source: string): string {
-  return source
-    .split(/\r?\n/)
-    .map((line, index) => pad(index + 1, 2) + ': ' + line)
-    .join('\n');
-}
-
-function pad(n: number, width: number, z = ' '): string {
-  const s = n + '';
-  return s.length >= width ? n.toString() : new Array(width - s.length + 1).join(z) + n;
+export enum ShaderType {
+  VERTEX_SHADER = WebGL2RenderingContext.VERTEX_SHADER,
+  FRAGMENT_SHADER = WebGL2RenderingContext.FRAGMENT_SHADER
 }
 
 export class Shader implements Deletable {
@@ -26,7 +18,7 @@ export class Shader implements Deletable {
     if (!this.gl.getShaderParameter(this.glshader, WebGL2RenderingContext.COMPILE_STATUS)) {
       const log = this.gl.getShaderInfoLog(this.glshader);
       this.delete();
-      throw `Error compiling ${this.typeName} shader:\n${numberize(source)}\n${log}`;
+      throw `Error compiling ${this.typeName} shader:\n${prefixLineNumbers(source)}\n${log}`;
     }
     return this;
   }
@@ -38,4 +30,16 @@ export class Shader implements Deletable {
   delete(): void {
     this.gl.deleteShader(this.glshader);
   }
+}
+
+function prefixLineNumbers(source: string): string {
+  return source
+    .split(/\r?\n/)
+    .map((line, index) => pad(index + 1, 2) + ': ' + line)
+    .join('\n');
+}
+
+function pad(n: number, width: number, z = ' '): string {
+  const s = n + '';
+  return s.length >= width ? n.toString() : new Array(width - s.length + 1).join(z) + n;
 }

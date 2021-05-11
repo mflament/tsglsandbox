@@ -1,58 +1,26 @@
 'use strict';
-import { md5 } from '../../utils/MD5';
-import { checkNull, Deletable } from '../utils/GLUtils';
+import { checkNull } from '../utils/GLUtils';
 import { Shader } from './Shader';
-import { VaryingBufferMode } from './TransformFeedback';
 
-export interface ProgramLocations<A = never, U = never, B = never> {
-  attributeLocations?: A;
+export interface ProgramLocations<U = any, B = any, A = any> {
   uniformLocations?: U;
   uniformBlockLocations?: B;
+  attributeLocations?: A;
+}
+
+export enum VaryingBufferMode {
+  INTERLEAVED = WebGL2RenderingContext.INTERLEAVED_ATTRIBS,
+  SEPARATE = WebGL2RenderingContext.SEPARATE_ATTRIBS
 }
 export interface Varyings {
   names: string[];
-  mode: VaryingBufferMode;
+  mode?: VaryingBufferMode;
 }
 
-export interface ProgramConfiguration<A = never, U = never, B = never> extends ProgramLocations<A, U, B> {
-  vsSource: string | Promise<string>;
-  fsSource: string | Promise<string>;
-  varyings?: Varyings;
-}
-
-export class ProgramLoader implements Deletable {
-  private readonly shadersCache: { [hash: string]: Shader } = {};
-
-  constructor(readonly gl: WebGL2RenderingContext) {}
-
-  async loadProgram<A = never, U = never, B = never>(config: ProgramConfiguration<A, U, B>): Promise<Program<A, U, B>> {
-    const sources = await Promise.all([config.vsSource, config.fsSource]);
-    const shaders = [
-      this.compileShader(ShaderType.VERTEX_SHADER, sources[0]),
-      this.compileShader(ShaderType.FRAGMENT_SHADER, sources[1])
-    ];
-    return new Program(this.gl, config).link(shaders, config.varyings);
-  }
-
-  delete(): void {
-    Object.values(this.shadersCache).forEach(shader => this.gl.deleteShader(shader));
-  }
-
-  private compileShader(type: ShaderType, source: string): Shader {
-    const hash = md5(source);
-    let shader = this.shadersCache[hash];
-    if (!shader) {
-      shader = new Shader(this.gl, type).compile(source);
-      this.shadersCache[hash] = shader;
-    }
-    return shader;
-  }
-}
-
-export class Program<A = never, U = never, B = never> {
+export class Program<U = any, B = any, A = any> {
   readonly glprogram: WebGLProgram;
 
-  constructor(readonly gl: WebGL2RenderingContext, private readonly locations: ProgramLocations<A, U, B> = {}) {
+  constructor(readonly gl: WebGL2RenderingContext, private readonly locations: ProgramLocations<U, B, A> = {}) {
     this.glprogram = checkNull(() => this.gl.createProgram());
   }
 
@@ -70,10 +38,12 @@ export class Program<A = never, U = never, B = never> {
     return this.locations.uniformBlockLocations;
   }
 
-  link(shaders: Shader[], varyings?: Varyings): Program<A, U, B> {
+  link(shaders: Shader[], varyings?: Varyings): Program<U, B, A> {
     shaders.forEach(shader => this.gl.attachShader(this.glprogram, shader.glshader));
 
-    if (varyings) this.gl.transformFeedbackVaryings(this.glprogram, varyings.names, varyings.mode);
+    if (varyings) {
+      this.gl.transformFeedbackVaryings(this.glprogram, varyings.names, varyings.mode || VaryingBufferMode.INTERLEAVED);
+    }
 
     this.gl.linkProgram(this.glprogram);
 
@@ -108,12 +78,12 @@ export class Program<A = never, U = never, B = never> {
     return index;
   }
 
-  bindUniformBlock(blockIndex: number, blockBinding: number): Program<A, U, B> {
+  bindUniformBlock(blockIndex: number, blockBinding: number): Program<U, B, A> {
     this.gl.uniformBlockBinding(this.glprogram, blockIndex, blockBinding);
     return this;
   }
 
-  use(): Program<A, U, B> {
+  use(): Program<U, B, A> {
     this.gl.useProgram(this.glprogram);
     return this;
   }
@@ -153,9 +123,4 @@ export class Program<A = never, U = never, B = never> {
       if (location === WebGL2RenderingContext.INVALID_INDEX) console.error(`uniform block '${name}' not found`);
     }
   }
-}
-
-export enum ShaderType {
-  VERTEX_SHADER = WebGL2RenderingContext.VERTEX_SHADER,
-  FRAGMENT_SHADER = WebGL2RenderingContext.FRAGMENT_SHADER
 }

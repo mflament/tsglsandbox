@@ -1,13 +1,9 @@
-import { VertexArray } from '../gl/buffers/VertextArray';
+import { VertexArray } from '../gl/drawable/VertextArray';
 import { Bindable, Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 
-// @ts-ignore
-import renderVS from 'shaders/tsp/tsp-render.vs.glsl';
-// @ts-ignore
-import renderFS from 'shaders/tsp/tsp-render.fs.glsl';
 import { PoissonDiscSampler, randomRange } from '../utils/PoissonDiscSampler';
 import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 
@@ -20,17 +16,26 @@ interface TSPParameters {
   cities: number;
 }
 
+class TSPUniforms {
+  cityRadius: WebGLUniformLocation | null = null;
+  viewMatrix: WebGLUniformLocation | null = null;
+}
+
 class TSPResources implements Deletable {
+  static async create(container: SandboxContainer): Promise<TSPResources> {
+    const program = await container.programLoader.load({
+      path: 'tsp/tsp-render.glsl',
+      uniformLocations: new TSPUniforms()
+    });
+    const parameters = { cities: 10 };
+    window.hashlocation.parseParams(parameters);
+    return new TSPResources(container, program, parameters);
+  }
+
   readonly citiesBuffer: CitiesBuffer;
   constructor(
     readonly container: SandboxContainer,
-    readonly renderProgram: Program<
-      any,
-      {
-        cityRadius: WebGLUniformLocation | null;
-        viewMatrix: WebGLUniformLocation | null;
-      }
-    >,
+    readonly renderProgram: Program<any, TSPUniforms>,
     readonly parameters: TSPParameters
   ) {
     renderProgram.use();
@@ -66,20 +71,6 @@ class TSPResources implements Deletable {
   }
 }
 
-async function loadResources(container: SandboxContainer): Promise<TSPResources> {
-  const program = await container.programLoader.loadProgram({
-    vsSource: renderVS,
-    fsSource: renderFS,
-    uniformLocations: {
-      cityRadius: null,
-      viewMatrix: null
-    }
-  });
-  const parameters = { cities: 10 };
-  window.hashlocation.parseParams(parameters);
-  return new TSPResources(container, program, parameters);
-}
-
 class TSP extends AbstractGLSandbox<TSPResources, TSPParameters> {
   constructor(container: SandboxContainer, name: string, resources: TSPResources) {
     super(container, name, resources, resources.parameters);
@@ -102,7 +93,7 @@ class TSP extends AbstractGLSandbox<TSPResources, TSPParameters> {
 }
 
 export function tsp(): SandboxFactory<TSPParameters> {
-  return newSandboxFactory(loadResources, (container, name, resources) => new TSP(container, name, resources));
+  return newSandboxFactory(TSPResources.create, (container, name, resources) => new TSP(container, name, resources));
 }
 
 interface City {
