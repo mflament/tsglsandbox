@@ -1,4 +1,4 @@
-import { IndexedDrawable, newIndexedDrawable } from './GLDrawable';
+import { IndexedDrawable } from './GLDrawable';
 
 /**
  * VAO + VBO + IBO for a simple quad with vec2 position attributes:
@@ -19,5 +19,5 @@ import { VertexBuffer, ByteIndexBuffer, DrawMode } from '../buffers/GLBuffers';
 export function newQuadDrawable(gl: WebGL2RenderingContext): IndexedDrawable {
   const vertices = new VertexBuffer(gl, { a_position: { size: 2 } }).bind().setdata(VERTICES);
   const indices = new ByteIndexBuffer(gl).bind().setdata(new Uint8Array(INDICES));
-  return newIndexedDrawable(gl, vertices, { a_position: 0 }, indices, DrawMode.TRIANGLES);
+  return new IndexedDrawable(gl, { buffer: vertices, locations: { a_position: 0 } }, DrawMode.TRIANGLES, indices);
 }

@@ -6,7 +6,7 @@ import { Program } from '../gl/shader/Program';
 import { BufferUsage, DrawMode } from '../gl/buffers/BufferEnums';
 import { vec2, vec4 } from 'gl-matrix';
 import { AABB, QuadTree as QuadTree } from '../utils/QuadTree';
-import { GLDrawable, newDrawable } from '../gl/drawable/GLDrawable';
+import { GLDrawable } from '../gl/drawable/GLDrawable';
 import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 
 const LINE_COLOR: vec4 = [0.7, 0.7, 0.7, 1];
@@ -141,12 +141,14 @@ class QuadTreeTestResources implements Deletable {
       a_position: { size: 2 },
       a_color: { size: 4 }
     });
-    const drawable = newDrawable(
+    const drawable = new GLDrawable<QuadTreeAttributes>(
       this.gl,
-      vertices,
       {
-        a_position: 0,
-        a_color: 1
+        buffer: vertices,
+        locations: {
+          a_position: 0,
+          a_color: 1
+        }
       },
       drawMode
     );

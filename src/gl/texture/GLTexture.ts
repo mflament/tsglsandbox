@@ -151,42 +151,42 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
   }
 }
 
-interface BaseTextureData {
+export interface BaseTextureData {
   format?: TextureFormat;
   type?: TextureComponentType;
   level?: number;
 }
 
-interface InitTextureData extends BaseTextureData {
+export interface InitTextureData extends BaseTextureData {
   internalFormat?: InternalFormat;
   generateMipmap?: boolean;
 }
 
-interface SizedData {
+export interface SizedData {
   width: number;
   height: number;
 }
 
-interface BufferData extends SizedData {
+export interface BufferData extends SizedData {
   buffer: TextureArrayBuffer;
   srcOffset?: number;
 }
 
-interface PBOData extends SizedData {
+export interface PBOData extends SizedData {
   pboOffset: number;
 }
 
-interface ImageSourceData {
+export interface ImageSourceData {
   source: TexImageSource;
 }
 
-interface LoadImageData {
+export interface LoadImageData {
   uri: string;
   onload?: (texture: GLTexture2D) => any;
 }
 
-type TextureData = InitTextureData & (SizedData | BufferData | PBOData | ImageSourceData | LoadImageData);
-type TextureSubdata = BaseTextureData & {
+export type TextureData = InitTextureData & (SizedData | BufferData | PBOData | ImageSourceData | LoadImageData);
+export type TextureSubdata = BaseTextureData & {
   x: number;
   y: number;
 } & (BufferData | PBOData | ImageSourceData);

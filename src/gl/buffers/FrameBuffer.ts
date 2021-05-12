@@ -1,7 +1,7 @@
 import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
 import { GLTexture2D } from '../texture/GLTexture';
 
-const TARGET = WebGL2RenderingContext.FRAMEBUFFER;
+const FRAMEBUFFER = WebGL2RenderingContext.FRAMEBUFFER;
 
 export enum FrameBufferStatus {
   COMPLETE = WebGL2RenderingContext.FRAMEBUFFER_COMPLETE,
@@ -39,12 +39,12 @@ export class FrameBuffer implements Bindable, Deletable {
   }
 
   bind(): FrameBuffer {
-    this.gl.bindFramebuffer(TARGET, this.fb);
+    this.gl.bindFramebuffer(FRAMEBUFFER, this.fb);
     return this;
   }
 
   unbind(): FrameBuffer {
-    this.gl.bindFramebuffer(TARGET, null);
+    this.gl.bindFramebuffer(FRAMEBUFFER, null);
     return this;
   }
 
@@ -54,7 +54,7 @@ export class FrameBuffer implements Bindable, Deletable {
 
   attach(texture: GLTexture2D, index = 0, level = 0): FrameBuffer {
     this.gl.framebufferTexture2D(
-      TARGET,
+      FRAMEBUFFER,
       WebGL2RenderingContext.COLOR_ATTACHMENT0 + index,
       WebGL2RenderingContext.TEXTURE_2D,
       texture.gltexture,
@@ -65,7 +65,7 @@ export class FrameBuffer implements Bindable, Deletable {
 
   detach(index = 0, level = 0): FrameBuffer {
     this.gl.framebufferTexture2D(
-      TARGET,
+      FRAMEBUFFER,
       WebGL2RenderingContext.COLOR_ATTACHMENT0 + index,
       WebGL2RenderingContext.TEXTURE_2D,
       null,

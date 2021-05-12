@@ -2,21 +2,23 @@ import { Deletable } from '../gl/utils/GLUtils';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
 import { vec2, vec4 } from 'gl-matrix';
-import { BufferUsage, DrawMode, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
-import { Program, VaryingBufferMode } from '../gl/shader/Program';
+import { DrawMode } from '../gl/buffers/BufferEnums';
+import { Program } from '../gl/shader/Program';
 import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
-import { GLDrawable, newDrawable, newInstancedDrawable } from '../gl/drawable/GLDrawable';
+import { IndexedDrawable, InstancedDrawable } from '../gl/drawable/GLDrawable';
 import { TransformFeedback } from '../gl/shader/TransformFeedback';
 import { AABB, QuadTree } from '../utils/QuadTree';
-import { GLTexture2D } from '../gl/texture/GLTexture';
+import { GLTexture2D, SizedData, BaseTextureData } from '../gl/texture/GLTexture';
 import {
   InternalFormat,
   TextureComponentType,
   TextureFormat,
   TextureMagFilter,
-  TextureMinFilter
+  TextureMinFilter,
+  TextureWrappingMode
 } from '../gl/texture/TextureEnums';
-import { FrameBuffer } from '../gl/buffers/FrameBuffer';
+import { FrameBuffer, FrameBufferStatus, frameBufferStatusName } from '../gl/buffers/FrameBuffer';
+import { newQuadDrawable } from '../gl/drawable/QuadDrawable';
 
 interface BoidsParameters {
   count: number;
@@ -30,22 +32,26 @@ interface VertexAttributes {
   a_position: BufferAttribute;
 }
 
-interface BoidAttributes {
-  a_boidData: BufferAttribute;
-}
-
 class RenderUniforms {
+  u_boidData: WebGLUniformLocation | null = null;
   u_boidConfig: WebGLUniformLocation | null = null;
   u_boidColor: WebGLUniformLocation | null = null;
+  u_boidCount: WebGLUniformLocation | null = null;
   u_scanTexture: WebGLUniformLocation | null = null;
 }
 
 class UpdateUniforms {
+  u_boidData: WebGLUniformLocation | null = null;
   u_boidConfig: WebGLUniformLocation | null = null;
+  u_updateConfig: WebGLUniformLocation | null = null;
   u_elapsedSeconds: WebGLUniformLocation | null = null;
+  u_boidCount: WebGLUniformLocation | null = null;
+  u_scanTexture: WebGLUniformLocation | null = null;
 }
+
 class ScanUniforms {
-  u_boidsCount: WebGLUniformLocation | null = null;
+  u_boidData: WebGLUniformLocation | null = null;
+  u_boidConfig: WebGLUniformLocation | null = null;
 }
 
 interface Boid {
@@ -53,22 +59,27 @@ interface Boid {
   angle: number;
 }
 
-const MAX_BOIDS = 1024;
-const BOID_FLOATS = 3;
+const MAX_BOIDS = 256;
+const BOID_FLOATS = 4;
 const BOID_COLOR: vec4 = [0, 1, 0, 1];
 
 // prettier-ignore
 const BOIDS_VERTICES = [
-  -1, -1,
-  0, -0.5,
-  0, 1,
-  0, -0.5,
-  1, -1,
-  0, 1
+  -0.25, 0,
+  0.5, 0,
+  -0.5, 0.5,
+  -0.25, 0,
+  -0.5, -0.5,
+  0.5, 0
 ];
 
 class BoidsResources implements Deletable {
   static async create(container: SandboxContainer): Promise<BoidsResources> {
+    // without this we can't render to RGBA32F
+    if (!container.gl.getExtension('EXT_color_buffer_float')) throw new Error('need EXT_color_buffer_float');
+    // just guessing without this we can't downsample
+    if (!container.gl.getExtension('OES_texture_float_linear')) throw new Error('need OES_texture_float_linear');
+
     const parameters: BoidsParameters = {
       count: 1,
       speed: 1,
@@ -81,13 +92,19 @@ class BoidsResources implements Deletable {
       path: 'boids/boids-render.glsl',
       uniformLocations: new RenderUniforms()
     });
+    // const renderProgram = await container.programLoader.load({
+    //   vspath: 'quad.vs.glsl',
+    //   fspath: 'boids/boids-debug.fs.glsl',
+    //   uniformLocations: new RenderUniforms()
+    // });
     const updateProgram = await container.programLoader.load({
-      path: 'boids/boids-update.glsl',
-      uniformLocations: new UpdateUniforms(),
-      varyingMode: VaryingBufferMode.INTERLEAVED
+      vspath: 'quad.vs.glsl',
+      fspath: 'boids/boids-update.fs.glsl',
+      uniformLocations: new UpdateUniforms()
     });
     const scanProgram = await container.programLoader.load({
-      path: 'boids/boids-scan.glsl',
+      vspath: 'quad.vs.glsl',
+      fspath: 'boids/boids-scan.fs.glsl',
       uniformLocations: new ScanUniforms()
     });
     return new BoidsResources(container, parameters, renderProgram, updateProgram, scanProgram);
@@ -102,7 +119,6 @@ class BoidsResources implements Deletable {
 
   frontDrawable: BoidsDrawable;
   backDrawable: BoidsDrawable;
-
   scanTexture: GLTexture2D;
 
   constructor(
@@ -123,7 +139,14 @@ class BoidsResources implements Deletable {
       .bind()
       .minFilter(TextureMinFilter.NEAREST)
       .magFilter(TextureMagFilter.NEAREST)
-      .activate(0);
+      .wrap(TextureWrappingMode.CLAMP_TO_EDGE)
+      .data({
+        internalFormat: InternalFormat.RGBA32F,
+        format: TextureFormat.RGBA,
+        type: TextureComponentType.FLOAT,
+        width: MAX_BOIDS,
+        height: MAX_BOIDS
+      });
 
     this.renderProgram.use();
     this.gl.uniform4f(
@@ -133,25 +156,30 @@ class BoidsResources implements Deletable {
       BOID_COLOR[2],
       BOID_COLOR[3]
     );
-    this.gl.uniform1i(renderProgram.uniformLocations.u_scanTexture, 0);
-    this.updateBoidSize(container.dimension);
+    this.gl.uniform1i(renderProgram.uniformLocations.u_boidData, 0);
+    this.gl.uniform1i(renderProgram.uniformLocations.u_scanTexture, 1);
+
+    this.updateProgram.use();
+    this.gl.uniform1i(updateProgram.uniformLocations.u_boidData, 0);
+    this.gl.uniform1i(updateProgram.uniformLocations.u_scanTexture, 1);
+
+    this.scanProgram.use();
+    this.gl.uniform1i(scanProgram.uniformLocations.u_boidData, 0);
 
     // this.pushBoids([
-    //   { pos: [0.45, 0], angle: -Math.PI / 10 },
-    //   { pos: [0.45, this.boidSize[1] * 2], angle: 0 },
-    //   { pos: [0.4, this.boidSize[1] * 2], angle: 0 },
-    //   { pos: [0.5, 0], angle: 0 },
-    //   { pos: [0.45, -0.05], angle: 0 }
+    //   { pos: [0, 0], angle: 0 },
+    //   { pos: [0, 0.1], angle: 0 },
+    //   { pos: [-0.5, 0], angle: 0 },
+    //   { pos: [-0.1, 0.1], angle: 0 }
     // ]);
-    // this.updateScanTexture();
 
-    this.updateParams();
+    this.updateBoidSize(container.dimension);
 
     this.frontDrawable.renderDrawable.bind();
 
     this.scanBoids();
+
     this.renderProgram.use();
-    this.frontDrawable.renderDrawable.bind();
   }
 
   get gl(): WebGL2RenderingContext {
@@ -159,31 +187,35 @@ class BoidsResources implements Deletable {
   }
 
   render(): void {
+    this.scanTexture.activate(1).bind();
+    this.frontDrawable.boidsData.activate(0).bind();
     this.frontDrawable.render(this._boidsCount);
   }
 
   update(dt: number): void {
     this.scanBoids();
 
+    this.frameBuffer.bind().attach(this.backDrawable.boidsData);
+
+    this.gl.viewport(0, 0, this._boidsCount, 1);
+    this.gl.clearColor(0, 0, 0, 1);
+    this.gl.clear(WebGL2RenderingContext.COLOR_BUFFER_BIT);
+
     this.updateProgram.use();
     this.gl.uniform1f(this.updateProgram.uniformLocations.u_elapsedSeconds, dt);
+    this.frontDrawable.update();
+    this.checkFrameBufferStatus();
+    this.frameBuffer.detach().unbind();
 
-    this.transformFeedback.bind().bindBuffer(0, this.backDrawable.boidsBuffer);
-    this.gl.enable(WebGL2RenderingContext.RASTERIZER_DISCARD);
-
-    this.transformFeedback.begin(TransformFeedbackDrawMode.POINTS);
-    this.frontDrawable.update(this._boidsCount);
-    this.transformFeedback.end();
-
-    this.gl.disable(WebGL2RenderingContext.RASTERIZER_DISCARD);
-    this.transformFeedback.unbindBuffer(0).unbind();
+    this.gl.viewport(0, 0, this.container.dimension[0], this.container.dimension[1]);
 
     const swap = this.frontDrawable;
     this.frontDrawable = this.backDrawable;
     this.backDrawable = swap;
 
-    this.frontDrawable.renderDrawable.bind();
     this.renderProgram.use();
+    this.frontDrawable.boidsData.bind().activate(0);
+    this.frontDrawable.renderDrawable.bind();
   }
 
   private scanBoids(): void {
@@ -194,23 +226,17 @@ class BoidsResources implements Deletable {
     this.gl.clear(WebGL2RenderingContext.COLOR_BUFFER_BIT);
 
     this.scanProgram.use();
-    this.frontDrawable.scan(this._boidsCount);
+    this.frontDrawable.boidsData.activate(0).bind();
+    this.frontDrawable.scan();
+    this.checkFrameBufferStatus();
     this.frameBuffer.detach().unbind();
 
     this.gl.viewport(0, 0, this.container.dimension[0], this.container.dimension[1]);
+    this.renderProgram.use();
+    this.frontDrawable.renderDrawable.bind();
   }
 
   updateParams(): void {
-    this.updateProgram.use();
-    // x: boid speed, y: turn speed
-    this.gl.uniform2f(
-      this.updateProgram.uniformLocations.u_boidConfig,
-      this.parameters.speed,
-      this.parameters.turnspeed
-    );
-
-    this.updateRenderBoidConfig();
-
     this.parameters.count = Math.min(MAX_BOIDS, this.parameters.count);
     if (this.parameters.count != this._boidsCount) {
       if (this.parameters.count < this._boidsCount) {
@@ -220,44 +246,30 @@ class BoidsResources implements Deletable {
         const newBoids = this.randomizedBoids(missing);
         this.pushBoids(newBoids);
       }
-
-      this.scanProgram.use();
-      this.gl.uniform1i(this.scanProgram.uniformLocations.u_boidsCount, this._boidsCount);
-
-      this.updateScanTexture();
     }
 
-    this.renderProgram.use();
-  }
+    this.updateProgram.use();
+    this.updateBoidConfig(this.updateProgram.uniformLocations.u_boidConfig);
+    // x: boid speed, y: turn speed
+    this.gl.uniform1i(this.updateProgram.uniformLocations.u_boidCount, this._boidsCount);
+    this.gl.uniform2f(
+      this.updateProgram.uniformLocations.u_updateConfig,
+      this.parameters.speed,
+      this.parameters.turnspeed
+    );
 
-  private updateScanTexture(): void {
-    this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, 1);
-    const textureData = new Uint8Array(this._boidsCount * this._boidsCount * 4);
-    this.scanTexture.data({
-      buffer: textureData,
-      width: this._boidsCount,
-      height: this._boidsCount,
-      internalFormat: InternalFormat.RGBA,
-      format: TextureFormat.RGBA,
-      type: TextureComponentType.UNSIGNED_BYTE
-    });
+    this.scanProgram.use();
+    this.updateBoidConfig(this.scanProgram.uniformLocations.u_boidConfig);
+
+    this.renderProgram.use();
+    this.updateBoidConfig(this.renderProgram.uniformLocations.u_boidConfig);
+    this.gl.uniform1i(this.renderProgram.uniformLocations.u_boidCount, this._boidsCount);
   }
 
   updateBoidSize(dim: vec2): void {
-    const width = 0.025;
+    const width = 2.0 / 100;
     vec2.set(this.boidSize, width, width * (dim[0] / dim[1]));
-    this.updateRenderBoidConfig();
-  }
-
-  private updateRenderBoidConfig(): void {
-    this.renderProgram.use();
-    this.gl.uniform4f(
-      this.renderProgram.uniformLocations.u_boidConfig,
-      this.boidSize[0] / 2, // scale.x
-      this.boidSize[1] / 2, // scale.y
-      Math.cos((this.parameters.fov / 2) * (Math.PI / 180)), // fov (dot limit)
-      this.parameters.viewdist * 2.0 * this.boidSize[1] // view dist
-    );
+    this.updateParams();
   }
 
   delete(): void {
@@ -273,10 +285,30 @@ class BoidsResources implements Deletable {
     ].forEach(d => d.delete());
   }
 
+  private checkFrameBufferStatus(): void {
+    const status = this.frameBuffer.status;
+    if (status != FrameBufferStatus.COMPLETE) console.error(frameBufferStatusName(this.frameBuffer.status));
+  }
+
+  private updateBoidConfig(location: WebGLUniformLocation | null): void {
+    const scalex = this.boidSize[0];
+    const scaley = this.boidSize[1];
+    const fov = Math.cos((this.parameters.fov / 2) * (Math.PI / 180));
+    const viewdist = this.parameters.viewdist * 2.0 * this.boidSize[1];
+    this.gl.uniform4f(location, scalex, scaley, viewdist, fov);
+  }
+
   private pushBoids(boids: Boid[]) {
-    const dstOffset = this._boidsCount * BOID_FLOATS * 4;
     const array = this.boidsData(boids);
-    this.frontDrawable.boidsBuffer.bind().setsubdata(array, dstOffset).unbind();
+    this.frontDrawable.boidsData
+      .bind()
+      .subdata({
+        buffer: array,
+        ...this.dataTextureConfig(boids.length),
+        x: this._boidsCount,
+        y: 0
+      })
+      .unbind();
     this._boidsCount += boids.length;
   }
 
@@ -287,6 +319,7 @@ class BoidsResources implements Deletable {
       const offset = index * BOID_FLOATS;
       array.set(boid.pos, offset); // xy
       array[offset + 2] = boid.angle; //z
+      array[offset + 3] = 1.0; // w: unused
     });
     return array;
   }
@@ -307,60 +340,62 @@ class BoidsResources implements Deletable {
   }
 
   private randomPoint(out: vec2): vec2 {
-    return vec2.set(out, Math.random() * 2 - 1, Math.random() * 2 - 1);
+    return vec2.set(out, Math.random() * 1.9 - 0.95, Math.random() * 1.9 - 0.95);
+  }
+
+  dataTextureConfig(count: number): BaseTextureData & SizedData {
+    return {
+      height: 1,
+      width: count,
+      format: TextureFormat.RGBA,
+      type: TextureComponentType.FLOAT
+    };
   }
 }
 
 class BoidsDrawable implements Deletable {
-  readonly boidsBuffer: VertexBuffer<BoidAttributes>;
-  readonly renderDrawable: GLDrawable;
-  readonly scanDrawable: GLDrawable;
-  readonly updateDrawable: GLDrawable;
+  readonly boidsData: GLTexture2D;
+
+  readonly renderDrawable: InstancedDrawable;
+  readonly scanDrawable: IndexedDrawable;
+  readonly updateDrawable: IndexedDrawable;
 
   constructor(readonly resources: BoidsResources) {
-    // this.renderDrawable = newQuadDrawable(this.resources.gl);
+    this.boidsData = new GLTexture2D(resources.gl)
+      .bind()
+      .minFilter(TextureMinFilter.LINEAR)
+      .magFilter(TextureMagFilter.LINEAR)
+      .wrap(TextureWrappingMode.CLAMP_TO_EDGE)
+      .data({
+        internalFormat: InternalFormat.RGBA32F,
+        ...resources.dataTextureConfig(MAX_BOIDS)
+      })
+      .unbind();
 
-    this.boidsBuffer = new VertexBuffer<BoidAttributes>(resources.gl, {
-      a_boidData: { size: 3 }
-    }).allocate(MAX_BOIDS * BOID_FLOATS * 4, BufferUsage.DYNAMIC_DRAW);
+    this.renderDrawable = new InstancedDrawable(resources.gl, DrawMode.TRIANGLES, {
+      buffer: resources.vertices,
+      locations: { a_position: 0 }
+    });
 
-    this.renderDrawable = newInstancedDrawable(
-      resources.gl,
-      resources.vertices,
-      { a_position: 0 },
-      this.boidsBuffer,
-      { a_boidData: 1 },
-      DrawMode.TRIANGLES
-    );
-
-    this.updateDrawable = newDrawable(resources.gl, this.boidsBuffer, { a_boidData: 0 }, DrawMode.POINTS);
-
-    this.scanDrawable = newInstancedDrawable(
-      resources.gl,
-      this.boidsBuffer,
-      { a_boidData: 0 },
-      this.boidsBuffer,
-      { a_boidData: 1 },
-      DrawMode.POINTS
-    );
+    //this.updateDrawable = new InstancedDrawable(resources.gl, DrawMode.POINTS);
+    this.updateDrawable = newQuadDrawable(resources.gl);
+    this.scanDrawable = newQuadDrawable(resources.gl);
   }
 
   render(count: number): void {
     this.renderDrawable.draw(count);
-    // this.renderDrawable.bind().draw();
   }
 
-  update(count: number): void {
-    this.updateDrawable.bind().draw(count);
+  update(): void {
+    this.updateDrawable.bind().draw();
   }
 
-  scan(count: number): void {
-    this.scanDrawable.bind().draw(count, count);
+  scan(): void {
+    this.scanDrawable.bind().draw();
   }
 
   delete() {
-    this.boidsBuffer.delete();
-    this.renderDrawable.delete();
+    [this.boidsData, this.renderDrawable].forEach(d => d.delete());
   }
 }
 

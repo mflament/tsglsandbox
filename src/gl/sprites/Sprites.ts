@@ -2,7 +2,7 @@ import { Bindable, Deletable } from '../utils/GLUtils';
 import { SandboxContainer } from '../sandbox/GLSandbox';
 import { Program } from '../shader/Program';
 import { mat4, vec2 } from 'gl-matrix';
-import { InstancedDrawable, newInstancedDrawable } from '../drawable/GLDrawable';
+import { InstancedDrawable } from '../drawable/GLDrawable';
 import { BufferUsage, DrawMode } from '../buffers/BufferEnums';
 import { Sprite } from './Sprite';
 import { TextureAtlas } from './TextureAtlas';
@@ -92,22 +92,26 @@ export class Sprites implements Deletable, Bindable {
       a_spriteMatrix3: { size: 4 },
       a_texture: { size: 4 }
     });
-    this.drawable = newInstancedDrawable(
+    this.drawable = new InstancedDrawable(
       container.gl,
-      vertices,
+      DrawMode.TRIANGLES,
       {
-        a_vertexPos: 0,
-        a_vertexUV: 1
+        buffer: vertices,
+        locations: {
+          a_vertexPos: 0,
+          a_vertexUV: 1
+        }
       },
-      instances,
       {
-        a_spriteMatrix0: 2,
-        a_spriteMatrix1: 3,
-        a_spriteMatrix2: 4,
-        a_spriteMatrix3: 5,
-        a_texture: 6
-      },
-      DrawMode.TRIANGLES
+        buffer: instances,
+        locations: {
+          a_spriteMatrix0: 2,
+          a_spriteMatrix1: 3,
+          a_spriteMatrix2: 4,
+          a_spriteMatrix3: 5,
+          a_texture: 6
+        }
+      }
     );
 
     this.spritesBuffer = instances;
@@ -186,7 +190,7 @@ export class Sprites implements Deletable, Bindable {
   }
 
   draw(): void {
-    this.drawable.draw();
+    this.drawable.draw(this.sprites.length);
   }
 
   bind(): Sprites {
