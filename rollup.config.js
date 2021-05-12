@@ -27,7 +27,7 @@ function glsl() {
     },
     load(source) {
       if (filter(source)) {
-        return fs.readFileSync(source, { encoding: 'utf-8' });
+        return fs.readFileSync(source, { encoding: 'utf-8' }).replace('\r\n', '\n');
       }
       return null;
     },
@@ -40,24 +40,19 @@ function glsl() {
 }
 
 export default [{
-  input: './src/index.ts',
+  input: ['./src/index.ts'],
   output: {
     dir: 'dist',
     format: 'esm',
     sourcemap: true,
-    plugins: [terser()]
-  },
-  manualChunks: id => {
-    if (id.includes('node_modules')) {
-      return 'vendor';
-    }
+    //plugins: [terser()]
   },
   plugins: [
+    commonjs(),
     nodeResolve(),
     replace({
-      'process.env.NODE_ENV': JSON.stringify(env)
+      'process.env.NODE_ENV': env
     }),
-    commonjs(),
     glsl(),
     eslint({ ignore: false }),
     typescript(),

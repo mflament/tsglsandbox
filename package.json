@@ -1,7 +1,7 @@
 {
-  "name": "ant-colony",
+  "name": "gl-sandbox",
   "version": "0.1.0",
-  "description": "Ant colony",
+  "description": "WebGL sandbox",
   "main": "index.js",
   "scripts": {
     "tsdserver": "tsdserver -l tcp://localhost:8080",
@@ -9,14 +9,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/mflament/ant-colony.git"
+    "url": "git+ssh://git@github.com/mflament/gl-sandbox.git"
   },
   "author": "Yah",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/mflament/ant-colony/issues"
+    "url": "https://github.com/mflament/gl-sandbox/issues"
   },
-  "homepage": "https://github.com/mflament/ant-colony#readme",
+  "homepage": "https://github.com/mflament/gl-sandbox#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.1.0",
     "@rollup/plugin-html": "^0.2.3",

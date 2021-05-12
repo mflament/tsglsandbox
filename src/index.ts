@@ -7,7 +7,6 @@ import { tsp } from './tsp/TSP';
 import { boids } from './boids/Boids';
 import { quadTreeTest } from './test/QuadTreeTest';
 import { ants } from './ants/Ants';
-
 setupHashLocation();
 
 new DefaultSandboxContainer({

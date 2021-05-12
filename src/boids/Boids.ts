@@ -35,7 +35,7 @@ interface BoidAttributes {
 }
 
 class RenderUniforms {
-  u_boidScale: WebGLUniformLocation | null = null;
+  u_boidConfig: WebGLUniformLocation | null = null;
   u_boidColor: WebGLUniformLocation | null = null;
   u_scanTexture: WebGLUniformLocation | null = null;
 }
@@ -45,7 +45,6 @@ class UpdateUniforms {
   u_elapsedSeconds: WebGLUniformLocation | null = null;
 }
 class ScanUniforms {
-  u_boidConfig: WebGLUniformLocation | null = null;
   u_boidsCount: WebGLUniformLocation | null = null;
 }
 
@@ -210,12 +209,7 @@ class BoidsResources implements Deletable {
       this.parameters.turnspeed
     );
 
-    this.scanProgram.use();
-    this.gl.uniform2f(
-      this.scanProgram.uniformLocations.u_boidConfig,
-      Math.cos((this.parameters.fov / 2) * (Math.PI / 180)),
-      this.boidSize[1] * this.parameters.viewdist
-    );
+    this.updateRenderBoidConfig();
 
     this.parameters.count = Math.min(MAX_BOIDS, this.parameters.count);
     if (this.parameters.count != this._boidsCount) {
@@ -226,6 +220,10 @@ class BoidsResources implements Deletable {
         const newBoids = this.randomizedBoids(missing);
         this.pushBoids(newBoids);
       }
+
+      this.scanProgram.use();
+      this.gl.uniform1i(this.scanProgram.uniformLocations.u_boidsCount, this._boidsCount);
+
       this.updateScanTexture();
     }
 
@@ -233,8 +231,6 @@ class BoidsResources implements Deletable {
   }
 
   private updateScanTexture(): void {
-    this.scanProgram.use();
-    this.gl.uniform1i(this.scanProgram.uniformLocations.u_boidsCount, this._boidsCount);
     this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, 1);
     const textureData = new Uint8Array(this._boidsCount * this._boidsCount * 4);
     this.scanTexture.data({
@@ -250,7 +246,18 @@ class BoidsResources implements Deletable {
   updateBoidSize(dim: vec2): void {
     const width = 0.025;
     vec2.set(this.boidSize, width, width * (dim[0] / dim[1]));
-    this.gl.uniform2f(this.renderProgram.uniformLocations.u_boidScale, this.boidSize[0] / 2, this.boidSize[1] / 2);
+    this.updateRenderBoidConfig();
+  }
+
+  private updateRenderBoidConfig(): void {
+    this.renderProgram.use();
+    this.gl.uniform4f(
+      this.renderProgram.uniformLocations.u_boidConfig,
+      this.boidSize[0] / 2, // scale.x
+      this.boidSize[1] / 2, // scale.y
+      Math.cos((this.parameters.fov / 2) * (Math.PI / 180)), // fov (dot limit)
+      this.parameters.viewdist * 2.0 * this.boidSize[1] // view dist
+    );
   }
 
   delete(): void {
