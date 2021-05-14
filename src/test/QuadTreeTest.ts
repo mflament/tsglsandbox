@@ -1,5 +1,4 @@
-import { Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 
@@ -24,12 +23,13 @@ type MappedDrawable = {
   drawable: GLDrawable<QuadTreeAttributes>;
   buffer: VertexBuffer<QuadTreeAttributes>;
   draw(): void;
+  delete(): void;
 };
 
-class QuadTreeTestResources implements Deletable {
-  static async create(container: SandboxContainer): Promise<QuadTreeTestResources> {
+class QuadTreeTestSandbox extends AbstractGLSandbox {
+  static async create(container: SandboxContainer, name: string): Promise<QuadTreeTestSandbox> {
     const program = await container.programLoader.load({ path: 'test/quadtree.glsl' });
-    return new QuadTreeTestResources(container, program);
+    return new QuadTreeTestSandbox(container, name, program);
   }
 
   readonly lines: MappedDrawable;
@@ -37,11 +37,14 @@ class QuadTreeTestResources implements Deletable {
   readonly sellines: MappedDrawable;
   readonly selpoints: MappedDrawable;
 
-  private quadTree: QuadTree = new QuadTree();
+  private readonly quadTree: QuadTree = new QuadTree();
 
   private _selbounds?: AABB;
+  private _clickPos?: vec2;
+  private readonly _currentPos: vec2 = [0, 0];
 
-  constructor(readonly container: SandboxContainer, readonly renderProgram: Program) {
+  constructor(container: SandboxContainer, name: string, readonly renderProgram: Program) {
+    super(container, name, {});
     renderProgram.use();
     this.points = this.newMappedDrawable(DrawMode.POINTS);
     this.lines = this.newMappedDrawable(DrawMode.LINES);
@@ -53,22 +56,69 @@ class QuadTreeTestResources implements Deletable {
     return this._selbounds;
   }
 
-  insert(points: vec2[]): boolean {
-    let updated = false;
-    points.forEach(p => {
-      updated = this.quadTree.insert(p) || updated;
-    });
-    if (updated) this.updateBuffers();
-    return updated;
+  onkeydown(e: KeyboardEvent): void {
+    switch (e.key) {
+      case 'r':
+        this.addRandomPoints(50);
+        break;
+    }
   }
 
-  draw(): void {
+  private addRandomPoints(count: number): void {
+    const points: vec2[] = new Array(count);
+    for (let i = 0; i < count; i++) points[i] = [Math.random() * 2 - 1, Math.random() * 2 - 1];
+    this.insert(points);
+  }
+
+  onmousedown(e: MouseEvent): void {
+    this._clickPos = this.clientToWorld(e);
+    vec2.copy(this._currentPos, this._clickPos);
+  }
+
+  onmouseup(): void {
+    if (this._clickPos) {
+      if (!this.selbounds) this.insert([this._clickPos]);
+      this._clickPos = undefined;
+      this.updateSelection(undefined);
+    }
+  }
+
+  onmousemove(e: MouseEvent): void {
+    if (this._clickPos) {
+      this.clientToWorld(e, this._currentPos);
+      let bounds = this.selbounds;
+      if (bounds || vec2.sqrDist(this._clickPos, this._currentPos) > 0.0001) {
+        if (!bounds) bounds = new AABB([0, 0], [1, 1]);
+        const xmin = Math.min(this._clickPos[0], this._currentPos[0]);
+        const xmax = Math.max(this._clickPos[0], this._currentPos[0]);
+        const ymin = Math.min(this._clickPos[1], this._currentPos[1]);
+        const ymax = Math.max(this._clickPos[1], this._currentPos[1]);
+        const hw = (xmax - xmin) / 2;
+        const hh = (ymax - ymin) / 2;
+        vec2.set(bounds.center, xmin + hw, ymin + hh);
+        vec2.set(bounds.halfDimension, hw, hh);
+        this.updateSelection(bounds);
+      }
+    }
+  }
+
+  render(): void {
+    super.clear();
     this.points.draw();
     this.lines.draw();
     if (this._selbounds) {
       this.sellines.draw();
       this.selpoints.draw();
     }
+  }
+
+  private insert(points: vec2[]): boolean {
+    let updated = false;
+    points.forEach(p => {
+      updated = this.quadTree.insert(p) || updated;
+    });
+    if (updated) this.updateBuffers();
+    return updated;
   }
 
   updateSelection(sel?: AABB): void {
@@ -132,10 +182,6 @@ class QuadTreeTestResources implements Deletable {
     return 0;
   }
 
-  get gl(): WebGL2RenderingContext {
-    return this.container.gl;
-  }
-
   private newMappedDrawable(drawMode: DrawMode): MappedDrawable {
     const vertices = new VertexBuffer<QuadTreeAttributes>(this.gl, {
       a_position: { size: 2 },
@@ -155,95 +201,10 @@ class QuadTreeTestResources implements Deletable {
     return {
       drawable: drawable,
       buffer: vertices,
-      draw: () => drawable.bind().draw()
+      draw: () => drawable.bind().draw(),
+      delete: () => drawable.delete()
     };
   }
-
-  delete(): void {
-    this.lines.drawable.unbind().delete();
-    this.points.drawable.unbind().delete();
-    this.container.gl.useProgram(null);
-    this.renderProgram.delete();
-  }
-}
-
-class QuadTreeTestSandbox extends AbstractGLSandbox<QuadTreeTestResources, never> {
-  private _clickPos?: vec2;
-  private readonly _currentPos: vec2 = [0, 0];
-
-  constructor(container: SandboxContainer, name: string, resources: QuadTreeTestResources) {
-    super(container, name, resources, {} as never);
-  }
-
-  onkeydown(e: KeyboardEvent): void {
-    switch (e.key) {
-      case 'r':
-        this.addRandomPoints(50);
-        break;
-    }
-  }
-
-  private addRandomPoints(count: number): void {
-    const points: vec2[] = new Array(count);
-    for (let i = 0; i < count; i++) points[i] = [Math.random() * 2 - 1, Math.random() * 2 - 1];
-    this.resources.insert(points);
-  }
-
-  onmousedown(e: MouseEvent): void {
-    this._clickPos = this.toWorld(e);
-    vec2.copy(this._currentPos, this._clickPos);
-  }
-
-  onmouseup(): void {
-    if (this._clickPos) {
-      if (!this.resources.selbounds) this.resources.insert([this._clickPos]);
-      this._clickPos = undefined;
-      this.resources.updateSelection(undefined);
-    }
-  }
-
-  onmousemove(e: MouseEvent): void {
-    if (this._clickPos) {
-      this.toWorld(e, this._currentPos);
-      let bounds = this.resources.selbounds;
-      if (bounds || vec2.sqrDist(this._clickPos, this._currentPos) > 0.0001) {
-        if (!bounds) bounds = new AABB([0, 0], [1, 1]);
-        const xmin = Math.min(this._clickPos[0], this._currentPos[0]);
-        const xmax = Math.max(this._clickPos[0], this._currentPos[0]);
-        const ymin = Math.min(this._clickPos[1], this._currentPos[1]);
-        const ymax = Math.max(this._clickPos[1], this._currentPos[1]);
-        const hw = (xmax - xmin) / 2;
-        const hh = (ymax - ymin) / 2;
-        vec2.set(bounds.center, xmin + hw, ymin + hh);
-        vec2.set(bounds.halfDimension, hw, hh);
-        this.resources.updateSelection(bounds);
-      }
-    }
-  }
-
-  private toWorld(e: MouseEvent, out?: vec2): vec2 {
-    out = out ? out : vec2.create();
-    vec2.set(out, (e.offsetX / this.dimension[0]) * 2 - 1, (1 - e.offsetY / this.dimension[1]) * 2 - 1);
-    return out;
-  }
-
-  delete(): void {
-    this.resources.delete();
-    super.delete();
-  }
-
-  render(): void {
-    super.clear();
-    const resources = this.resources;
-    resources.draw();
-  }
-}
-
-export function quadTreeTest(): SandboxFactory {
-  return newSandboxFactory(
-    QuadTreeTestResources.create,
-    (container, name, resources) => new QuadTreeTestSandbox(container, name, resources)
-  );
 }
 
 class PointsBuffer {
@@ -269,4 +230,8 @@ class PointsBuffer {
     glbuffer.bind().setdata(this.array, usage, 0, this._count * POINT_FLOATS);
     return this;
   }
+}
+
+export function quadTreeTest(): SandboxFactory {
+  return QuadTreeTestSandbox.create;
 }

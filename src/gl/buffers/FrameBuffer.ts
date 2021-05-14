@@ -63,6 +63,11 @@ export class FrameBuffer implements Bindable, Deletable {
     return this;
   }
 
+  drawBuffers(buffers: number[]): FrameBuffer {
+    this.gl.drawBuffers(buffers.map(a => WebGL2RenderingContext.COLOR_ATTACHMENT0 + a));
+    return this;
+  }
+
   detach(index = 0, level = 0): FrameBuffer {
     this.gl.framebufferTexture2D(
       FRAMEBUFFER,
@@ -76,5 +81,14 @@ export class FrameBuffer implements Bindable, Deletable {
 
   get status(): FrameBufferStatus {
     return this.gl.checkFramebufferStatus(WebGL2RenderingContext.FRAMEBUFFER);
+  }
+
+  checkStatus(): void {
+    const status = this.status;
+    if (status !== FrameBufferStatus.COMPLETE) {
+      const message = 'FrameBuffer is not complete:' + frameBufferStatusName(status);
+      console.error(message);
+      throw new Error(message);
+    }
   }
 }

@@ -1,11 +1,11 @@
 import { BufferUsage, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
 import { VertexArray } from '../gl/drawable/VertextArray';
-import { Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program, VaryingBufferMode } from '../gl/shader/Program';
 import { TransformFeedback } from '../gl/shader/TransformFeedback';
 import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
+import { vec2 } from 'gl-matrix';
 
 interface ParticlesParameters {
   count: number;
@@ -35,8 +35,8 @@ class UpdateUniforms {
   target: WebGLUniformLocation | null = null;
 }
 
-class ParticlesResources implements Deletable {
-  static async create(container: SandboxContainer): Promise<ParticlesResources> {
+class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
+  static async create(container: SandboxContainer, name: string): Promise<GLParticles> {
     const programs = await Promise.all([
       container.programLoader.load({
         path: 'particles/particles-render.glsl',
@@ -50,119 +50,108 @@ class ParticlesResources implements Deletable {
     ]);
     const parameters = { count: 500_000, accel: 4, speed: 2 };
     window.hashlocation.parseParams(parameters);
-    return new ParticlesResources(container, programs[0], programs[1], parameters);
+    return new GLParticles(container, name, parameters, programs[0], programs[1]);
   }
-  readonly particleBuffers: ParticleBuffers;
-  readonly transformFeedback: TransformFeedback;
+
   readonly overlayContent: HTMLElement;
-  readonly countSpan: HTMLElement;
+
+  private readonly particleBuffers: ParticleBuffers;
+  private readonly transformFeedback: TransformFeedback;
+  private readonly countSpan: HTMLElement;
+
+  private _mode: TargetMode = TargetMode.ATTRACT;
+
+  private readonly target = vec2.create();
+  private newTarget?: vec2;
+
+  private readonly dirty = {
+    params: true,
+    mode: true
+  };
+
   constructor(
-    readonly container: SandboxContainer,
+    container: SandboxContainer,
+    name: string,
+    parameters: ParticlesParameters,
     readonly renderProgram: Program<RenderUniforms>,
-    readonly updateProgram: Program<UpdateUniforms>,
-    readonly parameters: ParticlesParameters
+    readonly updateProgram: Program<UpdateUniforms>
   ) {
-    this.particleBuffers = new ParticleBuffers(container.gl, this.parameters);
+    super(container, name, parameters);
+
+    this.particleBuffers = new ParticleBuffers(container.gl, parameters);
+    this.particleBuffers.dataBuffer.bind();
+
     this.transformFeedback = new TransformFeedback(container.gl);
     this.overlayContent = document.createElement('div');
     this.countSpan = document.createElement('span');
     this.overlayContent.appendChild(this.countSpan);
     this.updateOverlay();
-  }
 
-  delete(): void {
-    this.particleBuffers.dataBuffer.unbind();
-    this.particleBuffers.delete();
-    this.transformFeedback.delete();
-    this.container.gl.useProgram(null);
-    this.renderProgram.delete();
-    this.updateProgram.delete();
-  }
-
-  updateOverlay(): void {
-    this.countSpan.textContent = `${this.particleBuffers.count.toLocaleString()} particles`;
-  }
-}
-
-class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParameters> {
-  private _mode: TargetMode = TargetMode.ATTRACT;
-
-  private readonly target = { x: 0, y: 0 };
-  private readonly dirty = {
-    params: true,
-    mode: true,
-    target: true
-  };
-
-  constructor(container: SandboxContainer, name: string, resources: ParticlesResources) {
-    super(container, name, resources, resources.parameters);
     this.mouseleave = this.mouseleave.bind(this);
     container.canvas.addEventListener('mouseleave', this.mouseleave);
-    resources.particleBuffers.dataBuffer.bind();
+
     this.running = true;
   }
 
   render(): void {
     this.clear();
-    const particleBuffers = this.resources.particleBuffers;
-    const renderProgram = this.resources.renderProgram;
+    const particleBuffers = this.particleBuffers;
+    const renderProgram = this.renderProgram;
     renderProgram.use();
     if (this.dirty.params) {
       particleBuffers.dataBuffer.bind();
 
-      const updateProgram = this.resources.updateProgram;
+      const updateProgram = this.updateProgram;
       updateProgram.use();
       this.gl.uniform1f(updateProgram.uniformLocations.acceleration, this.parameters.accel);
       this.gl.uniform1f(updateProgram.uniformLocations.maxSpeed, this.parameters.speed);
 
       renderProgram.use();
-      this.gl.uniform1f(this.resources.renderProgram.uniformLocations.maxSpeed, this.parameters.speed);
+      this.gl.uniform1f(this.renderProgram.uniformLocations.maxSpeed, this.parameters.speed);
 
       this.dirty.params = false;
     }
 
     if (particleBuffers.count < this.parameters.count) {
       particleBuffers.addParticles(this.parameters.count - particleBuffers.count);
-      this.resources.updateOverlay();
+      this.updateOverlay();
     } else if (particleBuffers.count > this.parameters.count) {
       particleBuffers.count = this.parameters.count;
-      this.resources.updateOverlay();
+      this.updateOverlay();
     }
     particleBuffers.draw();
   }
 
   update(_time: number, dt: number): void {
-    const updateProgram = this.resources.updateProgram;
+    const updateProgram = this.updateProgram;
     updateProgram.use();
     if (this.dirty.mode) {
       this.gl.uniform1i(updateProgram.uniformLocations.mode, this._mode);
       this.dirty.mode = false;
     }
 
-    if (this.dirty.target) {
-      this.gl.uniform2f(updateProgram.uniformLocations.target, this.target.x, this.target.y);
-      this.dirty.target = false;
+    if (this.newTarget) {
+      this.gl.uniform2f(updateProgram.uniformLocations.target, this.newTarget[0], this.newTarget[1]);
+      this.newTarget = undefined;
     }
 
     this.gl.uniform1f(updateProgram.uniformLocations.elapsed, dt);
 
-    const tf = this.resources.transformFeedback;
-    tf.bind().bindBuffer(0, this.resources.particleBuffers.targetBuffer.vbo);
+    this.transformFeedback.bind().bindBuffer(0, this.particleBuffers.targetBuffer.vbo);
     this.gl.enable(WebGL2RenderingContext.RASTERIZER_DISCARD);
 
-    tf.begin(TransformFeedbackDrawMode.POINTS);
-    this.resources.particleBuffers.draw();
-    tf.end();
+    this.transformFeedback.begin(TransformFeedbackDrawMode.POINTS);
+    this.particleBuffers.draw();
+    this.transformFeedback.end();
 
     this.gl.disable(WebGL2RenderingContext.RASTERIZER_DISCARD);
-    tf.unbindBuffer(0).unbind();
+    this.transformFeedback.unbindBuffer(0).unbind();
 
-    this.resources.particleBuffers.swap();
+    this.particleBuffers.swap();
   }
 
   delete(): void {
     super.delete();
-    this.resources.delete();
     this.container.canvas.removeEventListener('mouseleave', this.mouseleave);
   }
 
@@ -171,7 +160,7 @@ class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParamet
   }
 
   onmousemove(event: MouseEvent): void {
-    this.setClientTarget(event.offsetX, event.offsetY);
+    this.updateTarget(event);
   }
 
   onmousedown(event: MouseEvent): void {
@@ -195,12 +184,12 @@ class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParamet
   }
 
   ontouchstart(event: TouchEvent): void {
-    this.setClientTarget(event.touches[0].clientX, event.touches[0].clientY);
+    this.updateTarget(event);
     this.mode = TargetMode.REPUSLE;
   }
 
   ontouchmove(event: TouchEvent): void {
-    this.setClientTarget(event.touches[0].clientX, event.touches[0].clientY);
+    this.updateTarget(event);
     if (this.mode === TargetMode.REPUSLE) this.mode = TargetMode.ATTRACT;
   }
 
@@ -208,24 +197,12 @@ class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParamet
     this.mode = TargetMode.ATTRACT;
   }
 
-  get overlayContent(): HTMLElement {
-    return this.resources.overlayContent;
-  }
-
   private mouseleave(): void {
-    this.setViewportTarget(0, 0);
+    this.newTarget = vec2.set(this.target, 0, 0);
   }
 
-  private setClientTarget(cx: number, cy: number) {
-    const x = (cx / this.dimension[0]) * 2 - 1;
-    const y = (1 - cy / this.dimension[1]) * 2 - 1;
-    this.setViewportTarget(x, y);
-  }
-
-  private setViewportTarget(x: number, y: number) {
-    this.target.x = x;
-    this.target.y = y;
-    this.dirty.target = true;
+  private updateTarget(e: TouchEvent | MouseEvent) {
+    this.newTarget = this.clientToWorld(e, this.target);
   }
 
   private get mode(): TargetMode {
@@ -235,6 +212,10 @@ class GLParticles extends AbstractGLSandbox<ParticlesResources, ParticlesParamet
   private set mode(mode: TargetMode) {
     this._mode = mode;
     this.dirty.mode = true;
+  }
+
+  updateOverlay(): void {
+    this.countSpan.textContent = `${this.particleBuffers.count.toLocaleString()} particles`;
   }
 }
 
@@ -369,8 +350,5 @@ class ParticleBuffers {
 }
 
 export function glparticles(): SandboxFactory<ParticlesParameters> {
-  return newSandboxFactory(
-    ParticlesResources.create,
-    (container, name, resources) => new GLParticles(container, name, resources)
-  );
+  return GLParticles.create;
 }

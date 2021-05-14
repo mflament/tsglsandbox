@@ -9,9 +9,7 @@ export class ProgramLoader {
     this.shaderCompiler = new CompiledShadersCache(gl);
   }
 
-  async load<U = any, B = any, A = any>(
-    config: ShadersConfiguration<U, B, A> | MergedConfiguration<U, B, A>
-  ): Promise<Program<U, B, A>> {
+  async load<U = any, B = any, A = any>(config: ProgramConfiguration<U, B, A>): Promise<Program<U, B, A>> {
     const results = new ParsingResults();
     if (isShadersConfig(config)) {
       await Promise.all([
@@ -32,7 +30,7 @@ export class ProgramLoader {
     return new Program<U, B, A>(this.gl, config).link(shaders, varyings);
   }
 
-  private createShader(type: ShaderType, results: ParsingResults, config: ProgramConfiguration): Shader {
+  private createShader(type: ShaderType, results: ParsingResults, config: BaseConfiguration): Shader {
     const lines = type === ShaderType.VERTEX_SHADER ? results.vs.lines : results.fs.lines;
     const version = results.version || '300 es';
     let source = `#version ${version}\n\n`;
@@ -50,7 +48,7 @@ export class ProgramLoader {
   private async parseShader(
     path: string,
     targets: ShaderType[],
-    config: ProgramConfiguration,
+    config: BaseConfiguration,
     results: ParsingResults
   ): Promise<void> {
     const source = await this.shaderLoader.load(path);
@@ -204,21 +202,23 @@ class ParsingResult {
 
 type Defines = { [name: string]: any };
 
-interface ProgramConfiguration<U = any, B = any, A = any> extends ProgramLocations<U, B, A> {
+interface BaseConfiguration<U = any, B = any, A = any> extends ProgramLocations<U, B, A> {
   defines?: Defines;
   varyingMode?: VaryingBufferMode;
 }
 
-interface ShadersConfiguration<U = any, B = any, A = any> extends ProgramConfiguration<U, B, A> {
+interface ShadersConfiguration<U = any, B = any, A = any> extends BaseConfiguration<U, B, A> {
   vspath: string;
   fspath: string;
 }
 
-interface MergedConfiguration<U = any, B = any, A = any> extends ProgramConfiguration<U, B, A> {
+interface MergedConfiguration<U = any, B = any, A = any> extends BaseConfiguration<U, B, A> {
   path: string;
 }
 
-function isShadersConfig<U, B, A>(config: ProgramConfiguration<U, B, A>): config is ShadersConfiguration<U, B, A> {
+type ProgramConfiguration<U = any, B = any, A = any> = ShadersConfiguration<U, B, A> | MergedConfiguration<U, B, A>;
+
+function isShadersConfig<U, B, A>(config: BaseConfiguration<U, B, A>): config is ShadersConfiguration<U, B, A> {
   const cfg = config as ShadersConfiguration;
   return typeof cfg.fspath === 'string' && typeof cfg.vspath === 'string';
 }

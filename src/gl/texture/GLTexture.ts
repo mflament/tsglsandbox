@@ -58,7 +58,7 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
 
   activate(index: number): GLTexture2D {
     this.gl.activeTexture(WebGL2RenderingContext.TEXTURE0 + index);
-    return this;
+    return this.bind();
   }
 
   delete(): GLTexture2D {

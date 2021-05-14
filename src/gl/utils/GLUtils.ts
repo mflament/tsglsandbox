@@ -7,6 +7,10 @@ export interface Deletable {
   delete(): void;
 }
 
+export function isDeletable(o: unknown): o is Deletable {
+  return typeof o === 'object' && typeof (o as Deletable).delete === 'function';
+}
+
 export function checkNull<T>(creator: () => T | null): T {
   const res = creator();
   if (res == null) throw Error('Error creating object');

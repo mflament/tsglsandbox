@@ -1,35 +1,13 @@
 import { vec2, vec4 } from 'gl-matrix';
-import { GLSandbox, SandboxContainer, SandboxFactory } from './GLSandbox';
+import { isDeletable } from '../utils/GLUtils';
+import { GLSandbox, SandboxContainer } from './GLSandbox';
 
-export function newSandboxFactory<R, P>(
-  loader: ResourceLoader<R>,
-  factory: AbstractSandboxFactory<R, P>
-): SandboxFactory<P> {
-  return async (container, name) => {
-    const resource = await loader(container);
-    return factory(container, name, resource);
-  };
-}
-
-type ResourceLoader<R> = (container: SandboxContainer) => Promise<R>;
-
-type AbstractSandboxFactory<R, P> = (
-  container: SandboxContainer,
-  name: string,
-  resources: R
-) => AbstractGLSandbox<R, P>;
-
-export abstract class AbstractGLSandbox<R, P> implements GLSandbox<P> {
+export abstract class AbstractGLSandbox<P = any> implements GLSandbox<P> {
   protected _lastUpdate?: number;
 
   private _running = false;
 
-  constructor(
-    readonly container: SandboxContainer,
-    readonly name: string,
-    readonly resources: R,
-    readonly parameters: P
-  ) {
+  constructor(readonly container: SandboxContainer, readonly name: string, readonly parameters: P) {
     window.hashlocation.parseParams(parameters);
     // replace current hash parameters with updated sandbox parameters
     window.hashlocation.update(name, parameters);
@@ -47,6 +25,9 @@ export abstract class AbstractGLSandbox<R, P> implements GLSandbox<P> {
 
   delete(): void {
     window.removeEventListener('hashchange', this.hashchanged);
+    for (const value of Object.values(this)) {
+      if (isDeletable(value)) value.delete();
+    }
   }
 
   protected onParametersChanged(): void {
@@ -81,5 +62,19 @@ export abstract class AbstractGLSandbox<R, P> implements GLSandbox<P> {
 
   protected get dimension(): vec2 {
     return this.container.dimension;
+  }
+
+  clientToWorld(e: MouseEvent | TouchEvent, out?: vec2): vec2 {
+    out = out ? out : vec2.create();
+    let x, y;
+    if (e instanceof MouseEvent) {
+      x = e.offsetX;
+      y = e.offsetY;
+    } else {
+      x = e.touches[0].clientX;
+      y = e.touches[0].clientX;
+    }
+    vec2.set(out, (x / this.dimension[0]) * 2 - 1, (1 - y / this.dimension[1]) * 2 - 1);
+    return out;
   }
 }

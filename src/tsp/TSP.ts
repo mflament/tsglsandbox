@@ -1,6 +1,6 @@
 import { VertexArray } from '../gl/drawable/VertextArray';
 import { Bindable, Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox, newSandboxFactory } from '../gl/sandbox/AbstractGLSandbox';
+import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { Program } from '../gl/shader/Program';
 
@@ -21,30 +21,42 @@ class TSPUniforms {
   viewMatrix: WebGLUniformLocation | null = null;
 }
 
-class TSPResources implements Deletable {
-  static async create(container: SandboxContainer): Promise<TSPResources> {
+class TSP extends AbstractGLSandbox<TSPParameters> {
+  static async create(container: SandboxContainer, name: string): Promise<TSP> {
     const program = await container.programLoader.load({
       path: 'tsp/tsp-render.glsl',
       uniformLocations: new TSPUniforms()
     });
     const parameters = { cities: 10 };
     window.hashlocation.parseParams(parameters);
-    return new TSPResources(container, program, parameters);
+    return new TSP(container, name, parameters, program);
   }
 
   readonly citiesBuffer: CitiesBuffer;
+
   constructor(
-    readonly container: SandboxContainer,
-    readonly renderProgram: Program<any, TSPUniforms>,
-    readonly parameters: TSPParameters
+    container: SandboxContainer,
+    name: string,
+    readonly parameters: TSPParameters,
+    readonly renderProgram: Program<any, TSPUniforms>
   ) {
+    super(container, name, parameters);
     renderProgram.use();
-    this.updateViewMatrix();
+    this.onresize();
     this.citiesBuffer = new CitiesBuffer(container.gl);
     this.citiesBuffer.cities = randomCities(parameters.cities);
   }
 
-  updateViewMatrix() {
+  render(): void {
+    super.clear();
+    this.citiesBuffer.draw();
+  }
+
+  onParametersChanged(): void {
+    this.citiesBuffer.cities = randomCities(this.parameters.cities);
+  }
+
+  onresize(): void {
     const dim = this.container.dimension;
     const ar = dim[0] / dim[1];
     const sx = Math.min(1, 1 / ar) * 2;
@@ -59,41 +71,10 @@ class TSPResources implements Deletable {
     this.container.gl.uniformMatrix4fv(this.renderProgram.uniformLocations.viewMatrix, false, viewMatrix);
     this.container.gl.uniform1f(this.renderProgram.uniformLocations.cityRadius, (CITY_RADIUS * dim[0]) / 2);
   }
-
-  delete(): void {
-    this.citiesBuffer.unbind().delete();
-    this.container.gl.useProgram(null);
-    this.renderProgram.delete();
-  }
-
-  updateCities() {
-    this.citiesBuffer.cities = randomCities(this.parameters.cities);
-  }
-}
-
-class TSP extends AbstractGLSandbox<TSPResources, TSPParameters> {
-  constructor(container: SandboxContainer, name: string, resources: TSPResources) {
-    super(container, name, resources, resources.parameters);
-    resources.citiesBuffer.bind();
-  }
-
-  render(): void {
-    super.clear();
-    this.resources.renderProgram.use();
-    this.resources.citiesBuffer.draw();
-  }
-
-  onParametersChanged(): void {
-    this.resources.updateCities();
-  }
-
-  onresize(): void {
-    this.resources.updateViewMatrix();
-  }
 }
 
 export function tsp(): SandboxFactory<TSPParameters> {
-  return newSandboxFactory(TSPResources.create, (container, name, resources) => new TSP(container, name, resources));
+  return TSP.create;
 }
 
 interface City {
