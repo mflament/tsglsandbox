@@ -12,9 +12,9 @@ uniform float u_time;
 uniform float u_deltaTime;
 
 uniform int u_boidCount;
-uniform vec3 u_speedConfig;  // x: acceleration, y: max speed, z: turn speed
-uniform vec2 u_scanConfig;   // x:  view distance, y: fov
-uniform vec3 u_updateConfig; // x: repulse distance
+uniform vec3 u_speedConfig;   // x: acceleration, y: max speed, z: turn speed
+uniform vec2 u_scanConfig;    // x:  view distance, y: fov
+uniform float u_updateConfig; // x: repulse distance
 
 uniform vec2 u_boidScale;
 uniform vec4 u_boidColor;

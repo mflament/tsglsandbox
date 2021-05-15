@@ -27,7 +27,8 @@ void main() {
   angle += clamp(u_speedConfig.z * u_deltaTime, 0.0, angleDiff) * (dotRight < 0.0 ? 1.0 : -1.0);
   heading = vec2(cos(angle), sin(angle));
 
-  float a = u_speedConfig.x * dot(heading, targetHeading);
+  // float a = u_speedConfig.x * clamp(u_speedConfig.x * dot(heading, targetHeading), 0.1, 1.0);
+  float a = u_speedConfig.x;
   speed = clamp(speed + a * u_deltaTime, 0.0, u_speedConfig.y);
 
   vec2 velocity = heading * speed;

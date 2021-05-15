@@ -225,10 +225,6 @@ export function boids(): SandboxFactory<BoidsParameters> {
   return GLBoids.create;
 }
 
-function clamp(x: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, x));
-}
-
 function toRad(deg: number): number {
   return deg * (Math.PI / 180);
 }

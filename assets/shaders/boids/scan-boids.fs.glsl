@@ -22,7 +22,6 @@ void main() {
     toTarget = normalize(toTarget);
     float d = dot(boidData.zw, toTarget);
     float s = step(u_scanConfig.y, d);
-    scanData.xyz = vec3(toTarget, dist) * s;
-    scanData.w = s;
+    scanData = vec4(toTarget, dist, 1.0) * s;
   }
 }

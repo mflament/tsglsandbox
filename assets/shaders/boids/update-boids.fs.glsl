@@ -28,20 +28,28 @@ void main() {
   int boidIndex = int(gl_FragCoord.x);
   vec4 boidData = texelFetch(u_boidData, ivec2(boidIndex, 0), 0);
   float speed = texelFetch(u_boidSpeed, ivec2(boidIndex, 0), 0).x;
-  vec2 targetHeading = texelFetch(u_targetHeadings, ivec2(boidIndex, 0), 0).xy;
+
+  vec2 targetHeading = boidData.zw; // texelFetch(u_targetHeadings, ivec2(boidIndex, 0), 0).xy;
 
   // float angle = atan(targetHeading.y, targetHeading.x);
   // angle += randomTurn(gl_FragCoord.x, 0.5) * TURN_FACTOR;
   // targetHeading = vec2(cos(angle), sin(angle));
 
+  vec2 repulse = vec2(0.0);
+  vec4 sum = vec4(0.0);
   for (int i = 0; i < u_boidCount; i++) {
     vec4 scanData = texelFetch(u_scanData, ivec2(i, boidIndex), 0);
-    float dist = scanData.z;
-    // dist / u_speedConfig.
-    // vec4 target = texelFetch(u_boidData, ivec2(i, 0), 0);
-    targetHeading -= scanData.xy;
+    vec4 target = texelFetch(u_boidData, ivec2(i, 0), 0);
+    sum += target * scanData.w;
+
+    float repulsefact = 1.0 - clamp(scanData.z / u_updateConfig, 0.0, 1.0);
+    repulse += repulsefact * scanData.xy;
   }
-  targetHeading = normalize(targetHeading);
+
+  targetHeading = normalize(sum.xy - boidData.xy);
+  targetHeading += normalize(sum.zw);
+  //  targetHeading += normalize(repulse);
+  targetHeading += normalize(-repulse);
 
   float turnDist = (HALF_PI / u_speedConfig.z) * speed;
   vec2 targetPos = boidData.xy + targetHeading * turnDist;
