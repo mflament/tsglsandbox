@@ -8,7 +8,7 @@ import { GLTexture2D } from '../gl/texture/GLTexture';
 import { FrameBuffer } from '../gl/buffers/FrameBuffer';
 import { newQuadDrawable } from '../gl/drawable/QuadDrawable';
 import { BoidPrograms } from './BoidPrograms';
-import { BoidTextures, SCAN_DATA_BINDING } from './BoidTextures';
+import { BoidTextures } from './BoidTextures';
 
 export interface BoidsParameters {
   count: number;
@@ -17,6 +17,7 @@ export interface BoidsParameters {
   turnspeed: number;
   fov: number;
   viewdist: number;
+  repulseDistance: number;
   ups: number;
 }
 const MAX_BOIDS = 256;
@@ -40,10 +41,11 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
       turnspeed: 180,
       fov: 140,
       viewdist: 4,
+      repulseDistance: 3,
       ups: 30
     };
     window.hashlocation.parseParams(parameters);
-    return new GLBoids(container, name, parameters, await BoidPrograms.create(container.programLoader, BOID_WIDTH));
+    return new GLBoids(container, name, parameters, await BoidPrograms.create(container.programLoader));
   }
 
   readonly frameBuffer: FrameBuffer;
@@ -70,33 +72,37 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
     this.frameBuffer = new FrameBuffer(this.gl);
 
     this.updateBoidSize(container.dimension);
-    programs.setupUniforms(parameters, this.boidSize);
+    programs.setupUniforms();
 
-    this.textures.pushBoids([
-      { pos: [0.0, 0.95], angle: Math.PI / 2 }
-      // { pos: [0, 0.2], angle: Math.PI / 2 },
-      // { pos: [0, 0.1], angle: 0 },
-      // { pos: [-0.1, 0], angle: 0 },
-      // { pos: [0.1, 0.1], angle: 0 },
-      // { pos: [0, 0.5], angle: 0 }
-    ]);
+    // this.textures.pushBoids([
+    //   { pos: [0.0, 0.0], angle: Math.PI / 2 },
+    //   { pos: [0, 5 * this.boidSize[1]], angle: Math.PI / 2 }
+    //   // { pos: [0, 0.1], angle: 0 },
+    //   // { pos: [-0.1, 0], angle: 0 },
+    //   // { pos: [0.1, 0.1], angle: 0 },
+    //   // { pos: [0, 0.5], angle: 0 }
+    // ]);
+
+    this.onParametersChanged();
 
     this.programs.renderBoids.use();
+    this.textures.boids[0].bind();
     this.renderDrawable.bind();
 
     this.scanBoids();
   }
 
   render(): void {
+    // this.scanBoids();
     // this.clear([0.5, 0.5, 0.5, 1], WebGL2RenderingContext.COLOR_BUFFER_BIT);
     this.clear([0, 0, 0, 1], WebGL2RenderingContext.COLOR_BUFFER_BIT);
     this.renderBoids();
   }
 
-  update(_time: number, dt: number): void {
-    if (this.nextUpdate === undefined || this.nextUpdate <= _time) {
-      this.updateBoids();
-      this.nextUpdate = _time + this.updateInterval;
+  update(time: number, dt: number): void {
+    if (this.nextUpdate === undefined || this.nextUpdate <= time) {
+      this.updateBoids(time);
+      this.nextUpdate = time + this.updateInterval;
     }
     this.moveBoids(dt);
   }
@@ -104,7 +110,7 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
   onkeydown(e: KeyboardEvent): void {
     switch (e.key.toLowerCase()) {
       case 'n':
-        this.updateBoids();
+        this.updateBoids(0);
         break;
     }
   }
@@ -115,48 +121,65 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
 
   onParametersChanged(): void {
     this.textures.boidsCount = Math.min(MAX_BOIDS, this.parameters.count);
-    this.programs.updateUniforms(this.parameters);
+    this.parameters.count = this.textures.boidsCount;
     this.updateInterval = 1 / this.parameters.ups === 0 ? Infinity : 1 / this.parameters.ups;
+    this.updateUniforms();
   }
 
   onresize(dim: vec2): void {
     this.onsresize(dim);
   }
 
+  onsresize(dim: vec2): void {
+    this.updateBoidSize(dim);
+    this.updateUniforms();
+  }
+
   private renderBoids(): void {
+    this.programs.bindRender(this.textures);
     this.renderDrawable.draw(this.textures.boidsCount);
+    this.programs.unbindRender(this.textures);
   }
 
   private moveBoids(dt: number): void {
-    const moveProgram = this.programs.moveBoids;
-    moveProgram.use();
-    this.gl.uniform1f(moveProgram.uniformLocations.u_elapsedSeconds, dt);
+    this.programs.bindMove(this.textures, dt);
 
     const backBuffer = this.textures.boids[1];
     this.compute([backBuffer.data, backBuffer.speed]);
-    this.textures.swapBoids();
 
-    this.programs.renderBoids.use();
+    this.textures.swapBoids();
+    this.programs.unbindMove(this.textures);
   }
 
-  private updateBoids(): void {
+  private updateBoids(time: number): void {
     this.scanBoids();
-    this.programs.updateBoids.use();
+
+    this.programs.bindUpdateHeadings(this.textures, time);
+
     this.compute(this.textures.targetHeadings[1]);
+    this.programs.unbindUpdateHeadings(this.textures);
     this.textures.swapTargetHeadings();
     this.programs.renderBoids.use();
   }
 
   private scanBoids(): void {
-    this.programs.scanBoids.use();
-    this.compute(this.textures.scanTexture, this.textures.boidsCount, this.textures.boidsCount);
-    this.textures.scanTexture.activate(SCAN_DATA_BINDING);
-    this.programs.renderBoids.use();
+    this.programs.bindScan(this.textures);
+    this.compute(this.textures.scan, this.textures.boidsCount, this.textures.boidsCount);
+    this.programs.unbindScan(this.textures);
   }
 
-  onsresize(dim: vec2): void {
-    this.updateBoidSize(dim);
-    this.programs.updateBoidSize(this.boidSize);
+  private updateUniforms() {
+    const boidLength = Math.max(this.boidSize[0], this.boidSize[1]);
+    this.programs.updateUniforms({
+      boidsCount: this.parameters.count,
+      boidsSize: this.boidSize,
+      acceleration: this.parameters.acceleration,
+      maxspeed: this.parameters.maxspeed,
+      turnspeed: toRad(this.parameters.turnspeed),
+      viewdist: this.parameters.viewdist * boidLength,
+      fov: Math.cos(toRad(this.parameters.fov / 2)),
+      repulseDistance: this.parameters.repulseDistance * boidLength
+    });
   }
 
   private compute(target: GLTexture2D | GLTexture2D[], width = this.textures.boidsCount, height = 1): void {
@@ -200,4 +223,12 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
 
 export function boids(): SandboxFactory<BoidsParameters> {
   return GLBoids.create;
+}
+
+function clamp(x: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, x));
+}
+
+function toRad(deg: number): number {
+  return deg * (Math.PI / 180);
 }

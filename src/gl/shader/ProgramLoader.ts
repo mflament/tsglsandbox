@@ -2,6 +2,7 @@ import { createShaderLoader, ShaderLoader } from './ShaderLoader';
 import { Varyings, VaryingBufferMode, Program, ProgramLocations } from './Program';
 import { CompiledShadersCache } from './CompiledShadersCache';
 import { Shader, ShaderType } from './Shader';
+import Path from '../../utils/Path';
 
 export class ProgramLoader {
   private readonly shaderCompiler: CompiledShadersCache;
@@ -86,7 +87,8 @@ export class ProgramLoader {
 
         const includePath = this.parseInclude(trimmedLine);
         if (includePath) {
-          await this.parseShader(includePath, currentTargets, config, results);
+          const resolvedPath = Path.resolve(Path.dirname(path), includePath);
+          await this.parseShader(resolvedPath, currentTargets, config, results);
           continue;
         }
 

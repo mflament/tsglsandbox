@@ -99,7 +99,7 @@ const posix = {
       let path;
       if (i >= 0) path = args[i];
       else {
-        if (cwd === undefined) cwd = process.cwd();
+        if (cwd === undefined) cwd = typeof process === 'object' ? process.cwd() : './';
         path = cwd;
       }
 

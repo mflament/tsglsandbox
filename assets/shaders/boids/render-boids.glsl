@@ -2,15 +2,9 @@
 precision mediump float;
 
 // in vs
+#include "boids-uniforms.glsl"
+
 layout(location = 0) in vec2 a_position;
-
-//  xy: pos , zw: heading
-uniform sampler2D u_boidData;
-uniform sampler2D u_scanData;
-
-uniform vec2 u_boidScale;
-uniform vec4 u_boidColor;
-uniform vec2 u_scanConfig; // x:  view distance, y: fov
 
 out vec4 boidColor;
 
@@ -53,7 +47,9 @@ void main() {
     vec4 scanData = texelFetch(u_scanData, ivec2(boidIndex, 0), 0);
     vec4 refBoid = texelFetch(u_boidData, ivec2(0, 0), 0);
     float d = dot(refBoid.zw, scanData.xy);
-    // boidColor.rgb = vec3(step(0.8, d) * scanData.w);
+    boidColor.r = 1.0 - scanData.w;
+    boidColor.g = 0.0;
+    boidColor.b = scanData.w;
   }
 }
 

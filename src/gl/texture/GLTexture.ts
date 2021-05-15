@@ -56,9 +56,22 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     return this;
   }
 
-  activate(index: number): GLTexture2D {
-    this.gl.activeTexture(WebGL2RenderingContext.TEXTURE0 + index);
-    return this.bind();
+  activate(unit: number): GLTexture2D {
+    this.activeUnit = unit;
+    return this;
+  }
+
+  private static _activeUnit = 0;
+
+  get activeUnit(): number {
+    return GLTexture2D._activeUnit;
+  }
+
+  set activeUnit(unit: number) {
+    if (GLTexture2D._activeUnit !== unit) {
+      this.gl.activeTexture(WebGL2RenderingContext.TEXTURE0 + unit);
+      GLTexture2D._activeUnit = unit;
+    }
   }
 
   delete(): GLTexture2D {
@@ -130,8 +143,9 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     return this;
   }
 
-  generateMimap(): void {
+  generateMimap(): GLTexture2D {
     this.gl.generateMipmap(TARGET);
+    return this;
   }
 
   minFilter(f: TextureMinFilter): GLTexture2D {

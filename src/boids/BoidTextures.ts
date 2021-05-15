@@ -28,15 +28,7 @@ export class BoidTextures implements Deletable {
 
   private _boidsCount = 0;
 
-  constructor(
-    readonly boids: BoidDataTextures[],
-    readonly targetHeadings: GLTexture2D[],
-    readonly scanTexture: GLTexture2D
-  ) {
-    boids[0].activate();
-    targetHeadings[0].activate(TARGET_HEADING_BINDING);
-    scanTexture.activate(SCAN_DATA_BINDING);
-  }
+  constructor(readonly boids: BoidDataTextures[], readonly targetHeadings: GLTexture2D[], readonly scan: GLTexture2D) {}
 
   get boidsCount(): number {
     return this._boidsCount;
@@ -51,21 +43,41 @@ export class BoidTextures implements Deletable {
     }
   }
 
+  bindTargetHeading(): BoidTextures {
+    this.targetHeadings[0].activate(TARGET_HEADING_BINDING).bind();
+    return this;
+  }
+
+  unbindTargetHeading(): BoidTextures {
+    this.targetHeadings[0].activate(TARGET_HEADING_BINDING).unbind();
+    return this;
+  }
+
+  bindScan(): BoidTextures {
+    this.scan.activate(SCAN_DATA_BINDING).bind();
+    return this;
+  }
+
+  unbindScan(): BoidTextures {
+    this.scan.activate(SCAN_DATA_BINDING).unbind();
+    return this;
+  }
+
   delete(): void {
     this.boids.forEach(b => b.delete());
     this.targetHeadings.forEach(b => b.delete());
-    this.scanTexture.delete();
+    this.scan.delete();
   }
 
   swapBoids(): void {
     const tmp = this.boids[0];
     this.boids[0] = this.boids[1];
     this.boids[1] = tmp;
-    this.boids[0].activate();
+    this.boids[0].bind();
   }
 
   swapTargetHeadings(): void {
-    const tmp = this.targetHeadings[0];
+    const tmp = this.targetHeadings[0].activate(TARGET_HEADING_BINDING).unbind();
     this.targetHeadings[0] = this.targetHeadings[1];
     this.targetHeadings[1] = tmp;
     this.targetHeadings[0].activate(TARGET_HEADING_BINDING);
@@ -83,27 +95,36 @@ export class BoidTextures implements Deletable {
       height: 1,
       type: TextureComponentType.FLOAT
     };
-    this.boids[0].data.bind().subdata({
-      ...textureData,
-      buffer: data,
-      format: TextureFormat.RGBA
-    });
-    this.boids[0].speed.bind().subdata({
-      ...textureData,
-      buffer: new Float32Array(boids.length),
-      format: TextureFormat.RED
-    });
+    this.boids[0].data
+      .activate(BOIDS_DATA_BINDING)
+      .bind()
+      .subdata({
+        ...textureData,
+        buffer: data,
+        format: TextureFormat.RGBA
+      });
+    this.boids[0].speed
+      .activate(BOIDS_SPEED_BINDING)
+      .bind()
+      .subdata({
+        ...textureData,
+        buffer: new Float32Array(boids.length),
+        format: TextureFormat.RED
+      });
 
     const targetHeadings = new Float32Array(boids.length * 2);
     for (let i = 0; i < boids.length; i++) {
       targetHeadings[i * 2] = data[i * BOID_FLOATS + 2];
       targetHeadings[i * 2 + 1] = data[i * BOID_FLOATS + 3];
     }
-    this.targetHeadings[0].bind().subdata({
-      ...textureData,
-      buffer: targetHeadings,
-      format: TextureFormat.RG
-    });
+    this.targetHeadings[0]
+      .activate(TARGET_HEADING_BINDING)
+      .bind()
+      .subdata({
+        ...textureData,
+        buffer: targetHeadings,
+        format: TextureFormat.RG
+      });
 
     this._boidsCount += boids.length;
   }
@@ -116,9 +137,16 @@ export class BoidDataTextures implements Deletable {
 
   constructor(readonly data: GLTexture2D, readonly speed: GLTexture2D) {}
 
-  activate(): void {
+  bind(): BoidDataTextures {
     this.data.activate(BOIDS_DATA_BINDING).bind();
     this.speed.activate(BOIDS_SPEED_BINDING).bind();
+    return this;
+  }
+
+  unbind(): BoidDataTextures {
+    this.data.activate(BOIDS_DATA_BINDING).unbind();
+    this.speed.activate(BOIDS_SPEED_BINDING).unbind();
+    return this;
   }
 
   delete(): void {

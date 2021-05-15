@@ -88,7 +88,7 @@ function makeNoise2D(clientSeed = randomSimplexSeed()): Noise<vec2> {
 
   return (v: vec2): number => {
     const x = v[0];
-    const y = v[0];
+    const y = v[1];
     const stretchOffset = (x + y) * STRETCH_2D;
 
     const xs = x + stretchOffset;

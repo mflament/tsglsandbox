@@ -77,7 +77,7 @@ class SimpleHashLocation implements HashLocation {
         hash += index === 0 ? '?' : '&';
         const value = params[key];
         hash += key;
-        if (value) hash += '=' + value;
+        if (value !== undefined) hash += '=' + value;
         index++;
       }
     }

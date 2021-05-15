@@ -110,7 +110,6 @@ export class Program<U = any, B = any, A = any> {
     for (const name of names) {
       const location = this.uniformLocation(name);
       if (location !== null) target[name] = location;
-      else console.error(`uniform '${name}' not found`);
     }
   }
 

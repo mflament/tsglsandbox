@@ -2,17 +2,9 @@
 
 precision mediump float;
 
+#include "boids-uniforms.glsl"
+
 in vec2 texcoord;
-
-// xy: pos , zw: heading
-uniform sampler2D u_boidData;
-// x: speed
-uniform sampler2D u_boidSpeed;
-// xy: heading
-uniform sampler2D u_targetHeadings;
-
-uniform vec3 u_boidConfig; // x: acceleration, y: max speed, y: turn speed
-uniform float u_elapsedSeconds;
 
 layout(location = 0) out vec4 newBoidData;
 layout(location = 1) out vec4 newBoidSpeed;
@@ -32,13 +24,13 @@ void main() {
   float dotRight = dot(vec2(heading.y, -heading.x), targetHeading);
 
   float angle = atan(heading.y, heading.x);
-  angle += clamp(u_boidConfig.z * u_elapsedSeconds, 0.0, angleDiff) * (dotRight < 0.0 ? 1.0 : -1.0);
+  angle += clamp(u_speedConfig.z * u_deltaTime, 0.0, angleDiff) * (dotRight < 0.0 ? 1.0 : -1.0);
   heading = vec2(cos(angle), sin(angle));
 
-  float a = u_boidConfig.x * dot(heading, targetHeading);
-  speed = clamp(speed + a * u_elapsedSeconds, 0.0, u_boidConfig.y);
+  float a = u_speedConfig.x * dot(heading, targetHeading);
+  speed = clamp(speed + a * u_deltaTime, 0.0, u_speedConfig.y);
 
   vec2 velocity = heading * speed;
-  newBoidData = vec4(boidData.xy + velocity * u_elapsedSeconds, heading);
+  newBoidData = vec4(boidData.xy + velocity * u_deltaTime, heading);
   newBoidSpeed = vec4(speed);
 }

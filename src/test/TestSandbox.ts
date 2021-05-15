@@ -1,4 +1,3 @@
-import { Deletable } from '../gl/utils/GLUtils';
 import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
 import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
 import { newQuadDrawable, QUAD_VS } from '../gl/drawable/QuadDrawable';
@@ -27,10 +26,10 @@ class TestSandbox extends AbstractGLSandbox {
   constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<TestUniforms>) {
     super(container, name, {});
     this.texture = new GLTexture2D(container.gl)
+      .activate(0)
       .bind()
       .data({ width: 1, height: 1, buffer: new Uint8Array([0, 255, 0, 255]) })
-      .data({ uri: 'images/momotte.jpg' })
-      .activate(0);
+      .data({ uri: 'images/momotte.jpg' });
     renderProgram.use();
     container.gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
     this.quadBuffers = newQuadDrawable(container.gl).bind();
