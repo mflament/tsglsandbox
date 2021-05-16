@@ -6,6 +6,7 @@ export interface SandboxContainer {
   readonly containerElement: HTMLElement;
   readonly canvas: HTMLCanvasElement;
   readonly clientArea: vec2;
+  readonly aspectRatio: number;
   dimension: vec2;
   programLoader: ProgramLoader;
   time: number;

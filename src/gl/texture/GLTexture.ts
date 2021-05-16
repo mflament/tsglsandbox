@@ -87,7 +87,10 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
   }
 
   data(param: TextureData): GLTexture2D {
-    const intformat = param.internalFormat ? param.internalFormat : InternalFormat.RGBA;
+    let intformat = param.internalFormat;
+    if (intformat === undefined) intformat = this._internalFormat;
+    if (intformat === undefined) intformat = InternalFormat.RGBA;
+
     const format = param.format ? param.format : defaultFormat(intformat);
     const type = param.type ? param.type : defaultComponentType(intformat, format);
     validateFormatsCombination({ internalFormat: intformat, format: format, type: type });
@@ -126,6 +129,7 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     const intformat = this.internalFormat;
     const format = param.format ? param.format : defaultFormat(intformat);
     const type = param.type ? param.type : defaultComponentType(intformat, format);
+    validateFormatsCombination({ internalFormat: intformat, format: format, type: type });
     const level = param.level ? param.level : 0;
     if (isSizedData(param)) {
       const w = param.width;

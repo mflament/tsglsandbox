@@ -81,6 +81,10 @@ export class DefaultSandboxContainer implements SandboxContainer {
     this.gl.viewport(0, 0, dimension[0], dimension[1]);
   }
 
+  get aspectRatio(): number {
+    return this.canvas.width / this.canvas.height;
+  }
+
   private render(time: number): void {
     const dt = this.lastUpdate === undefined ? 0 : (time - this.lastUpdate) / 1000;
     this.lastUpdate = time;

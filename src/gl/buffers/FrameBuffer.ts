@@ -33,6 +33,7 @@ export function frameBufferStatusName(status: FrameBufferStatus): string {
 
 export class FrameBuffer implements Bindable, Deletable {
   private readonly fb: WebGLFramebuffer;
+  private readonly _attachments: number[] = [];
 
   constructor(readonly gl: WebGL2RenderingContext) {
     this.fb = checkNull(() => gl.createFramebuffer());
@@ -52,30 +53,29 @@ export class FrameBuffer implements Bindable, Deletable {
     this.gl.deleteFramebuffer(this.fb);
   }
 
-  attach(texture: GLTexture2D, index = 0, level = 0): FrameBuffer {
-    this.gl.framebufferTexture2D(
-      FRAMEBUFFER,
-      WebGL2RenderingContext.COLOR_ATTACHMENT0 + index,
-      WebGL2RenderingContext.TEXTURE_2D,
-      texture.gltexture,
-      level
-    );
+  attach(textures: GLTexture2D | GLTexture2D[], level = 0): FrameBuffer {
+    if (!Array.isArray(textures)) textures = [textures];
+    textures.forEach(t => {
+      const index = WebGL2RenderingContext.COLOR_ATTACHMENT0 + this._attachments.length;
+      this.gl.framebufferTexture2D(FRAMEBUFFER, index, WebGL2RenderingContext.TEXTURE_2D, t.gltexture, level);
+      this._attachments.push(index);
+    });
+    this.gl.drawBuffers(this._attachments);
     return this;
   }
 
-  drawBuffers(buffers: number[]): FrameBuffer {
-    this.gl.drawBuffers(buffers.map(a => WebGL2RenderingContext.COLOR_ATTACHMENT0 + a));
-    return this;
-  }
-
-  detach(index = 0, level = 0): FrameBuffer {
-    this.gl.framebufferTexture2D(
-      FRAMEBUFFER,
-      WebGL2RenderingContext.COLOR_ATTACHMENT0 + index,
-      WebGL2RenderingContext.TEXTURE_2D,
-      null,
-      level
+  detach(): FrameBuffer {
+    this._attachments.forEach((_t, index) =>
+      this.gl.framebufferTexture2D(
+        FRAMEBUFFER,
+        WebGL2RenderingContext.COLOR_ATTACHMENT0 + index,
+        WebGL2RenderingContext.TEXTURE_2D,
+        null,
+        0
+      )
     );
+    this._attachments.splice(0, this._attachments.length);
+    this.gl.drawBuffers(this._attachments);
     return this;
   }
 

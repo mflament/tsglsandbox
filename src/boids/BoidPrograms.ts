@@ -1,46 +1,34 @@
 import { Deletable } from '../gl/utils/GLUtils';
 import { Program } from '../gl/shader/Program';
 import { ProgramLoader } from '../gl/shader/ProgramLoader';
-import { vec2, vec4 } from 'gl-matrix';
 
-import {
-  BOIDS_DATA_BINDING,
-  BOIDS_SPEED_BINDING,
-  BoidTextures,
-  SCAN_DATA_BINDING,
-  TARGET_HEADING_BINDING
-} from './BoidTextures';
+import { TEXTURE_UNITS } from './BoidTextures';
 
-const BOID_COLOR: vec4 = [0, 1, 0, 1];
-
-export class BoidsUniformLocations {
+export class BoidsUniforms {
+  // sampler2D [boids, 1 ] xy: pos , zw: velocity
   u_boidData: WebGLUniformLocation | null = null;
-  u_boidSpeed: WebGLUniformLocation | null = null;
-  u_targetHeadings: WebGLUniformLocation | null = null;
-  u_scanData: WebGLUniformLocation | null = null;
+  // sampler2D [boids, 1] : x : familly index
+  u_boidFamilies: WebGLUniformLocation | null = null;
 
-  u_boidCount: WebGLUniformLocation | null = null;
-  u_time: WebGLUniformLocation | null = null;
-  u_deltaTime: WebGLUniformLocation | null = null;
-  u_speedConfig: WebGLUniformLocation | null = null;
-  u_scanConfig: WebGLUniformLocation | null = null;
-  u_updateConfig: WebGLUniformLocation | null = null;
-
-  u_boidScale: WebGLUniformLocation | null = null;
-  u_boidColor: WebGLUniformLocation | null = null;
+  // sampler2D [families, 1] : xy:  size, z: max speed
+  u_families: WebGLUniformLocation | null = null;
 }
 
-type BoidsProgram = Program<BoidsUniformLocations>;
+export class UpdateUniforms extends BoidsUniforms {
+  // vec2: x: time , y : delta time
+  u_time: WebGLUniformLocation | null = null;
+  // int
+  u_boidsCount: WebGLUniformLocation | null = null;
 
-export interface BoidUniforms {
-  boidsCount: number;
-  viewdist: number;
-  acceleration: number;
-  maxspeed: number;
-  turnspeed: number;
-  fov: number;
-  repulseDistance: number;
-  boidsSize: vec2;
+  // sampler2D [familly, 1] : x: cohesion , y:  separation, z:aligment
+  u_famillyRadii: WebGLUniformLocation | null = null;
+  // sampler2D [familly, 1] : x: cohesion , y:  separation, z:aligment
+  u_famillyWeights: WebGLUniformLocation | null = null;
+}
+
+export class RenderUniforms extends BoidsUniforms {
+  // sampler2D [families, 1] : rgba
+  u_famillyColors: WebGLUniformLocation | null = null;
 }
 
 export class BoidPrograms implements Deletable {
@@ -49,123 +37,53 @@ export class BoidPrograms implements Deletable {
     if (!programLoader.gl.getExtension('EXT_color_buffer_float')) throw new Error('need EXT_color_buffer_float');
     // just guessing without this we can't downsample
     if (!programLoader.gl.getExtension('OES_texture_float_linear')) throw new Error('need OES_texture_float_linear');
-
     return new BoidPrograms(
       await programLoader.load({
-        path: 'boids/render-boids.glsl',
-        uniformLocations: new BoidsUniformLocations()
+        path: 'boids2/render-boids.glsl',
+        uniformLocations: new RenderUniforms()
       }),
       await programLoader.load({
         vspath: 'quad.vs.glsl',
-        fspath: 'boids/move-boids.fs.glsl',
-        uniformLocations: new BoidsUniformLocations()
-      }),
-      await programLoader.load({
-        vspath: 'quad.vs.glsl',
-        fspath: 'boids/update-boids.fs.glsl',
-        uniformLocations: new BoidsUniformLocations()
-      }),
-      await programLoader.load({
-        vspath: 'quad.vs.glsl',
-        fspath: 'boids/scan-boids.fs.glsl',
-        uniformLocations: new BoidsUniformLocations()
+        fspath: 'boids2/update-boids.fs.glsl',
+        uniformLocations: new UpdateUniforms()
       })
     );
   }
 
-  constructor(
-    readonly renderBoids: BoidsProgram,
-    readonly moveBoids: BoidsProgram,
-    readonly updateHeadings: BoidsProgram,
-    readonly scanBoids: BoidsProgram
-  ) {}
+  constructor(readonly renderBoids: Program<RenderUniforms>, readonly updateBoids: Program<UpdateUniforms>) {}
 
   get gl(): WebGL2RenderingContext {
     return this.renderBoids.gl;
   }
 
-  get programs(): BoidsProgram[] {
-    return [this.renderBoids, this.moveBoids, this.updateHeadings, this.scanBoids];
+  get programs(): Program<BoidsUniforms>[] {
+    return [this.renderBoids, this.updateBoids];
   }
 
   setupUniforms(): void {
-    this.programs.forEach(p => this.setupProgramUniforms(p));
+    this.setupProgramUniforms(this.updateBoids);
+    this.gl.uniform1i(this.updateBoids.uniformLocations.u_famillyRadii, TEXTURE_UNITS.radii);
+    this.gl.uniform1i(this.updateBoids.uniformLocations.u_famillyWeights, TEXTURE_UNITS.weights);
+
+    this.setupProgramUniforms(this.renderBoids);
+    this.gl.uniform1i(this.renderBoids.uniformLocations.u_famillyColors, TEXTURE_UNITS.colors);
   }
 
-  updateUniforms(uniforms: BoidUniforms): void {
-    this.programs.forEach(p => this.updateProgramUniforms(p, uniforms));
-  }
-
-  bindRender(textures: BoidTextures): BoidPrograms {
-    this.renderBoids.use();
-    textures.bindScan();
-    return this;
-  }
-
-  unbindRender(textures: BoidTextures): BoidPrograms {
-    textures.unbindScan();
-    return this;
-  }
-
-  bindMove(textures: BoidTextures, dt: number): BoidPrograms {
-    this.moveBoids.use();
-    this.gl.uniform1f(this.moveBoids.uniformLocations.u_deltaTime, dt);
-    textures.bindTargetHeading();
-    return this;
-  }
-
-  unbindMove(textures: BoidTextures): BoidPrograms {
-    textures.unbindTargetHeading();
-    return this;
-  }
-
-  bindUpdateHeadings(textures: BoidTextures, time: number): BoidPrograms {
-    this.updateHeadings.use();
-    this.gl.uniform1f(this.updateHeadings.uniformLocations.u_time, time);
-    textures.bindTargetHeading();
-    textures.bindScan();
-    return this;
-  }
-
-  unbindUpdateHeadings(textures: BoidTextures): BoidPrograms {
-    textures.unbindTargetHeading();
-    textures.unbindScan();
-    return this;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  bindScan(_textures: BoidTextures): BoidPrograms {
-    this.scanBoids.use();
-    return this;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  unbindScan(_textures: BoidTextures): BoidPrograms {
-    return this;
+  prepareUpdate(boidsCount: number, time: number, dt: number): void {
+    this.updateBoids.use();
+    this.gl.uniform1i(this.updateBoids.uniformLocations.u_boidsCount, boidsCount);
+    this.gl.uniform2f(this.updateBoids.uniformLocations.u_time, time, dt);
   }
 
   delete(): void {
-    [this.renderBoids, this.moveBoids, this.updateHeadings].forEach(p => p.delete());
+    this.programs.forEach(p => p.delete());
   }
 
-  private setupProgramUniforms(program: BoidsProgram): void {
+  private setupProgramUniforms(program: Program<BoidsUniforms>): void {
     program.use();
     const locations = program.uniformLocations;
-    this.gl.uniform4f(locations.u_boidColor, BOID_COLOR[0], BOID_COLOR[1], BOID_COLOR[2], BOID_COLOR[3]);
-    this.gl.uniform1i(locations.u_boidData, BOIDS_DATA_BINDING);
-    this.gl.uniform1i(locations.u_scanData, SCAN_DATA_BINDING);
-    this.gl.uniform1i(locations.u_boidData, BOIDS_DATA_BINDING);
-    this.gl.uniform1i(locations.u_boidSpeed, BOIDS_SPEED_BINDING);
-    this.gl.uniform1i(locations.u_targetHeadings, TARGET_HEADING_BINDING);
-  }
-
-  private updateProgramUniforms(program: BoidsProgram, parameters: BoidUniforms): void {
-    program.use();
-    const locations = program.uniformLocations;
-    this.gl.uniform1i(locations.u_boidCount, parameters.boidsCount);
-    this.gl.uniform3f(locations.u_speedConfig, parameters.acceleration, parameters.maxspeed, parameters.turnspeed);
-    this.gl.uniform2f(locations.u_scanConfig, parameters.viewdist, parameters.fov);
-    this.gl.uniform1f(locations.u_updateConfig, parameters.repulseDistance);
-    this.gl.uniform2f(locations.u_boidScale, parameters.boidsSize[0], parameters.boidsSize[1]);
+    this.gl.uniform1i(locations.u_boidData, TEXTURE_UNITS.data);
+    this.gl.uniform1i(locations.u_boidFamilies, TEXTURE_UNITS.boidFamilies);
+    this.gl.uniform1i(locations.u_families, TEXTURE_UNITS.families);
   }
 }
