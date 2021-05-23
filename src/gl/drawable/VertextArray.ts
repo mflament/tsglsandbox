@@ -1,4 +1,4 @@
-import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
+import { Bindable, checkNull, Deletable } from '../GLUtils';
 import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
 
 export type AttributeLocations<T = never> = {

@@ -1,6 +1,5 @@
 import { md5 } from '../../utils/MD5';
 import { Shader, ShaderType } from './Shader';
-
 export class CompiledShadersCache {
   private readonly shadersCache: { [hash: string]: Shader } = {};
 

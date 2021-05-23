@@ -1,7 +1,4 @@
-import { Deletable } from '../gl/utils/GLUtils';
-import { Program } from '../gl/shader/Program';
-import { ProgramLoader } from '../gl/shader/ProgramLoader';
-
+import { Deletable, Program, ProgramLoader } from 'gl';
 import { TEXTURE_UNITS } from './BoidTextures';
 
 export class BoidsUniforms {
@@ -39,12 +36,12 @@ export class BoidPrograms implements Deletable {
     if (!programLoader.gl.getExtension('OES_texture_float_linear')) throw new Error('need OES_texture_float_linear');
     return new BoidPrograms(
       await programLoader.load({
-        path: 'boids2/render-boids.glsl',
+        path: 'boids/render-boids.glsl',
         uniformLocations: new RenderUniforms()
       }),
       await programLoader.load({
         vspath: 'quad.vs.glsl',
-        fspath: 'boids2/update-boids.fs.glsl',
+        fspath: 'boids/update-boids.fs.glsl',
         uniformLocations: new UpdateUniforms()
       })
     );

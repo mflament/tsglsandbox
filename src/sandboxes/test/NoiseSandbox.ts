@@ -1,10 +1,16 @@
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { newQuadDrawable, QUAD_VS } from '../gl/drawable/QuadDrawable';
-import { Program } from '../gl/shader/Program';
-import { GLTexture2D } from '../gl/texture/GLTexture';
-import { IndexedDrawable } from '../gl/drawable/GLDrawable';
-import { NoiseParameters, NoiseTextureGenerator, TextureNoiseParameters } from '../gl/texture/NoiseTextureGenerator';
+import {
+  AbstractGLSandbox,
+  SandboxContainer,
+  SandboxFactory,
+  newQuadDrawable,
+  QUAD_VS,
+  Program,
+  GLTexture2D,
+  IndexedDrawable,
+  NoiseParameters,
+  NoiseTextureGenerator,
+  TextureNoiseParameters
+} from 'gl';
 
 class NoiseUniforms {
   u_sampler: WebGLUniformLocation | null = null;
@@ -30,7 +36,7 @@ class NoiseSandbox extends AbstractGLSandbox<TextureNoiseParameters> {
       normalize: true,
       float32: true
     };
-    window.hashlocation.parseParams(parameters);
+    window.hashLocation.parseParams(parameters);
     return new NoiseSandbox(container, name, parameters, program);
   }
 

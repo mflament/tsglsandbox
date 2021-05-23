@@ -1,20 +1,21 @@
-import { FrameBuffer } from '../gl/buffers/FrameBuffer';
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { Program } from '../gl/shader/Program';
-import { GLTexture2D } from '../gl/texture/GLTexture';
+import { vec2 } from 'gl-matrix';
 import {
+  FrameBuffer,
+  Program,
+  GLTexture2D,
   InternalFormat,
   TextureComponentType,
   TextureFormat,
   TextureMinFilter,
   TextureMagFilter,
-  TextureWrappingMode
-} from '../gl/texture/TextureEnums';
-
-import { newQuadDrawable, QUAD_VS } from '../gl/drawable/QuadDrawable';
-import { vec2 } from 'gl-matrix';
-import { IndexedDrawable } from '../gl/drawable/GLDrawable';
+  TextureWrappingMode,
+  newQuadDrawable,
+  QUAD_VS,
+  IndexedDrawable,
+  AbstractGLSandbox,
+  SandboxContainer,
+  SandboxFactory
+} from 'gl';
 
 const DATA_TEXTURE_FORMAT = {
   internalFormat: InternalFormat.R8,
@@ -49,7 +50,7 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
       uniformLocations: new UpdateUnforms()
     });
     const parameters = { rule: 'B3S23', width: 128, height: 0 };
-    window.hashlocation.parseParams(parameters);
+    window.hashLocation.parseParams(parameters);
     return new GOLSandbox(container, name, parameters, renderProgram, updateProgram);
   }
 

@@ -1,13 +1,16 @@
-import { DefaultSandboxContainer } from './gl/sandbox/DefaultSanboxContainer';
-import { testSandbox } from './test/TestSandbox';
-import { gameofLife } from './gol/GameOfLife';
-import { setupHashLocation } from './utils/HashUtils';
-import { glparticles } from './particles/GLParticles';
-import { tsp } from './tsp/TSP';
-import { boids } from './boids/Boids';
-import { noise } from './test/NoiseSandbox';
-import { quadTreeTest } from './test/QuadTreeTest';
-import { ants } from './ants/Ants';
+import { setupHashLocation } from 'utils';
+import { DefaultSandboxContainer } from 'gl';
+import {
+  testSandbox,
+  gameofLife,
+  glparticles,
+  tsp,
+  boids,
+  noise,
+  quadTreeTest,
+  ants,
+  flowers
+} from './sandboxes/sandboxes';
 
 setupHashLocation();
 
@@ -19,5 +22,6 @@ new DefaultSandboxContainer({
   ants: ants(),
   test: testSandbox(),
   qt: quadTreeTest(),
-  noise: noise()
+  noise: noise(),
+  flowers: flowers()
 }).start();

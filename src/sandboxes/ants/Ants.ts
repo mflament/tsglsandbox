@@ -1,9 +1,14 @@
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { Sprites } from '../gl/sprites/Sprites';
-import { Sprite } from '../gl/sprites/Sprite';
-import { GLTexture2D } from '../gl/texture/GLTexture';
-import { splitRegions, TextureAtlas } from '../gl/sprites/TextureAtlas';
+import {
+  AbstractGLSandbox,
+  SandboxContainer,
+  SandboxFactory,
+  Sprites,
+  Sprite,
+  GLTexture2D,
+  splitRegions,
+  TextureAtlas
+} from 'gl';
+
 import { vec2 } from 'gl-matrix';
 
 interface AntsParameters {
@@ -20,7 +25,7 @@ class GLAnts extends AbstractGLSandbox<AntsParameters> {
     const sprites = await Sprites.create(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]);
     sprites.bind();
     const parameters = { count: 1, accel: 4, speed: 2 };
-    window.hashlocation.parseParams(parameters);
+    window.hashLocation.parseParams(parameters);
     return new GLAnts(container, name, parameters, sprites);
   }
 

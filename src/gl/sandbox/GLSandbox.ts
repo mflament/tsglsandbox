@@ -1,5 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { ProgramLoader } from '../shader/ProgramLoader';
+import { ProgramLoader } from '../gl';
 
 export interface SandboxContainer {
   readonly gl: WebGL2RenderingContext;

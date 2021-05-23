@@ -1,11 +1,16 @@
-import { VertexArray } from '../gl/drawable/VertextArray';
-import { Bindable, Deletable } from '../gl/utils/GLUtils';
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { Program } from '../gl/shader/Program';
+import {
+  AbstractGLSandbox,
+  Bindable,
+  Deletable,
+  SandboxContainer,
+  SandboxFactory,
+  VertexArray,
+  Program,
+  BufferAttribute,
+  VertexBuffer
+} from 'gl';
 
-import { PoissonDiscSampler, randomRange } from '../utils/PoissonDiscSampler';
-import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
+import { PoissonDiscSampler, randomRange } from 'utils';
 
 // x,y / r,g,b
 const CITY_FLOATS = 5;
@@ -28,7 +33,7 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
       uniformLocations: new TSPUniforms()
     });
     const parameters = { cities: 10 };
-    window.hashlocation.parseParams(parameters);
+    window.hashLocation.parseParams(parameters);
     return new TSP(container, name, parameters, program);
   }
 

@@ -1,8 +1,9 @@
-import { Bindable, checkNull, Deletable } from '../utils/GLUtils';
+import { Bindable, checkNull, Deletable } from '../GLUtils';
 import { ArrayBufferType, BufferTarget, BufferUsage } from './BufferEnums';
 
 export abstract class AbstractBuffer<B extends ArrayBufferType, THIS extends AbstractBuffer<B, THIS>>
-  implements Bindable, Deletable {
+  implements Bindable, Deletable
+{
   readonly glbuffer: WebGLBuffer;
   private _size = 0; // in bytes
 

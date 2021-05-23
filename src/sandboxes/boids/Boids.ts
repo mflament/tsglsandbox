@@ -1,15 +1,20 @@
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
 import { vec2 } from 'gl-matrix';
-import { DrawMode } from '../gl/buffers/BufferEnums';
-import { VertexBuffer } from '../gl/buffers/VertexBuffer';
-import { IndexedDrawable, InstancedDrawable } from '../gl/drawable/GLDrawable';
-import { FrameBuffer } from '../gl/buffers/FrameBuffer';
-import { newQuadDrawable } from '../gl/drawable/QuadDrawable';
+import {
+  VertexBuffer,
+  DrawMode,
+  AbstractGLSandbox,
+  SandboxContainer,
+  SandboxFactory,
+  IndexedDrawable,
+  InstancedDrawable,
+  FrameBuffer,
+  newQuadDrawable
+} from 'gl';
+
+import { BoidsParameters } from './BoidsParameters';
+import { BoidFamilly, parseFamilly, randomizedBoids } from './Boid';
 import { BoidPrograms } from './BoidPrograms';
 import { BoidTextures } from './BoidTextures';
-import { Boid, BoidFamilly, parseFamilly, randomizedBoids } from './Boid';
-import { BoidsParameters } from './BoidsParameters';
 
 export function boids(): SandboxFactory<BoidsParameters> {
   return GLBoids.create;
@@ -30,7 +35,7 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
       maxspeed: 0.5,
       fov: 140
     };
-    window.hashlocation.parseParams(parameters);
+    window.hashLocation.parseParams(parameters);
     return new GLBoids(container, name, parameters, await BoidPrograms.create(container.programLoader));
   }
 

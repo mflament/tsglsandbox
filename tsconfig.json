@@ -1,11 +1,15 @@
 {
-  "include": ["src/index.ts"],
+  "files": ["src/index.ts"],
   "exclude": ["node_modules/**"],
   "compilerOptions": {
-    "baseUrl": ".",
+    "baseUrl": "./src",
+    "paths": {
+      "gl": ["gl/gl"],
+      "utils": ["utils/utils"]
+    },
     "outDir": "dist/",
     "target": "ES2020",
-    "module": "esnext",
+    "module": "ES2020",
     "moduleResolution": "node",
     "lib": ["ES2020", "DOM", "DOM.Iterable", "ScriptHost"],
     "incremental": false,

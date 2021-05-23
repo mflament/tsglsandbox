@@ -1,9 +1,13 @@
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { newQuadDrawable, QUAD_VS } from '../gl/drawable/QuadDrawable';
-import { Program } from '../gl/shader/Program';
-import { GLTexture2D } from '../gl/texture/GLTexture';
-import { IndexedDrawable } from '../gl/drawable/GLDrawable';
+import {
+  AbstractGLSandbox,
+  SandboxContainer,
+  SandboxFactory,
+  Program,
+  QUAD_VS,
+  IndexedDrawable,
+  GLTexture2D,
+  newQuadDrawable
+} from 'gl';
 
 class TestUniforms {
   seconds: WebGLUniformLocation | null = null;

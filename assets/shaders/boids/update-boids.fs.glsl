@@ -1,64 +1,64 @@
 #version 300 es
-
 precision mediump float;
 
-#define HALF_PI 1.570796
-#define TURN_FACTOR 0.2
+#include "./boids.glsl"
 
-#include "../noise2d.glsl"
+uniform vec2 u_time; // x: time, y: delta time
+uniform int u_boidsCount;
 
-#include "boids-uniforms.glsl"
+// xy: pos , zw: velocity
+layout(location = 0) out vec4 data;
 
-in vec2 texcoord;
-
-layout(location = 0) out vec4 newTargetHeading;
-
-float randomTurn(const float boidIndex, const float prob) {
-  vec2 npos = vec2(u_time * 0.4, boidIndex);
-  float n = snoise(npos); // -1.0 .. 1.0
-  float absn = abs(n);
-  float lim = 1.0 - prob;
-  return step(lim, absn) * ((absn - lim) / prob) * sign(n);
-}
-
-/**
- * FS creating new boids target heading from current boids data.
- */
 void main() {
   int boidIndex = int(gl_FragCoord.x);
-  vec4 boidData = texelFetch(u_boidData, ivec2(boidIndex, 0), 0);
-  float speed = texelFetch(u_boidSpeed, ivec2(boidIndex, 0), 0).x;
+  Boid boid;
+  getBoid(boidIndex, boid);
+  Familly familly = getFamilly(boid.familly);
+  Rules rules = getFamillyRules(boid.familly);
+  // Rules rules;
+  // rules.radii = vec3(0.5, 0.0, 0.0);
+  // rules.weights = vec3(1.0);
 
-  vec2 targetHeading = boidData.zw; // texelFetch(u_targetHeadings, ivec2(boidIndex, 0), 0).xy;
+  vec2 velocity = boid.velocity;
 
-  // float angle = atan(targetHeading.y, targetHeading.x);
-  // angle += randomTurn(gl_FragCoord.x, 0.5) * TURN_FACTOR;
-  // targetHeading = vec2(cos(angle), sin(angle));
+  vec2 com = vec2(0.0);       // center of mass
+  vec2 c = vec2(0.0);         // separation vector
+  vec2 pv = vec2(0.0);        // perceived velocity
+  vec3 neighbors = vec3(0.0); // count per rules
+  Boid neighbor;
+  for (int i = 0; i < u_boidsCount; i++) {
+    getBoid(i, neighbor);
+    if (i != boidIndex && neighbor.familly == boid.familly) {
+      vec2 dir = neighbor.pos - boid.pos;
+      float dist = length(dir);
+      vec3 steps = vec3(1.0) - step(rules.radii, vec3(dist));
 
-  vec2 repulse = vec2(0.0);
-  vec4 sum = vec4(0.0);
-  for (int i = 0; i < u_boidCount; i++) {
-    vec4 scanData = texelFetch(u_scanData, ivec2(i, boidIndex), 0);
-    vec4 target = texelFetch(u_boidData, ivec2(i, 0), 0);
-    sum += target * scanData.w;
+      // cohesion
+      com += neighbor.pos * steps.x;
 
-    float repulsefact = 1.0 - clamp(scanData.z / u_updateConfig, 0.0, 1.0);
-    repulse += repulsefact * scanData.xy;
+      // separation
+      c -= dir * steps.y;
+
+      // aligment
+      pv += neighbor.velocity * steps.z;
+
+      neighbors += vec3(1.0) * steps;
+    }
   }
 
-  targetHeading = normalize(sum.xy - boidData.xy);
-  targetHeading += normalize(sum.zw);
-  //  targetHeading += normalize(repulse);
-  targetHeading += normalize(-repulse);
+  com = neighbors.x > 0.0 ? (com / neighbors.x) - boid.pos : vec2(0.0);
+  pv = neighbors.z > 0.0 ? pv / neighbors.z : vec2(0.0);
 
-  float turnDist = (HALF_PI / u_speedConfig.z) * speed;
-  vec2 targetPos = boidData.xy + targetHeading * turnDist;
-  if (abs(targetPos.x) >= 1.0) {
-    targetHeading.x *= -1.0;
-  }
-  if (abs(targetPos.y) >= 1.0) {
-    targetHeading.y *= -1.0;
-  }
+  float boundWeight = clamp(length(boid.pos) - 1.0, 0.0, 1.0);
+  vec2 bounding = -boid.pos * boundWeight;
 
-  newTargetHeading = vec4(targetHeading, 0.0, 0.0);
+  velocity += com * rules.weights.x + c * rules.weights.y + pv * rules.weights.z + bounding * rules.weights.w;
+
+  float speed = clamp(length(velocity), 0.0, familly.maxSpeed);
+  vec2 heading = normalize(velocity);
+  velocity = heading * speed;
+
+  vec2 pos = boid.pos + velocity * u_time.y;
+
+  data = vec4(pos, velocity);
 }

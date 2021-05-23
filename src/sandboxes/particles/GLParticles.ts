@@ -1,11 +1,17 @@
-import { BufferUsage, TransformFeedbackDrawMode } from '../gl/buffers/BufferEnums';
-import { VertexArray } from '../gl/drawable/VertextArray';
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { Program, VaryingBufferMode } from '../gl/shader/Program';
-import { TransformFeedback } from '../gl/shader/TransformFeedback';
-import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
 import { vec2 } from 'gl-matrix';
+import {
+  VertexArray,
+  BufferUsage,
+  TransformFeedbackDrawMode,
+  BufferAttribute,
+  VertexBuffer,
+  Program,
+  VaryingBufferMode,
+  TransformFeedback,
+  AbstractGLSandbox,
+  SandboxContainer,
+  SandboxFactory
+} from 'gl';
 
 interface ParticlesParameters {
   count: number;
@@ -49,7 +55,7 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
       })
     ]);
     const parameters = { count: 500_000, accel: 4, speed: 2 };
-    window.hashlocation.parseParams(parameters);
+    window.hashLocation.parseParams(parameters);
     return new GLParticles(container, name, parameters, programs[0], programs[1]);
   }
 

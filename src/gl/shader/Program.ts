@@ -1,5 +1,5 @@
 'use strict';
-import { checkNull } from '../utils/GLUtils';
+import { checkNull } from '../GLUtils';
 import { Shader } from './Shader';
 
 export interface ProgramLocations<U = any, B = any, A = any> {

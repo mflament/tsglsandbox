@@ -1,6 +1,5 @@
 import { vec2, vec4 } from 'gl-matrix';
-import { isDeletable } from '../utils/GLUtils';
-import { GLSandbox, SandboxContainer } from './GLSandbox';
+import { GLSandbox, SandboxContainer, isDeletable } from '../gl';
 
 export abstract class AbstractGLSandbox<P = any> implements GLSandbox<P> {
   protected _lastUpdate?: number;
@@ -8,9 +7,9 @@ export abstract class AbstractGLSandbox<P = any> implements GLSandbox<P> {
   private _running = false;
 
   constructor(readonly container: SandboxContainer, readonly name: string, readonly parameters: P) {
-    window.hashlocation.parseParams(parameters);
+    window.hashLocation.parseParams(parameters);
     // replace current hash parameters with updated sandbox parameters
-    window.hashlocation.update(name, parameters);
+    window.hashLocation.update(name, parameters);
     this.hashchanged = this.hashchanged.bind(this);
     window.addEventListener('hashchange', this.hashchanged);
   }
@@ -52,7 +51,7 @@ export abstract class AbstractGLSandbox<P = any> implements GLSandbox<P> {
   }
 
   private hashchanged(): void {
-    window.hashlocation.parseParams(this.parameters);
+    window.hashLocation.parseParams(this.parameters);
     this.onParametersChanged();
   }
 

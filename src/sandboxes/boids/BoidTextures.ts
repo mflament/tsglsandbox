@@ -1,15 +1,17 @@
-import { Deletable } from '../gl/utils/GLUtils';
-import { GLTexture2D } from '../gl/texture/GLTexture';
+import { vec3, vec4 } from 'gl-matrix';
+
 import {
+  Deletable,
+  GLTexture2D,
   InternalFormat,
   TextureComponentType,
   TextureFormat,
   TextureMagFilter,
   TextureMinFilter,
   TextureWrappingMode
-} from '../gl/texture/TextureEnums';
+} from 'gl';
+
 import { Boid, BoidFamilly } from './Boid';
-import { vec3, vec4 } from 'gl-matrix';
 
 export const TEXTURE_UNITS = {
   data: 0,

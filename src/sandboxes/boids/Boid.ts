@@ -54,7 +54,3 @@ export function randomizedBoids(count: number, familly = 0, maxSpeed: number): B
 function randomPoint(out: vec2): vec2 {
   return vec2.set(out, Math.random() * 1.9 - 0.95, Math.random() * 1.9 - 0.95);
 }
-
-function toRad(deg: number): number {
-  return deg * (Math.PI / 180);
-}

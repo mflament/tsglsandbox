@@ -1,6 +1,6 @@
 declare global {
   interface Window {
-    hashlocation: HashLocation;
+    hashLocation: HashLocation;
   }
 }
 
@@ -12,7 +12,7 @@ export interface HashLocation {
 }
 
 export function setupHashLocation(): void {
-  window.hashlocation = new SimpleHashLocation();
+  window.hashLocation = new SimpleHashLocation();
 }
 
 class SimpleHashLocation implements HashLocation {

@@ -1,7 +1,6 @@
-import { checkNull } from '../utils/GLUtils';
-import { ProgramLoader } from '../shader/ProgramLoader';
-import { GLSandbox, SandboxContainer, SandboxFactory } from './GLSandbox';
 import { vec2 } from 'gl-matrix';
+
+import { checkNull, ProgramLoader, GLSandbox, SandboxContainer, SandboxFactory } from '../gl';
 
 type SandboxFactories = { [name: string]: SandboxFactory };
 
@@ -167,7 +166,7 @@ export class DefaultSandboxContainer implements SandboxContainer {
   }
 
   private async hashchanged(): Promise<void> {
-    const newName = this.sandboxName(window.hashlocation.path);
+    const newName = this.sandboxName(window.hashLocation.path);
     // const newSandbox = this.sandboxFactory(hashPath());
     if (newName !== this.sandbox?.name) {
       if (this.sandbox) {

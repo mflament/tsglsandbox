@@ -1,12 +1,17 @@
-import { AbstractGLSandbox } from '../gl/sandbox/AbstractGLSandbox';
-import { SandboxContainer, SandboxFactory } from '../gl/sandbox/GLSandbox';
-import { Program } from '../gl/shader/Program';
-
-import { BufferUsage, DrawMode } from '../gl/buffers/BufferEnums';
 import { vec2, vec4 } from 'gl-matrix';
-import { AABB, QuadTree as QuadTree } from '../utils/QuadTree';
-import { GLDrawable } from '../gl/drawable/GLDrawable';
-import { BufferAttribute, VertexBuffer } from '../gl/buffers/VertexBuffer';
+import {
+  AbstractGLSandbox,
+  SandboxContainer,
+  SandboxFactory,
+  Program,
+  BufferAttribute,
+  GLDrawable,
+  VertexBuffer,
+  DrawMode,
+  BufferUsage
+} from 'gl';
+
+import { AABB, QuadTree as QuadTree } from 'utils';
 
 const LINE_COLOR: vec4 = [0.7, 0.7, 0.7, 1];
 const POINT_COLOR: vec4 = [0.2, 0.2, 0.9, 1];

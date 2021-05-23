@@ -1,4 +1,4 @@
-import { checkNull } from '../utils/GLUtils';
+import { checkNull } from '../GLUtils';
 import {
   InternalFormat,
   TextureArrayBuffer,
@@ -9,7 +9,7 @@ import {
   TextureParameter,
   TextureWrappingMode
 } from './TextureEnums';
-import { Bindable, Deletable } from '../utils/GLUtils';
+import { Bindable, Deletable } from '../GLUtils';
 import {
   defaultFormat,
   defaultType as defaultComponentType,
