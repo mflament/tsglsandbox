@@ -4,11 +4,10 @@ import { TEXTURE_UNITS } from './BoidTextures';
 export class BoidsUniforms {
   // sampler2D [boids, 1 ] xy: pos , zw: velocity
   u_boidData: WebGLUniformLocation | null = null;
-  // sampler2D [boids, 1] : x : familly index
-  u_boidFamilies: WebGLUniformLocation | null = null;
+}
 
-  // sampler2D [families, 1] : xy:  size, z: max speed
-  u_families: WebGLUniformLocation | null = null;
+export class BoidsUniformsBlocks {
+  u_familly: number = WebGL2RenderingContext.INVALID_INDEX;
 }
 
 export class UpdateUniforms extends BoidsUniforms {
@@ -16,17 +15,9 @@ export class UpdateUniforms extends BoidsUniforms {
   u_time: WebGLUniformLocation | null = null;
   // int
   u_boidsCount: WebGLUniformLocation | null = null;
-
-  // sampler2D [familly, 1] : x: cohesion , y:  separation, z:aligment
-  u_famillyRadii: WebGLUniformLocation | null = null;
-  // sampler2D [familly, 1] : x: cohesion , y:  separation, z:aligment
-  u_famillyWeights: WebGLUniformLocation | null = null;
 }
 
-export class RenderUniforms extends BoidsUniforms {
-  // sampler2D [families, 1] : rgba
-  u_famillyColors: WebGLUniformLocation | null = null;
-}
+export class RenderUniforms extends BoidsUniforms {}
 
 export class BoidPrograms implements Deletable {
   static async create(programLoader: ProgramLoader): Promise<BoidPrograms> {
@@ -37,50 +28,50 @@ export class BoidPrograms implements Deletable {
     return new BoidPrograms(
       await programLoader.load({
         path: 'boids/render-boids.glsl',
-        uniformLocations: new RenderUniforms()
+        uniformLocations: new RenderUniforms(),
+        uniformBlockIndices: new BoidsUniformsBlocks()
       }),
       await programLoader.load({
         vspath: 'quad.vs.glsl',
         fspath: 'boids/update-boids.fs.glsl',
-        uniformLocations: new UpdateUniforms()
+        uniformLocations: new UpdateUniforms(),
+        uniformBlockIndices: new BoidsUniformsBlocks()
       })
     );
   }
 
-  constructor(readonly renderBoids: Program<RenderUniforms>, readonly updateBoids: Program<UpdateUniforms>) {}
+  constructor(
+    readonly renderBoids: Program<RenderUniforms, BoidsUniformsBlocks>,
+    readonly updateBoids: Program<UpdateUniforms, BoidsUniformsBlocks>
+  ) {
+    // console.log(renderBoids.queryParameters());
+    const infos = renderBoids.queryUniformInfos();
+    console.log(infos);
+  }
 
   get gl(): WebGL2RenderingContext {
     return this.renderBoids.gl;
   }
 
-  get programs(): Program<BoidsUniforms>[] {
-    return [this.renderBoids, this.updateBoids];
-  }
-
   setupUniforms(): void {
     this.setupProgramUniforms(this.updateBoids);
-    this.gl.uniform1i(this.updateBoids.uniformLocations.u_famillyRadii, TEXTURE_UNITS.radii);
-    this.gl.uniform1i(this.updateBoids.uniformLocations.u_famillyWeights, TEXTURE_UNITS.weights);
-
     this.setupProgramUniforms(this.renderBoids);
-    this.gl.uniform1i(this.renderBoids.uniformLocations.u_famillyColors, TEXTURE_UNITS.colors);
   }
 
   prepareUpdate(boidsCount: number, time: number, dt: number): void {
-    this.updateBoids.use();
     this.gl.uniform1i(this.updateBoids.uniformLocations.u_boidsCount, boidsCount);
     this.gl.uniform2f(this.updateBoids.uniformLocations.u_time, time, dt);
   }
 
   delete(): void {
-    this.programs.forEach(p => p.delete());
+    this.updateBoids.delete();
+    this.renderBoids.delete();
   }
 
-  private setupProgramUniforms(program: Program<BoidsUniforms>): void {
+  private setupProgramUniforms(program: Program<BoidsUniforms, BoidsUniformsBlocks>): void {
     program.use();
     const locations = program.uniformLocations;
     this.gl.uniform1i(locations.u_boidData, TEXTURE_UNITS.data);
-    this.gl.uniform1i(locations.u_boidFamilies, TEXTURE_UNITS.boidFamilies);
-    this.gl.uniform1i(locations.u_families, TEXTURE_UNITS.families);
+    program.bindUniformBlock(program.uniformBlockIndices.u_familly, 0);
   }
 }

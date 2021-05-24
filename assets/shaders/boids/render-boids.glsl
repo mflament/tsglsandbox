@@ -9,15 +9,14 @@ out vec4 boidColor;
 #include "./boids.glsl"
 
 mat4 transformMatrix(const in Boid boid) {
-  Familly familly = getFamilly(boid.familly);
   mat4 translate = mat4(1.0, 0.0, 0.0, 0.0, // col 0
                         0.0, 1.0, 0.0, 0.0, // col 1
                         0.0, 0.0, 1.0, 0.0, // col 2
                         boid.pos.x, boid.pos.y, 0.0, 1.0);
 
-  mat4 scale = mat4(familly.size.x, 0.0, 0.0, 0.0, // col 0
-                    0.0, familly.size.y, 0.0, 0.0, // col 1
-                    0.0, 0.0, 1.0, 0.0,            // col 2
+  mat4 scale = mat4(boidFamilly.scale.x, 0.0, 0.0, 0.0, // col 0
+                    0.0, boidFamilly.scale.y, 0.0, 0.0, // col 1
+                    0.0, 0.0, 1.0, 0.0,                 // col 2
                     0.0, 0.0, 0.0, 1.0);
 
   vec2 heading = normalize(boid.velocity);
@@ -34,11 +33,9 @@ mat4 transformMatrix(const in Boid boid) {
 
 void main() {
   int boidIndex = gl_InstanceID;
-  Boid boid;
-  getBoid(boidIndex, boid);
-
+  Boid boid = getBoid(boidIndex);
   gl_Position = transformMatrix(boid) * vec4(a_position, 0.0, 1.0);
-  boidColor = getFamillyColor(boid.familly);
+  boidColor = boidFamilly.color;
 }
 
 // in fs

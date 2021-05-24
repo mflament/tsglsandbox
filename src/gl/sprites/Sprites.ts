@@ -55,7 +55,7 @@ export class Sprites implements Deletable, Bindable {
     const program = await container.programLoader.load({
       path: 'sprites/sprites.glsl',
       uniformLocations: new SpritesUniforms(),
-      uniformBlockLocations: new SpritesUniformBlocks(),
+      uniformBlockIndices: new SpritesUniformBlocks(),
       defines: { REGIONS_COUNT: regionsCount, TEXTURES_COUNT: atlases.length }
     });
     return new Sprites(container, atlases, program, regionsCount, initialCapacity);
@@ -282,7 +282,7 @@ export class Sprites implements Deletable, Bindable {
     ubo.setsubdata(textures, 0);
     ubo.setsubdata(regions, this.regionsCount * 4 * 4); // skip first floats
     this.gl.uniform1iv(this.program.uniformLocations.u_textures, this.textureIndices);
-    this.program.bindUniformBlock(this.program.uniformBlockLocations.u_regions, 0);
+    this.program.bindUniformBlock(this.program.uniformBlockIndices.u_regions, 0);
     return ubo;
   }
 }

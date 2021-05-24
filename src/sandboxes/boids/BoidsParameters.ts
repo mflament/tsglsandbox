@@ -1,5 +1,7 @@
 export interface BoidsParameters {
   count: number;
-  maxspeed: number;
+  acceleration: number;
+  maxSpeed: number;
+  turnSpeed: number;
   fov: number;
 }
