@@ -14,9 +14,9 @@
   "author": "Yah",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/mflament/gl-sandbox/issues"
+    "url": "https://github.com/mflament/tsglsandbox/issues"
   },
-  "homepage": "https://github.com/mflament/gl-sandbox#readme",
+  "homepage": "https://github.com/mflament/tsglsandbox",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.1.0",
     "@rollup/plugin-html": "^0.2.3",

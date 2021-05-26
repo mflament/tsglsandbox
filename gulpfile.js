@@ -37,16 +37,12 @@ function assets() {
     return gulp.src('assets/**').pipe(gulp.dest('dist'));
 }
 
-function release_assets() {
-    return gulp.src(['assets/**', '!assets/shaders/**']).pipe(gulp.dest('dist'));
-}
-
 gulp.task('clean', clean);
 
 gulp.task('assets', gulp.series(css, assets));
 
 gulp.task('watch', gulp.series(gulp.task('assets'), watch));
 
-gulp.task('release', gulp.series(clean, gulp.parallel(build_source, release_assets, css)));
+gulp.task('release', gulp.series(clean, gulp.parallel(build_source, assets, css)));
 
 gulp.task('default', gulp.task('watch'));

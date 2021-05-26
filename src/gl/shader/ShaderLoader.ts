@@ -10,7 +10,7 @@ export function createShaderLoader(): ShaderLoader {
   if (sources && typeof sources === 'object') {
     return new StaticShaderLoader(sources);
   }
-  return new HttpShaderLoader('/assets/shaders');
+  return new HttpShaderLoader('shaders');
 }
 
 class HttpShaderLoader implements ShaderLoader {
