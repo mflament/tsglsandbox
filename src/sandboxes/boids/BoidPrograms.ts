@@ -1,4 +1,5 @@
-import { Deletable, Program, ProgramLoader } from 'gl';
+import { Program, ProgramLoader, quadProgram } from 'gl';
+import { AbstractDeletable } from '../../gl/GLUtils';
 import { TEXTURE_UNITS } from './BoidTextures';
 
 export class BoidsUniforms {
@@ -19,7 +20,7 @@ export class UpdateUniforms extends BoidsUniforms {
 
 export class RenderUniforms extends BoidsUniforms {}
 
-export class BoidPrograms implements Deletable {
+export class BoidPrograms extends AbstractDeletable {
   static async create(programLoader: ProgramLoader): Promise<BoidPrograms> {
     // without this we can't render to RGBA32F
     if (!programLoader.gl.getExtension('EXT_color_buffer_float')) throw new Error('need EXT_color_buffer_float');
@@ -31,8 +32,7 @@ export class BoidPrograms implements Deletable {
         uniformLocations: new RenderUniforms(),
         uniformBlockIndices: new BoidsUniformsBlocks()
       }),
-      await programLoader.load({
-        vspath: 'quad.vs.glsl',
+      await quadProgram(programLoader, {
         fspath: 'boids/update-boids.fs.glsl',
         uniformLocations: new UpdateUniforms(),
         uniformBlockIndices: new BoidsUniformsBlocks()
@@ -44,9 +44,7 @@ export class BoidPrograms implements Deletable {
     readonly renderBoids: Program<RenderUniforms, BoidsUniformsBlocks>,
     readonly updateBoids: Program<UpdateUniforms, BoidsUniformsBlocks>
   ) {
-    // console.log(renderBoids.queryParameters());
-    const infos = renderBoids.queryUniformInfos();
-    console.log(infos);
+    super();
   }
 
   get gl(): WebGL2RenderingContext {
@@ -66,6 +64,7 @@ export class BoidPrograms implements Deletable {
   delete(): void {
     this.updateBoids.delete();
     this.renderBoids.delete();
+    super.delete();
   }
 
   private setupProgramUniforms(program: Program<BoidsUniforms, BoidsUniformsBlocks>): void {

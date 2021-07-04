@@ -1,19 +1,13 @@
 import { mat4, vec2 } from 'gl-matrix';
-
-import {
-  Bindable,
-  Deletable,
-  Program,
-  InstancedDrawable,
-  BufferUsage,
-  DrawMode,
-  Sprite,
-  TextureAtlas,
-  BufferAttribute,
-  VertexBuffer,
-  UniformBuffer,
-  SandboxContainer
-} from '../gl';
+import { BufferUsage, DrawMode } from '../buffers/BufferEnums';
+import { UniformBuffer } from '../buffers/UniformBuffer';
+import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
+import { InstancedDrawable } from '../drawable/GLDrawable';
+import { AbstractDeletable, Bindable } from '../GLUtils';
+import { SandboxContainer } from '../sandbox/GLSandbox';
+import { Program } from '../shader/Program';
+import { Sprite } from './Sprite';
+import { TextureAtlas } from './TextureAtlas';
 
 interface SpritesVertexAttributes {
   a_vertexPos: BufferAttribute;
@@ -45,7 +39,7 @@ const MAT4_FLOATS = 4 * 4;
 const SPRITE_FLOATS = MAT4_FLOATS + 4;
 const SPRITE_BYTES = SPRITE_FLOATS * FLOAT_BYTES;
 
-export class Sprites implements Deletable, Bindable {
+export class Sprites extends AbstractDeletable implements Bindable {
   static async create(
     container: SandboxContainer,
     atlases: TextureAtlas[],
@@ -83,15 +77,17 @@ export class Sprites implements Deletable, Bindable {
     readonly regionsCount: number,
     initialCapacity = 10
   ) {
+    super();
     this.uniformBuffer = this.createUniformBuffer();
-    const vertices = new VertexBuffer<SpritesVertexAttributes>(container.gl, {
+    const gl = container.canvas.gl;
+    const vertices = new VertexBuffer<SpritesVertexAttributes>(gl, {
       a_vertexPos: { size: 2 },
       a_vertexUV: { size: 2 }
     })
       .bind()
       .setdata(SPRITE_VERTICES);
 
-    const instances = new VertexBuffer<SpritesInstancesAttributes>(container.gl, {
+    const instances = new VertexBuffer<SpritesInstancesAttributes>(gl, {
       a_spriteMatrix0: { size: 4 },
       a_spriteMatrix1: { size: 4 },
       a_spriteMatrix2: { size: 4 },
@@ -99,7 +95,7 @@ export class Sprites implements Deletable, Bindable {
       a_texture: { size: 4 }
     });
     this.drawable = new InstancedDrawable(
-      container.gl,
+      gl,
       DrawMode.TRIANGLES,
       {
         buffer: vertices,
@@ -122,11 +118,11 @@ export class Sprites implements Deletable, Bindable {
 
     this.spritesBuffer = instances;
     this.ensureCapacity(initialCapacity);
-    this.updateViewMatrix(container.dimension);
+    this.updateViewMatrix(container.canvas);
   }
 
   get gl(): WebGL2RenderingContext {
-    return this.container.gl;
+    return this.container.canvas.gl;
   }
 
   get capacity(): number {
@@ -144,6 +140,11 @@ export class Sprites implements Deletable, Bindable {
     this.sprites.push(...newSprites);
     this.updateSprites(offset);
     return newSprites;
+  }
+
+  clear(): void {
+    this.sprites.splice(0, this.sprites.length);
+    this.updateSprites();
   }
 
   set time(time: number) {
@@ -189,9 +190,9 @@ export class Sprites implements Deletable, Bindable {
     return this.regionIndices[param] + (region === undefined ? 0 : region);
   }
 
-  updateViewMatrix(dim: vec2): void {
+  updateViewMatrix(dim: { width: number; height: number }): void {
     this.program.use();
-    mat4.ortho(this.viewMatrix, 0, dim[0], dim[1], 0, 1, -1);
+    mat4.ortho(this.viewMatrix, 0, dim.width, dim.height, 0, 1, -1);
     this.gl.uniformMatrix4fv(this.program.uniformLocations.u_viewMatrix, false, this.viewMatrix);
   }
 
@@ -217,6 +218,7 @@ export class Sprites implements Deletable, Bindable {
   delete(): void {
     this.drawable.delete();
     this.program.delete();
+    super.delete();
   }
 
   private createSprite(index: number, config: Partial<Sprite>): Sprite {
@@ -230,6 +232,8 @@ export class Sprites implements Deletable, Bindable {
 
     if (config.animation) Object.assign(sprite.animation, config.animation);
 
+    if (config.scale) vec2.copy(sprite.scale, config.scale);
+
     if (config.size) {
       vec2.copy(sprite.size, config.size);
     } else {
@@ -241,8 +245,6 @@ export class Sprites implements Deletable, Bindable {
       sprite.size[1] = region.textureSize[1] * texture.height;
     }
 
-    if (config.scale) vec2.copy(sprite.scale, config.scale);
-
     if (typeof config.angle === 'number') sprite.angle = config.angle;
 
     if (typeof config.zindex === 'number') sprite.zindex = config.zindex;
@@ -252,7 +254,7 @@ export class Sprites implements Deletable, Bindable {
 
   private ensureCapacity(required: number): void {
     if (required > this._capacity) {
-      this.spritesBuffer.allocate(required * SPRITE_BYTES, BufferUsage.DYNAMIC_DRAW);
+      this.spritesBuffer.allocate(required * SPRITE_BYTES, BufferUsage.STATIC_DRAW);
       this._capacity = required;
       this.updateSprites();
     }
@@ -277,7 +279,7 @@ export class Sprites implements Deletable, Bindable {
       }
     }
 
-    const ubo = new UniformBuffer(this.gl);
+    const ubo = new UniformBuffer(this.gl).bind();
     ubo.allocate(this.regionsCount * 8 * 4); // foreach region : sizeof(ivec4 + vec4)
     ubo.setsubdata(textures, 0);
     ubo.setsubdata(regions, this.regionsCount * 4 * 4); // skip first floats

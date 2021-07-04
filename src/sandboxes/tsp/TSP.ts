@@ -9,8 +9,8 @@ import {
   BufferAttribute,
   VertexBuffer
 } from 'gl';
-
-import { PoissonDiscSampler, randomRange } from 'utils';
+import { hashLocation } from 'utils';
+import { PoissonDiscSampler, randomRange } from 'random';
 
 // x,y / r,g,b
 const CITY_FLOATS = 5;
@@ -33,7 +33,7 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
       uniformLocations: new TSPUniforms()
     });
     const parameters = { cities: 10 };
-    window.hashLocation.parseParams(parameters);
+    hashLocation.parseParams(parameters);
     return new TSP(container, name, parameters, program);
   }
 
@@ -42,13 +42,13 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
   constructor(
     container: SandboxContainer,
     name: string,
-    readonly parameters: TSPParameters,
+    parameters: TSPParameters,
     readonly renderProgram: Program<any, TSPUniforms>
   ) {
     super(container, name, parameters);
     renderProgram.use();
     this.onresize();
-    this.citiesBuffer = new CitiesBuffer(container.gl);
+    this.citiesBuffer = new CitiesBuffer(this.gl);
     this.citiesBuffer.cities = randomCities(parameters.cities);
   }
 
@@ -57,13 +57,13 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
     this.citiesBuffer.draw();
   }
 
-  onParametersChanged(): void {
+  onparameterchange(): void {
     this.citiesBuffer.cities = randomCities(this.parameters.cities);
   }
 
   onresize(): void {
-    const dim = this.container.dimension;
-    const ar = dim[0] / dim[1];
+    const canvas = this.canvas;
+    const ar = canvas.aspectRatio;
     const sx = Math.min(1, 1 / ar) * 2;
     const sy = Math.min(1, 1 * ar) * 2;
     /* prettier-ignore */
@@ -73,8 +73,8 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
       0,  0, 1, 0,
       0,  0, 0, 1,
     ]);
-    this.container.gl.uniformMatrix4fv(this.renderProgram.uniformLocations.viewMatrix, false, viewMatrix);
-    this.container.gl.uniform1f(this.renderProgram.uniformLocations.cityRadius, (CITY_RADIUS * dim[0]) / 2);
+    this.gl.uniformMatrix4fv(this.renderProgram.uniformLocations.viewMatrix, false, viewMatrix);
+    this.gl.uniform1f(this.renderProgram.uniformLocations.cityRadius, (CITY_RADIUS * canvas.width) / 2);
   }
 }
 

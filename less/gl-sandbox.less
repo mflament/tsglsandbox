@@ -1,3 +1,5 @@
+@menu_animation_time: 0.7s;
+
 html,
 body,
 div,
@@ -21,69 +23,116 @@ body {
   overflow: hidden;
 }
 
-#sandbox {
-  display: grid;
-  grid-template-columns: repeat(1, auto);
-  grid-template-rows: repeat(1, auto);
-  align-items: center;
-  justify-items: center;
+#glsandbox {
+  display: flex;
+  flex-direction: row;
 
-  canvas:focus {
-    border: none;
-    outline: none;
+  .render-panel {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas:focus {
+      border: none;
+      outline: none;
+    }
   }
-}
 
-.hidden {
-  display: none;
-}
-
-#overlay {
-  z-index: 5;
-  pointer-events: none;
-  .top {
+  .canvas-overlay {
     position: absolute;
-    right: 10px;
-    top: 10px;
+    right: 5px;
+    top: 5px;
+    width: auto;
+    user-select: none;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 5px;
+
+    pointer-events: none;
+
+    &.hidden {
+      display: none;
+    }
+
+    .fps {
+      display: inline-block;
+      font-size: 18px;
+      font-weight: bold;
+      color: #60ee60;
+    }
+
+    .button {
+      pointer-events: all;
+      cursor: pointer;
+      height: auto;
+      img {
+        width: 24px;
+        opacity: 0.5;
+        transform: rotate(180deg);
+        transition: transform @menu_animation_time;
+      }
+    }
+
+    &.open .button img {
+      transform: rotate(0);
+    }
   }
 
-  .bottom {
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
+  .control-panel {
+    flex: none;
+    min-width: 25%;
+    border-left: 1px solid #d0d0d080;
+    transition: margin-right @menu_animation_time;
+    overflow: hidden;
+    visibility: visible;
+
+    &.hidden {
+      visibility: hidden;
+      transition: none;
+    }
+
+    .control-panel-content {
+      padding: 5px;
+
+      display: grid;
+      grid-template-columns: 0.5fr 1fr;
+      column-gap: 5px;
+      row-gap: 5px;
+      max-width: 100%;
+
+      color: white;
+
+      .sandbox-title {
+        font-size: 18px;
+        padding: 0;
+        margin: 0;
+
+        img {
+          height: 16px;
+          margin-left: 8px;
+          cursor: pointer;
+        }
+      }
+
+      hr {
+        grid-column: span 2;
+        width: 100%;
+      }
+
+      input {
+        vertical-align: middle;
+        width: auto;
+      }
+
+      .sandbox-description {
+        grid-column: span 2;
+      }
+    }
   }
-}
-
-#fps {
-  color: #39ff14;
-  font-size: 16px;
-  font-weight: bold;
-}
-
-#sandboxes {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-
-  a,
-  a:visited {
-    color: #ddd;
-    text-decoration: none;
-    pointer-events: all;
-  }
-
-  .active a {
-    text-decoration: underline;
-  }
-}
-
-#sandbox-panel {
-  max-width: 160px;
-  height: auto;
-  overflow: hidden;
-  color: #e8e8e8;
-}
-
-#sandbox.gol {
-  padding: 10px;
 }

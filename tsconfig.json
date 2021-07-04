@@ -1,12 +1,15 @@
 {
-  "files": ["src/index.ts", "./src/sandboxes/boids/BoidFamilly.ts"],
+  "files": ["src/index.tsx"],
   "exclude": ["node_modules/**"],
   "compilerOptions": {
     "baseUrl": "./src",
     "paths": {
-      "gl": ["gl/gl"],
-      "utils": ["utils/utils"]
+      "gl": ["gl"],
+      "utils": ["utils"],
+      "random": ["random"],
+      "rnn": ["rnn"]
     },
+    "jsx": "react",
     "outDir": "dist/",
     "target": "ES2020",
     "module": "ES2020",
@@ -29,6 +32,7 @@
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "resolveJsonModule": true
   }
 }

@@ -3,10 +3,10 @@ import {
   SandboxContainer,
   SandboxFactory,
   Program,
-  QUAD_VS,
   IndexedDrawable,
   GLTexture2D,
-  newQuadDrawable
+  newQuadDrawable,
+  quadProgram
 } from 'gl';
 
 class TestUniforms {
@@ -16,8 +16,7 @@ class TestUniforms {
 
 class TestSandbox extends AbstractGLSandbox {
   static async create(container: SandboxContainer, name: string): Promise<TestSandbox> {
-    const program = await container.programLoader.load({
-      vspath: QUAD_VS,
+    const program = await quadProgram(container.programLoader, {
       fspath: 'test/test.fs.glsl',
       uniformLocations: new TestUniforms()
     });
@@ -29,14 +28,15 @@ class TestSandbox extends AbstractGLSandbox {
 
   constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<TestUniforms>) {
     super(container, name, {});
-    this.texture = new GLTexture2D(container.gl)
+    const gl = container.canvas.gl;
+    this.texture = new GLTexture2D(gl)
       .activate(0)
       .bind()
       .data({ width: 1, height: 1, buffer: new Uint8Array([0, 255, 0, 255]) })
       .data({ uri: 'images/momotte.jpg' });
     renderProgram.use();
-    container.gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
-    this.quadBuffers = newQuadDrawable(container.gl).bind();
+    gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
+    this.quadBuffers = newQuadDrawable(gl).bind();
   }
 
   render(): void {

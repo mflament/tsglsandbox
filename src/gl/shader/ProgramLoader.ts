@@ -1,13 +1,21 @@
 import { createShaderLoader, ShaderLoader } from './ShaderLoader';
+import { AbstractDeletable, LOGGER } from '../GLUtils';
 import { Varyings, VaryingBufferMode, Program, ProgramLocations } from './Program';
 import { CompiledShadersCache } from './CompiledShadersCache';
 import { Shader, ShaderType } from './Shader';
 import Path from '../../utils/Path';
 
-export class ProgramLoader {
-  private readonly shaderCompiler: CompiledShadersCache;
+export class ProgramLoader extends AbstractDeletable {
+  private readonly shadersCache: CompiledShadersCache;
+
   constructor(readonly gl: WebGL2RenderingContext, readonly shaderLoader: ShaderLoader = createShaderLoader()) {
-    this.shaderCompiler = new CompiledShadersCache(gl);
+    super();
+    this.shadersCache = new CompiledShadersCache(gl);
+  }
+
+  delete(): void {
+    this.shadersCache.delete();
+    super.delete();
   }
 
   async load<U = any, B = any, A = any>(config: ProgramConfiguration<U, B, A>): Promise<Program<U, B, A>> {
@@ -43,7 +51,7 @@ export class ProgramLoader {
       source += '\n';
     }
     source += lines.join('\n') + '\n';
-    return this.shaderCompiler.compile(type, source);
+    return this.shadersCache.compile(type, source);
   }
 
   private async parseShader(
@@ -72,7 +80,7 @@ export class ProgramLoader {
         const version = this.parseVersion(trimmedLine);
         if (version) {
           if (results.version && results.version !== version) {
-            console.error('Conflicting version ' + version + ' / ' + results.version);
+            LOGGER.error('Conflicting version ' + version + ' / ' + results.version);
           } else {
             results.version = version;
           }
@@ -114,7 +122,7 @@ export class ProgramLoader {
       const varName = matches[1];
       let count = parseInt(matches[2]);
       if (isNaN(count) && defines) count = parseInt(defines[matches[2]]);
-      if (isNaN(count)) console.error('Can not parse unroll count from ' + line);
+      if (isNaN(count)) LOGGER.error('Can not parse unroll count from ' + line);
       else return new UnrollBlock(varName, count);
     }
     return null;
@@ -209,16 +217,18 @@ interface BaseConfiguration<U = any, B = any, A = any> extends ProgramLocations<
   varyingMode?: VaryingBufferMode;
 }
 
-interface ShadersConfiguration<U = any, B = any, A = any> extends BaseConfiguration<U, B, A> {
+export interface ShadersConfiguration<U = any, B = any, A = any> extends BaseConfiguration<U, B, A> {
   vspath: string;
   fspath: string;
 }
 
-interface MergedConfiguration<U = any, B = any, A = any> extends BaseConfiguration<U, B, A> {
+export interface MergedConfiguration<U = any, B = any, A = any> extends BaseConfiguration<U, B, A> {
   path: string;
 }
 
-type ProgramConfiguration<U = any, B = any, A = any> = ShadersConfiguration<U, B, A> | MergedConfiguration<U, B, A>;
+export type ProgramConfiguration<U = any, B = any, A = any> =
+  | ShadersConfiguration<U, B, A>
+  | MergedConfiguration<U, B, A>;
 
 function isShadersConfig<U, B, A>(config: BaseConfiguration<U, B, A>): config is ShadersConfiguration<U, B, A> {
   const cfg = config as ShadersConfiguration;

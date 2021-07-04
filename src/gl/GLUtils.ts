@@ -1,3 +1,5 @@
+import { LOGGER } from '../utils/Logger';
+
 export interface Bindable {
   bind(): Bindable;
   unbind(): Bindable;
@@ -5,6 +7,26 @@ export interface Bindable {
 
 export interface Deletable {
   delete(): void;
+}
+
+const DEBUG_DELETABLE = false;
+export abstract class AbstractDeletable implements Deletable {
+  private static nextInstanceId = 0;
+  protected readonly instanceId: number;
+
+  constructor() {
+    this.instanceId = AbstractDeletable.nextInstanceId++;
+    DEBUG_DELETABLE && LOGGER.debug('Creating ' + this);
+  }
+
+  delete(): void {
+    DEBUG_DELETABLE && LOGGER.debug('Deleted ' + this);
+  }
+
+  toString(): string {
+    const proto = Object.getPrototypeOf(this);
+    return proto.constructor.name + '[' + this.instanceId + ']';
+  }
 }
 
 export function isDeletable(o: unknown): o is Deletable {
@@ -49,3 +71,5 @@ export function nextPowerOfTwo(n: number): number {
   n |= n >> 16;
   return n + 1;
 }
+
+export { LOGGER } from 'utils';

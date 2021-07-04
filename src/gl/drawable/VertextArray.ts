@@ -1,14 +1,17 @@
-import { Bindable, checkNull, Deletable } from '../GLUtils';
+import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
 import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
 
 export type AttributeLocations<T = never> = {
   [P in keyof T]?: number;
 };
 
-export class VertexArray implements Bindable, Deletable {
+export class VertexArray extends AbstractDeletable implements Bindable {
+  private static _boundArray?: VertexArray;
+
   readonly vao: WebGLVertexArrayObject;
 
   constructor(readonly gl: WebGL2RenderingContext) {
+    super();
     this.vao = checkNull(() => gl.createVertexArray());
   }
 
@@ -48,17 +51,25 @@ export class VertexArray implements Bindable, Deletable {
   }
 
   bind(): VertexArray {
-    this.gl.bindVertexArray(this.vao);
+    if (VertexArray._boundArray !== this) {
+      this.gl.bindVertexArray(this.vao);
+      VertexArray._boundArray = this;
+    }
     return this;
   }
 
   unbind(): VertexArray {
-    this.gl.bindVertexArray(null);
+    if (VertexArray._boundArray === this) {
+      this.gl.bindVertexArray(null);
+      VertexArray._boundArray = undefined;
+    }
     return this;
   }
 
   delete(): VertexArray {
+    this.unbind();
     this.gl.deleteVertexArray(this.vao);
+    super.delete();
     return this;
   }
 }

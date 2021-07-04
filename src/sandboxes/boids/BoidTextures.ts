@@ -1,5 +1,4 @@
 import {
-  Deletable,
   GLTexture2D,
   InternalFormat,
   TextureComponentType,
@@ -8,6 +7,7 @@ import {
   TextureMinFilter,
   TextureWrappingMode
 } from 'gl';
+import { AbstractDeletable } from '../../gl/GLUtils';
 
 import { Boid } from './Boid';
 
@@ -15,11 +15,12 @@ export const TEXTURE_UNITS = {
   data: 0
 };
 
-export class BoidsDataTextures implements Deletable {
+export class BoidsDataTextures extends AbstractDeletable {
   private _boidsCount = 0;
   readonly data: BoidsDataTexture[];
 
   constructor(gl: WebGL2RenderingContext, maxBoids: number) {
+    super();
     this.data = [BoidsDataTexture.create(gl, maxBoids), BoidsDataTexture.create(gl, maxBoids)];
   }
 
@@ -33,6 +34,7 @@ export class BoidsDataTextures implements Deletable {
 
   delete(): void {
     this.data.forEach(b => b.delete());
+    super.delete();
   }
 
   swapBoids(): void {
@@ -53,7 +55,7 @@ export class BoidsDataTextures implements Deletable {
   }
 }
 
-export class BoidsDataTexture implements Deletable {
+export class BoidsDataTexture extends AbstractDeletable {
   static create(gl: WebGL2RenderingContext, maxBoids: number): BoidsDataTexture {
     const data = newDataTexture(gl).bind().data({
       width: maxBoids,
@@ -65,7 +67,9 @@ export class BoidsDataTexture implements Deletable {
     return new BoidsDataTexture(data);
   }
 
-  constructor(readonly data: GLTexture2D) {}
+  constructor(readonly data: GLTexture2D) {
+    super();
+  }
 
   bind(): BoidsDataTexture {
     this.data.activate(TEXTURE_UNITS.data).bind();
@@ -92,6 +96,7 @@ export class BoidsDataTexture implements Deletable {
 
   delete(): void {
     this.data.delete();
+    super.delete();
   }
 }
 

@@ -1,4 +1,4 @@
-import { Bindable, checkNull, Deletable } from '../GLUtils';
+import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
 import { GLTexture2D } from '../texture/GLTexture';
 
 const FRAMEBUFFER = WebGL2RenderingContext.FRAMEBUFFER;
@@ -31,11 +31,12 @@ export function frameBufferStatusName(status: FrameBufferStatus): string {
   }
 }
 
-export class FrameBuffer implements Bindable, Deletable {
+export class FrameBuffer extends AbstractDeletable implements Bindable {
   private readonly fb: WebGLFramebuffer;
   private readonly _attachments: number[] = [];
 
   constructor(readonly gl: WebGL2RenderingContext) {
+    super();
     this.fb = checkNull(() => gl.createFramebuffer());
   }
 
@@ -51,6 +52,7 @@ export class FrameBuffer implements Bindable, Deletable {
 
   delete(): void {
     this.gl.deleteFramebuffer(this.fb);
+    super.delete();
   }
 
   attach(textures: GLTexture2D | GLTexture2D[], level = 0): FrameBuffer {
@@ -87,7 +89,6 @@ export class FrameBuffer implements Bindable, Deletable {
     const status = this.status;
     if (status !== FrameBufferStatus.COMPLETE) {
       const message = 'FrameBuffer is not complete:' + frameBufferStatusName(status);
-      console.error(message);
       throw new Error(message);
     }
   }

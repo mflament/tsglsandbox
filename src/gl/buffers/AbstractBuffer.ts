@@ -1,13 +1,18 @@
-import { Bindable, checkNull, Deletable } from '../GLUtils';
+import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
 import { ArrayBufferType, BufferTarget, BufferUsage } from './BufferEnums';
 
-export abstract class AbstractBuffer<B extends ArrayBufferType, THIS extends AbstractBuffer<B, THIS>>
-  implements Bindable, Deletable
+export abstract class AbstractBuffer<
+    B extends ArrayBufferType = ArrayBufferType,
+    THIS extends AbstractBuffer<B, THIS> = any
+  >
+  extends AbstractDeletable
+  implements Bindable
 {
   readonly glbuffer: WebGLBuffer;
   private _size = 0; // in bytes
 
   constructor(readonly gl: WebGL2RenderingContext, readonly target: BufferTarget) {
+    super();
     this.glbuffer = checkNull(() => gl.createBuffer());
     this.bind();
   }
@@ -32,6 +37,7 @@ export abstract class AbstractBuffer<B extends ArrayBufferType, THIS extends Abs
   delete(): THIS {
     this.gl.deleteBuffer(this.glbuffer);
     this._size = 0;
+    super.delete();
     return this.self();
   }
 

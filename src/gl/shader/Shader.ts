@@ -1,14 +1,15 @@
-import { checkNull, Deletable } from '../GLUtils';
+import { AbstractDeletable, checkNull } from '../GLUtils';
 
 export enum ShaderType {
   VERTEX_SHADER = WebGL2RenderingContext.VERTEX_SHADER,
   FRAGMENT_SHADER = WebGL2RenderingContext.FRAGMENT_SHADER
 }
 
-export class Shader implements Deletable {
+export class Shader extends AbstractDeletable {
   readonly glshader: WebGLShader;
 
   constructor(readonly gl: WebGL2RenderingContext, readonly type: ShaderType) {
+    super();
     this.glshader = checkNull(() => gl.createShader(type));
   }
 
@@ -29,6 +30,7 @@ export class Shader implements Deletable {
 
   delete(): void {
     this.gl.deleteShader(this.glshader);
+    super.delete();
   }
 }
 

@@ -1,7 +1,5 @@
 import { vec2 } from 'gl-matrix';
-import { Noise } from '../../utils/noise/Noise';
-import { simplexNoise2D, randomSimplexSeed } from '../../utils/noise/simplex/SimplexNoise';
-import { fractalNoise2D } from '../../utils/noise/FractalNoise';
+import { Noise, fractalNoise2D, simplexNoise2D, randomSimplexSeed } from 'random';
 import { GLTexture2D } from './GLTexture';
 import {
   InternalFormat,
@@ -13,23 +11,28 @@ import {
 } from './TextureEnums';
 
 export interface NoiseParameters {
-  seed: number;
-  octaves: number;
-  persistence: number;
+  width: number;
+  height: number;
+  seed?: number;
   scale: number;
   normalize: boolean;
   float32: boolean;
 }
 
-export interface TextureNoiseParameters extends NoiseParameters {
-  width: number;
-  height: number;
+export interface FractalNoiseParameters extends NoiseParameters {
+  octaves: number;
+  persistence: number;
+}
+
+function isFractalNoiseParameters(params: NoiseParameters): params is FractalNoiseParameters {
+  const fp = params as FractalNoiseParameters;
+  return params && typeof fp.octaves === 'number';
 }
 
 export class NoiseTextureGenerator {
   constructor(readonly gl: WebGL2RenderingContext) {}
 
-  create(params?: Partial<TextureNoiseParameters>): GLTexture2D {
+  create(params?: Partial<NoiseParameters>): GLTexture2D {
     const target = new GLTexture2D(this.gl)
       .bind()
       .minFilter(TextureMinFilter.NEAREST)
@@ -43,9 +46,10 @@ export class NoiseTextureGenerator {
     this.generate(this.createParameters({ width: target.width, height: target.height, ...params }), target);
   }
 
-  private generate(params: TextureNoiseParameters, target: GLTexture2D): void {
+  private generate(params: NoiseParameters, target: GLTexture2D): void {
     let noise: Noise<vec2>;
-    if (params.octaves > 0) noise = fractalNoise2D(simplexNoise2D(params.seed), params.octaves, params.persistence);
+    if (isFractalNoiseParameters(params) && params.octaves > 0)
+      noise = fractalNoise2D(simplexNoise2D(params.seed), params.octaves, params.persistence);
     else noise = simplexNoise2D(params.seed);
 
     const array = params.float32
@@ -84,17 +88,15 @@ export class NoiseTextureGenerator {
     });
   }
 
-  private createParameters(params?: Partial<TextureNoiseParameters>): TextureNoiseParameters {
+  private createParameters(params?: Partial<FractalNoiseParameters>): NoiseParameters {
     params = params || {};
     return {
       seed: randomSimplexSeed(),
       width: 512,
       height: 512,
-      octaves: 4,
-      persistence: 5,
       scale: 1,
       float32: true,
-      normalize: true,
+      normalize: false,
       ...params
     };
   }

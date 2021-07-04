@@ -1,13 +1,13 @@
 import { VertexArray, AttributeLocations } from './VertextArray';
-import { Bindable, Deletable } from '../GLUtils';
-import { DrawMode, IndexBuffer, IndexBufferType, VertexBuffer } from '../gl';
+import { AbstractDeletable, Bindable } from '../GLUtils';
+import { DrawMode, IndexBuffer, IndexBufferType, VertexBuffer } from 'gl';
 
 interface VertexBufferParameter<V = any> {
   buffer: VertexBuffer<V>;
   locations: AttributeLocations<V>;
 }
 
-export class GLDrawable<V = any> implements Bindable, Deletable {
+export class GLDrawable<V = any> extends AbstractDeletable implements Bindable {
   protected readonly vao: VertexArray;
   readonly vertices: VertexBuffer<V>;
   constructor(
@@ -15,6 +15,7 @@ export class GLDrawable<V = any> implements Bindable, Deletable {
     verticesParam: VertexBufferParameter<V>,
     readonly drawMode: DrawMode
   ) {
+    super();
     this.vao = new VertexArray(gl).bind();
     this.vertices = verticesParam.buffer;
     this.vertices.bind();
@@ -26,6 +27,7 @@ export class GLDrawable<V = any> implements Bindable, Deletable {
   }
 
   bind(): GLDrawable<V> {
+    this.vertices.bind();
     this.vao.bind();
     return this;
   }
@@ -38,6 +40,7 @@ export class GLDrawable<V = any> implements Bindable, Deletable {
   delete(): void {
     this.vao.delete();
     this.vertices.delete();
+    super.delete();
   }
 }
 
@@ -73,7 +76,7 @@ export class IndexedDrawable<V = any, I extends IndexBufferType = IndexBufferTyp
   }
 }
 
-export class InstancedDrawable<V = any, E = any> {
+export class InstancedDrawable<V = any, E = any> extends AbstractDeletable {
   readonly vertices?: VertexBuffer<V>;
   readonly instances?: VertexBuffer<E>;
   protected readonly vao: VertexArray;
@@ -84,6 +87,7 @@ export class InstancedDrawable<V = any, E = any> {
     verticesParam?: VertexBufferParameter<V>,
     instancesParam?: VertexBufferParameter<E>
   ) {
+    super();
     this.vao = new VertexArray(gl).bind();
     if (verticesParam) {
       this.vertices = verticesParam.buffer;
@@ -106,6 +110,8 @@ export class InstancedDrawable<V = any, E = any> {
   }
 
   bind(): InstancedDrawable<V, E> {
+    this.vertices?.bind();
+    this.instances?.bind();
     this.vao.bind();
     return this;
   }
@@ -119,6 +125,7 @@ export class InstancedDrawable<V = any, E = any> {
     this.vao.delete();
     this.vertices?.delete();
     this.instances?.delete();
+    super.delete();
   }
 
   draw(instanceCount = this.instancesCount, vertexCount = this.vertexCount, vertexOffset = 0): void {

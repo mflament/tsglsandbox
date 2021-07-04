@@ -9,7 +9,7 @@ import {
   TextureAtlas
 } from 'gl';
 
-import { vec2 } from 'gl-matrix';
+import { hashLocation } from 'utils';
 
 interface AntsParameters {
   count: number;
@@ -21,11 +21,11 @@ const ANT_REGIONS = 8 * 8 - 2;
 
 class GLAnts extends AbstractGLSandbox<AntsParameters> {
   static async create(container: SandboxContainer, name: string): Promise<GLAnts> {
-    const texture = await new GLTexture2D(container.gl).bind().load({ uri: 'images/ant-walk.png' });
+    const texture = await new GLTexture2D(container.canvas.gl).bind().load({ uri: 'images/ant-walk.png' });
     const sprites = await Sprites.create(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]);
     sprites.bind();
     const parameters = { count: 1, accel: 4, speed: 2 };
-    window.hashLocation.parseParams(parameters);
+    hashLocation.parseParams(parameters);
     return new GLAnts(container, name, parameters, sprites);
   }
 
@@ -33,9 +33,10 @@ class GLAnts extends AbstractGLSandbox<AntsParameters> {
 
   constructor(container: SandboxContainer, name: string, parameters: AntsParameters, readonly sprites: Sprites) {
     super(container, name, parameters);
-    container.gl.enable(WebGL2RenderingContext.DEPTH_TEST);
-    container.gl.enable(WebGL2RenderingContext.BLEND);
-    container.gl.blendFunc(WebGL2RenderingContext.SRC_ALPHA, WebGL2RenderingContext.ONE_MINUS_SRC_ALPHA);
+    const gl = container.canvas.gl;
+    gl.enable(WebGL2RenderingContext.DEPTH_TEST);
+    gl.enable(WebGL2RenderingContext.BLEND);
+    gl.blendFunc(WebGL2RenderingContext.SRC_ALPHA, WebGL2RenderingContext.ONE_MINUS_SRC_ALPHA);
     const scale = 0.6;
     this.sprites.bind();
     this.antSprite = this.sprites.addSprite({ pos: [120, 200], scale: [scale, scale], texture: 0, region: 0 });
@@ -44,7 +45,10 @@ class GLAnts extends AbstractGLSandbox<AntsParameters> {
   }
 
   render(): void {
-    this.clear([0.9, 0.9, 0.9, 1], WebGL2RenderingContext.COLOR_BUFFER_BIT | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
+    this.clear(
+      [0.23, 0.15, 0.15, 1],
+      WebGL2RenderingContext.COLOR_BUFFER_BIT | WebGL2RenderingContext.DEPTH_BUFFER_BIT
+    );
     this.sprites.draw();
   }
 
@@ -67,7 +71,6 @@ class GLAnts extends AbstractGLSandbox<AntsParameters> {
         const cpct = (elapsed % sprite.animation.duration) / sprite.animation.duration;
         sprite.animation.duration = newDuration;
         sprite.animationStart = this.container.time - newDuration * cpct;
-        console.log('new duration : ' + sprite.animation.duration);
         this.sprites.updateSprite(sprite.index);
       }
     }
@@ -77,14 +80,14 @@ class GLAnts extends AbstractGLSandbox<AntsParameters> {
     this.sprites.time = time;
   }
 
-  onresize(dim: vec2): void {
+  onresize(dim: { width: number; height: number }): void {
     this.sprites.updateViewMatrix(dim);
   }
 
   delete(): void {
     this.sprites.delete();
-    this.container.gl.disable(WebGL2RenderingContext.DEPTH_TEST);
-    this.container.gl.disable(WebGL2RenderingContext.BLEND);
+    this.gl.disable(WebGL2RenderingContext.DEPTH_TEST);
+    this.gl.disable(WebGL2RenderingContext.BLEND);
   }
 }
 

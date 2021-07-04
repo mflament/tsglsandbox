@@ -1,10 +1,11 @@
 import { TransformFeedbackDrawMode } from '../buffers/BufferEnums';
 import { VertexBuffer } from '../buffers/VertexBuffer';
-import { Bindable, checkNull, Deletable } from '../GLUtils';
-export class TransformFeedback implements Bindable, Deletable {
+import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
+export class TransformFeedback extends AbstractDeletable implements Bindable {
   private readonly transformFeedback: WebGLTransformFeedback;
 
   constructor(readonly gl: WebGL2RenderingContext) {
+    super();
     this.transformFeedback = checkNull(() => gl.createTransformFeedback());
   }
 
@@ -30,6 +31,7 @@ export class TransformFeedback implements Bindable, Deletable {
 
   delete(): TransformFeedback {
     this.gl.deleteTransformFeedback(this.transformFeedback);
+    super.delete();
     return this;
   }
 

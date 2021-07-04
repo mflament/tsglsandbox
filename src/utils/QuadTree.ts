@@ -55,7 +55,7 @@ export class QuadTree {
 
     // If there is space in this quad tree and if doesn't have subdivisions, add the object here
     if (this.points.length < this.nodeCapacity && this.children === undefined) {
-      this.points.push(point);
+      this.points.push(vec2.clone(point));
       return true;
     }
 
@@ -89,6 +89,19 @@ export class QuadTree {
     }
 
     return res;
+  }
+
+  contains(range: AABB = this.boundary): boolean {
+    // Automatically abort if the range does not intersect this quad
+    if (!this.boundary.intersects(range)) return false;
+
+    // Check objects at this quad level
+    if (this.points.some(p => range.contains(p))) return true;
+
+    // Terminate here, if there are no children
+    if (this.children === undefined) return false;
+
+    return this.children.some(c => c.contains(range));
   }
 
   private split(): QuadTree[] {

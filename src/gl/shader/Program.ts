@@ -1,5 +1,5 @@
 'use strict';
-import { checkNull } from '../GLUtils';
+import { AbstractDeletable, checkNull, LOGGER } from '../GLUtils';
 import { Shader } from './Shader';
 
 export interface ProgramLocations<U = any, B = any, A = any> {
@@ -60,6 +60,15 @@ interface ProgramParameters {
   readonly activeUniformBlocks: number;
 }
 
+interface BlockInfo {
+  name: string;
+  binding: number;
+  dataSize: number;
+  referencedByVertexShader: boolean;
+  referencedByFragmentShader: boolean;
+  uniforms: BlockUniformInfo[];
+}
+
 interface UniformInfo {
   index: number;
   name: string;
@@ -74,24 +83,19 @@ interface BlockUniformInfo extends UniformInfo {
   matrixStride: number;
   isRowMajor: boolean;
 }
-interface BlockInfo {
-  name: string;
-  binding: number;
-  dataSize: number;
-  referencedByVertexShader: boolean;
-  referencedByFragmentShader: boolean;
-  uniforms: BlockUniformInfo[];
-}
 
 interface ProgramUniformInfo {
   uniforms: UniformInfo[];
   blocks: BlockInfo[];
 }
 
-export class Program<U = any, B = any, A = any> {
+export class Program<U = any, B = any, A = any> extends AbstractDeletable {
+  private static _activeProgram?: Program;
+
   readonly glprogram: WebGLProgram;
 
   constructor(readonly gl: WebGL2RenderingContext, private readonly locations: ProgramLocations<U, B, A> = {}) {
+    super();
     this.glprogram = checkNull(() => this.gl.createProgram());
   }
 
@@ -99,6 +103,7 @@ export class Program<U = any, B = any, A = any> {
     if (!this.locations.attributeLocations) throw new Error('No attribute locations');
     return this.locations.attributeLocations;
   }
+
   get uniformLocations(): U {
     if (!this.locations.uniformLocations) throw new Error('No uniform locations');
     return this.locations.uniformLocations;
@@ -153,12 +158,20 @@ export class Program<U = any, B = any, A = any> {
   }
 
   use(): Program<U, B, A> {
-    this.gl.useProgram(this.glprogram);
+    if (Program._activeProgram !== this) {
+      this.gl.useProgram(this.glprogram);
+      Program._activeProgram = this;
+    }
     return this;
   }
 
   delete(): void {
+    if (Program._activeProgram === this) {
+      this.gl.useProgram(null);
+      Program._activeProgram = undefined;
+    }
     this.gl.deleteProgram(this.glprogram);
+    super.delete();
   }
 
   queryProgramParameters(): ProgramParameters {
@@ -251,7 +264,7 @@ export class Program<U = any, B = any, A = any> {
       const location = this.attributeLocation(name);
       target[name] = location;
       if (location < 0 || location === WebGL2RenderingContext.INVALID_INDEX) {
-        console.error(`attribute '${name}' not found`);
+        LOGGER.error(`attribute '${name}' not found`);
       }
     }
   }
@@ -271,7 +284,7 @@ export class Program<U = any, B = any, A = any> {
     for (const name of names) {
       const location = this.uniformBlockIndex(name);
       target[name] = location;
-      if (location === WebGL2RenderingContext.INVALID_INDEX) console.error(`uniform block '${name}' not found`);
+      if (location === WebGL2RenderingContext.INVALID_INDEX) LOGGER.error(`uniform block '${name}' not found`);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { checkNull } from '../GLUtils';
+import { AbstractDeletable, checkNull } from '../GLUtils';
 import {
   InternalFormat,
   TextureArrayBuffer,
@@ -19,13 +19,17 @@ import {
 
 const TARGET = WebGL2RenderingContext.TEXTURE_2D;
 
-export class GLTexture2D implements Partial<Bindable>, Deletable {
+export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>, Deletable {
+  private static _activeUnit = 0;
+
   private _texture: WebGLTexture;
   private _internalFormat?: InternalFormat;
   private _width = 0;
   private _height = 0;
+  private _boundTo?: number;
 
   constructor(readonly gl: WebGL2RenderingContext) {
+    super();
     this._texture = checkNull(() => gl.createTexture());
   }
 
@@ -41,6 +45,10 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     return this._height;
   }
 
+  get boundTo(): number | undefined {
+    return this._boundTo;
+  }
+
   get internalFormat(): InternalFormat {
     if (!this._internalFormat) throw new Error('Not initiazed');
     return this._internalFormat;
@@ -48,11 +56,13 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
 
   bind(): GLTexture2D {
     this.gl.bindTexture(TARGET, this._texture);
+    this._boundTo = GLTexture2D._activeUnit;
     return this;
   }
 
   unbind(): GLTexture2D {
     this.gl.bindTexture(TARGET, null);
+    this._boundTo = undefined;
     return this;
   }
 
@@ -60,8 +70,6 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
     this.activeUnit = unit;
     return this;
   }
-
-  private static _activeUnit = 0;
 
   get activeUnit(): number {
     return GLTexture2D._activeUnit;
@@ -76,6 +84,7 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
 
   delete(): GLTexture2D {
     this.gl.deleteTexture(this._texture);
+    super.delete();
     return this;
   }
 
@@ -100,6 +109,8 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
       const h = param.height;
       if (isBufferData(param)) {
         validateBufferType(param.buffer, type);
+        if (param.unpackAlignment !== undefined)
+          this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, param.unpackAlignment);
         const srcOffset = param.srcOffset ? param.srcOffset : 0;
         this.gl.texImage2D(TARGET, level, intformat, w, h, 0, format, type, param.buffer, srcOffset);
       } else if (isPBOData(param)) {
@@ -136,6 +147,8 @@ export class GLTexture2D implements Partial<Bindable>, Deletable {
       const h = param.height;
       if (isBufferData(param)) {
         validateBufferType(param.buffer, type);
+        if (param.unpackAlignment !== undefined)
+          this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, param.unpackAlignment);
         const srcOffset = param.srcOffset ? param.srcOffset : 0;
         this.gl.texSubImage2D(TARGET, level, param.x, param.y, w, h, format, type, param.buffer, srcOffset);
       } else if (isPBOData(param)) {
@@ -188,6 +201,7 @@ export interface SizedData {
 export interface BufferData extends SizedData {
   buffer: TextureArrayBuffer;
   srcOffset?: number;
+  unpackAlignment?: number;
 }
 
 export interface PBOData extends SizedData {

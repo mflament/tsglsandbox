@@ -231,7 +231,7 @@ class PointsBuffer {
     return this;
   }
 
-  update(glbuffer: VertexBuffer, usage: BufferUsage = BufferUsage.DYNAMIC_DRAW): PointsBuffer {
+  update(glbuffer: VertexBuffer, usage: BufferUsage = BufferUsage.STATIC_DRAW): PointsBuffer {
     glbuffer.bind().setdata(this.array, usage, 0, this._count * POINT_FLOATS);
     return this;
   }

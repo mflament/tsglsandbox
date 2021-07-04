@@ -1,4 +1,4 @@
-import { vec2, vec4 } from 'gl-matrix';
+import { vec4 } from 'gl-matrix';
 import {
   VertexBuffer,
   DrawMode,
@@ -11,7 +11,7 @@ import {
   newQuadDrawable
 } from 'gl';
 
-import { BoidsParameters } from './BoidsParameters';
+import { BoidsParameters, MAX_BOIDS } from './BoidsParameters';
 import { Boid, randomizedBoids } from './Boid';
 import { BoidFamilly, BoidFamillyBuffer } from './BoidFamilly';
 import { BoidPrograms } from './BoidPrograms';
@@ -21,8 +21,6 @@ export function boids(): SandboxFactory<BoidsParameters> {
   return GLBoids.create;
 }
 
-const MAX_BOIDS = 1024;
-
 const TEST_BOIDS: Boid[] | undefined = undefined;
 // const TEST_BOIDS: Boid[] = [
 //   { pos: [0.0, 0.05], velocity: [0.0, 1.0], familly: 0 },
@@ -31,15 +29,7 @@ const TEST_BOIDS: Boid[] | undefined = undefined;
 
 class GLBoids extends AbstractGLSandbox<BoidsParameters> {
   static async create(container: SandboxContainer, name: string): Promise<GLBoids> {
-    const parameters: BoidsParameters = {
-      count: 20,
-      acceleration: 0.2,
-      maxSpeed: 0.4,
-      turnSpeed: 180,
-      fov: 110
-    };
-    window.hashLocation.parseParams(parameters);
-    return new GLBoids(container, name, parameters, await BoidPrograms.create(container.programLoader));
+    return new GLBoids(container, name, await BoidPrograms.create(container.programLoader));
   }
 
   private readonly frameBuffer: FrameBuffer;
@@ -50,8 +40,8 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
   private readonly famillyBuffers: BoidFamillyBuffer[];
   private readonly boids: BoidsDataTextures[]; // [famillyIndex] : familly's  boids
 
-  constructor(container: SandboxContainer, name: string, parameters: BoidsParameters, readonly programs: BoidPrograms) {
-    super(container, name, parameters);
+  constructor(container: SandboxContainer, name: string, readonly programs: BoidPrograms) {
+    super(container, name, new BoidsParameters());
 
     this.families = [this.defaultFamilly()];
     this.famillyBuffers = [new BoidFamillyBuffer(this.gl)];
@@ -64,11 +54,11 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
     programs.setupUniforms();
 
     if (TEST_BOIDS) {
-      parameters.count = TEST_BOIDS.length;
+      this.parameters.count = TEST_BOIDS.length;
       this.boids[0].pushBoids(TEST_BOIDS);
     }
 
-    this.onParametersChanged();
+    this.onparameterchange();
 
     this.programs.renderBoids.use();
     this.renderDrawable.bind();
@@ -109,7 +99,8 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
       this.frameBuffer.detach();
       this.frameBuffer.unbind();
 
-      this.gl.viewport(0, 0, this.container.dimension[0], this.container.dimension[1]);
+      const canvas = this.canvas;
+      this.gl.viewport(0, 0, canvas.width, canvas.height);
 
       boids.swapBoids();
     }
@@ -118,15 +109,7 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
     this.renderDrawable.bind();
   }
 
-  onkeydown(e: KeyboardEvent): void {
-    switch (e.key.toLowerCase()) {
-      case 'n':
-        this.update(0, 0);
-        break;
-    }
-  }
-
-  onParametersChanged(): void {
+  onparameterchange(): void {
     const params = this.parameters;
     params.count = Math.min(MAX_BOIDS, this.parameters.count);
     const familly = this.families[0];
@@ -144,8 +127,8 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
     this.famillyBuffers[0].update(familly);
   }
 
-  onresize(dim: vec2): void {
-    const ar = dim[0] / dim[1];
+  onresize(dim: { width: number; height: number }): void {
+    const ar = dim.width / dim.height;
     this.families.forEach((f, index) => {
       f.scale[1] = f.scale[0] * ar;
       this.famillyBuffers[index].update(f);
@@ -169,7 +152,7 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
   private defaultFamilly(width = BOID_WIDTH): BoidFamilly {
     const params = this.parameters;
     return {
-      scale: [width, width * this.container.aspectRatio],
+      scale: [width, width * this.canvas.aspectRatio],
       acceleration: params.acceleration,
       maxSpeed: params.maxSpeed,
       turnSpeed: params.turnSpeed,
