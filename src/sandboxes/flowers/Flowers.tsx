@@ -14,11 +14,13 @@ import {
   quadProgram,
   QuadProgram
 } from 'gl';
+import React, { ChangeEvent, Component } from 'react';
 import { vec2 } from 'gl-matrix';
 import { Matrix, RNN } from 'rnn';
 import { RNG, simplexNoise2D } from 'random';
-import { hashLocation } from 'utils';
 import { AbstractDeletable } from '../../gl/GLUtils';
+import { RefObject } from 'react';
+import { Layer } from '../../rnn/RNN';
 
 class FlowerParameters {
   count = 100;
@@ -42,36 +44,28 @@ class RenderUniforms {
   u_mode: WebGLUniformLocation | null = null;
 }
 
-type Updatbale = { update: () => void };
-
 class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
   static async create(container: SandboxContainer, name: string): Promise<FlowersSandbox> {
-    const parameters = new FlowerParameters();
-    hashLocation.parseParams(parameters);
     const renderProgram = await quadProgram(container.programLoader, {
       fspath: 'flowers/render-flowers.fs.glsl',
       uniformLocations: new RenderUniforms()
     });
-    return new FlowersSandbox(container, name, parameters, renderProgram);
+    return new FlowersSandbox(container, name, renderProgram);
   }
 
   private readonly inputs: FlowersInputs;
   private readonly quad: IndexedDrawable;
   private readonly flowersTexture: FlowersTexture;
 
-  readonly overlay: { content: HTMLElement; accuracy: HTMLElement };
+  private readonly customControlsRef: RefObject<NetworkControls>;
 
   private rnn: RNN;
   private mode: Mode = Mode.PREDS;
   private dirty = true;
+  private accuracy = 0;
 
-  constructor(
-    container: SandboxContainer,
-    name: string,
-    parameters: FlowerParameters,
-    readonly renderProgram: QuadProgram<RenderUniforms>
-  ) {
-    super(container, name, parameters);
+  constructor(container: SandboxContainer, name: string, readonly renderProgram: QuadProgram<RenderUniforms>) {
+    super(container, name, new FlowerParameters());
     this.inputs = FlowersInputs.create(DIM, SEED);
     this.flowersTexture = new FlowersTexture(this.gl, 0);
 
@@ -81,17 +75,24 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
     this.gl.uniform1i(renderProgram.uniformLocations.u_textures, 1);
     this.gl.uniform1i(this.renderProgram.uniformLocations.u_mode, this.mode);
 
-    //this.rnn = RNN.create({ layers: [2, 2], seed: SEED });
-    this.rnn = RNN.create({ layers: [2, 3, 3, 2], seed: SEED });
+    this.rnn = RNN.create({ layers: [2, 2], seed: SEED });
+    //this.rnn = RNN.create({ layers: [2, 3, 3, 2], seed: SEED });
 
-    this.overlay = this.createOverlay();
+    this.customControlsRef = React.createRef();
 
     this.pickSamples();
     this.ups = 30;
   }
 
-  get overlayContent(): HTMLElement {
-    return this.overlay.content;
+  get customControls(): JSX.Element {
+    return (
+      <NetworkControls
+        network={this.rnn}
+        accuracy={this.accuracy}
+        ref={this.customControlsRef}
+        onchange={() => (this.dirty = true)}
+      />
+    );
   }
 
   render(): void {
@@ -126,97 +127,177 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
     }
   }
 
-  private createOverlay(): { content: HTMLElement; accuracy: HTMLElement } {
-    const overlayContent = document.createElement('div');
-
-    const accuracyDiv = document.createElement('div');
-    accuracyDiv.classList.add('accuracy');
-    const accuracyLabel = document.createElement('label');
-    accuracyLabel.textContent = 'Accuracy';
-    accuracyDiv.appendChild(accuracyLabel);
-
-    const accuracyValue = document.createElement('span');
-    accuracyDiv.appendChild(accuracyValue);
-
-    overlayContent.appendChild(accuracyDiv);
-
-    this.rnn.layers.map(layer => {
-      const layerDiv = document.createElement('div');
-      layerDiv.classList.add('layer');
-      for (let output = 0; output < layer.outputs; output++) {
-        const neuronDiv = document.createElement('div');
-        neuronDiv.classList.add('neuron');
-
-        neuronDiv.appendChild(this.createControl('bias', 'Bias', layer.biases, 0, output));
-
-        const weightsDiv = document.createElement('div');
-        weightsDiv.classList.add('weights');
-        for (let input = 0; input < layer.inputs; input++) {
-          weightsDiv.appendChild(this.createControl('weight', 'Weights ' + input, layer.weights, input, output));
-        }
-        neuronDiv.appendChild(weightsDiv);
-
-        layerDiv.appendChild(neuronDiv);
-      }
-      overlayContent.appendChild(layerDiv);
-    });
-    return { content: overlayContent, accuracy: accuracyValue };
-  }
-
-  private createControl(
-    cssClass: string,
-    label: string,
-    source: Matrix,
-    row: number,
-    col: number
-  ): HTMLElement & Updatbale {
-    const div = document.createElement('div') as any;
-    div.classList.add('layerinput', cssClass);
-
-    const labelDiv = document.createElement('label');
-    labelDiv.textContent = label;
-    div.appendChild(labelDiv);
-
-    const input = document.createElement('input');
-    input.type = 'range';
-    input.min = '-1';
-    input.max = '1';
-    input.step = '0.01';
-    input.value = source.get(row, col).toString();
-    input.oninput = () => {
-      source.set(row, col, parseFloat(input.value));
-      value.textContent = input.value;
-      this.dirty = true;
-    };
-    div.appendChild(input);
-
-    const value = document.createElement('span');
-    value.textContent = input.value;
-    div.appendChild(value);
-
-    div.update = () => {
-      input.value = source.get(row, col).toString();
-      value.textContent = input.value;
-    };
-    return div;
-  }
-
   private pickSamples(): void {
     this.inputs.pick(this.parameters.count, SEED);
     this.flowersTexture.update(this.inputs);
   }
 
   private predict(): void {
-    const accuracy = this.inputs.predict(this.rnn);
-    this.overlay.accuracy.textContent = (accuracy * 100).toFixed(1) + '%';
+    this.accuracy = this.inputs.predict(this.rnn);
+    if (this.customControlsRef.current) this.customControlsRef.current.accuracy = this.accuracy;
     this.flowersTexture.update(this.inputs);
   }
 
   private train(): void {
-    this.inputs.train(this.rnn, 1);
-    const inputs = this.overlay.content.querySelectorAll('.layerinput');
-    inputs.forEach(e => (e as unknown as Updatbale).update());
+    this.inputs.train(this.rnn, 0.1);
+    if (this.customControlsRef.current) this.customControlsRef.current.forceUpdate();
     this.dirty = true;
+  }
+}
+
+interface NeworkControlsProps {
+  network: RNN;
+  onchange(): void;
+}
+
+class NetworkControls extends Component<NeworkControlsProps & { accuracy: number }, { accuracy: number }> {
+  constructor(props: NeworkControlsProps & { accuracy: number }) {
+    super(props);
+    this.state = { accuracy: props.accuracy };
+  }
+
+  render(): JSX.Element {
+    const layers = this.props.network.layers.map((_layer, index) => (
+      <LayerControls layerIndex={index} network={this.props.network} onchange={this.props.onchange} />
+    ));
+    return (
+      <>
+        <div className="rnn-accuracy">
+          <label>Accuracy</label>
+          <span>{(this.state.accuracy * 100).toFixed(1) + '%'}</span>
+        </div>
+        {layers}
+      </>
+    );
+  }
+
+  set accuracy(a: number) {
+    this.setState({ accuracy: a });
+  }
+}
+
+interface LayerProps extends NeworkControlsProps {
+  layerIndex: number;
+}
+
+class LayerControls extends Component<LayerProps> {
+  constructor(props: LayerProps) {
+    super(props);
+  }
+
+  get layer(): Layer {
+    return this.props.network.layers[this.props.layerIndex];
+  }
+
+  render(): JSX.Element {
+    const neurons: JSX.Element[] = [];
+    const layer = this.layer;
+    for (let o = 0; o < layer.outputs; o++) {
+      neurons.push(
+        <NeuronControls
+          network={this.props.network}
+          layerIndex={this.props.layerIndex}
+          neuronIndex={o}
+          onchange={() => this.props.onchange()}
+        />
+      );
+    }
+    return (
+      <div className="layer">
+        <h2>{'Layer ' + (this.props.layerIndex + 1)}</h2>
+        {neurons}
+      </div>
+    );
+  }
+}
+
+interface NeuronProps extends LayerProps {
+  neuronIndex: number;
+}
+
+class NeuronControls extends Component<NeuronProps> {
+  constructor(props: NeuronProps) {
+    super(props);
+  }
+
+  render(): JSX.Element {
+    const layer = this.layer;
+    return (
+      <div className="neuron">
+        <label>Bias</label>
+        <MatrixInput mat={layer.biases} row={0} col={this.props.neuronIndex} onchange={() => this.props.onchange()} />
+        {this.renderWeights()}
+      </div>
+    );
+  }
+
+  private renderWeights(): JSX.Element[] {
+    const weights: JSX.Element[] = [];
+    const layer = this.layer;
+    for (let i = 0; i < layer.inputs; i++) {
+      weights.push(
+        <>
+          <label>W{i}</label>
+          <MatrixInput
+            mat={layer.weights}
+            row={i}
+            col={this.props.neuronIndex}
+            onchange={() => this.props.onchange()}
+          />
+        </>
+      );
+    }
+    return weights;
+  }
+
+  private setWeight(input: number, w: number) {
+    this.layer.weights.set(input, this.props.neuronIndex, w);
+    this.props.onchange();
+  }
+
+  private get layer(): Layer {
+    return this.props.network.layers[this.props.layerIndex];
+  }
+
+  private get bias(): number {
+    const layer = this.layer;
+    return layer.biases.get(0, this.props.neuronIndex);
+  }
+
+  private set bias(b: number) {
+    const layer = this.props.network.layers[this.props.layerIndex];
+    layer.biases.set(0, this.props.neuronIndex, b);
+    this.props.onchange();
+  }
+}
+
+interface MatrixInputProps {
+  mat: Matrix;
+  row: number;
+  col: number;
+  onchange(): void;
+}
+
+class MatrixInput extends Component<MatrixInputProps> {
+  constructor(props: MatrixInputProps) {
+    super(props);
+    this.onchange = this.onchange.bind(this);
+  }
+
+  render(): JSX.Element {
+    const value = this.props.mat.get(this.props.row, this.props.col);
+    return (
+      <>
+        <input type="range" min="-3" max="3" step="0.01" value={value} onChange={this.onchange} />
+        <input type="number" min="-3" max="3" step="0.01" value={value} onChange={this.onchange} />
+      </>
+    );
+  }
+
+  private onchange(e: ChangeEvent<HTMLInputElement>): void {
+    const value = e.target.valueAsNumber;
+    this.props.mat.set(this.props.row, this.props.col, value);
+    this.props.onchange();
   }
 }
 
@@ -299,7 +380,7 @@ class FlowersInputs {
     return matcheds / this.count;
   }
 
-  train(rnn: RNN, learningRate = 1): void {
+  train(rnn: RNN, learningRate = 0.1): void {
     const samples = newMatrix(this.samplesCount, 2);
     const targets = newMatrix(this.samplesCount, 2);
     for (let sample = 0; sample < this.samplesCount; sample++) {

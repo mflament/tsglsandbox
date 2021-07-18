@@ -204,11 +204,7 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
   }
 
   get customControls(): JSX.Element {
-    return (
-      <div className="sandbox-description" ref={this.controlsRef}>
-        {this.description}
-      </div>
-    );
+    return <div ref={this.controlsRef}> {this.description} </div>;
   }
 
   private get description(): string {

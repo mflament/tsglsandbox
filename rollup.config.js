@@ -39,24 +39,30 @@ function glsl() {
   };
 }
 
-export default [{
-  input: ['./src/index.ts'],
-  output: {
-    dir: 'dist',
-    format: 'esm',
-    sourcemap: true,
-    //plugins: [terser()]
-  },
-  plugins: [
-    commonjs(),
-    nodeResolve(),
-    replace({
-      'process.env.NODE_ENV': env
-    }),
-    glsl(),
-    eslint({ ignore: false }),
-    typescript(),
-    tstreeshaking()
-  ]
-}
+export default [
+  {
+    input: ['./src/index.tsx'],
+    output: {
+      dir: 'dist',
+      format: 'esm',
+      sourcemap: true,
+      plugins: [terser()]
+    },
+    manualChunks(id) {
+      if (id.includes('node_modules') || id.includes('react-esm')) {
+        return 'vendor';
+      }
+    },
+    plugins: [
+      commonjs(),
+      nodeResolve(),
+      replace({
+        'process.env.NODE_ENV': env
+      }),
+      glsl(),
+      eslint({ ignore: false, exclude: ['react-esm/**'] }),
+      typescript(),
+      tstreeshaking()
+    ]
+  }
 ];

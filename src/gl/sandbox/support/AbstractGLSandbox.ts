@@ -1,31 +1,24 @@
 import { vec2, vec4 } from 'gl-matrix';
 import { AbstractDeletable, isDeletable } from '../../GLUtils';
-import { GLSandbox, SandboxCanvas, SandboxContainer, SandboxEventHandler } from '../GLSandbox';
-
-function deepClone(src: any, dst: any): any {
-  if (Array.isArray(src)) {
-    const dstar = dst as any[];
-    dstar.splice(0, dstar.length, ...src);
-  } else if (typeof src === 'object') {
-    Object.keys(src)
-      .filter(k => dst[k] !== undefined && typeof dst[k] === typeof src[k])
-      .forEach(k => (dst[k] = deepClone(src[k], dst[k])));
-  } else {
-    dst = src;
-  }
-  return dst;
-}
+import { GLSandbox, SandboxCanvas, SandboxContainer } from '../GLSandbox';
+import { ActionHandler, ActionsRegistry, DefaultActionRegistry, SandboxEventHandler } from '../ActionManager';
 
 export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable implements GLSandbox<P> {
   private _running = false;
   ups = 60;
   private _parameters: P;
+  private readonly actionRegistry: ActionsRegistry;
 
   constructor(readonly container: SandboxContainer, readonly name: string, readonly defaultParameters: P) {
     super();
     const prototype = Object.getPrototypeOf(defaultParameters);
     this._parameters = new prototype.constructor();
     deepClone(defaultParameters, this._parameters);
+    this.actionRegistry = new DefaultActionRegistry();
+    this.actionRegistry.register({
+      id: 'fallback',
+      eventHandler: this as ActionHandler
+    });
   }
 
   abstract render(): void;
@@ -49,8 +42,8 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
     this.onparameterchange();
   }
 
-  get eventHandler(): Partial<SandboxEventHandler> | undefined {
-    return this as Partial<SandboxEventHandler>;
+  get eventHandler(): SandboxEventHandler {
+    return this.actionRegistry;
   }
 
   delete(): void {
@@ -98,4 +91,18 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
     vec2.set(out, (x / this.canvas.width) * 2 - 1, (1 - y / this.canvas.height) * 2 - 1);
     return out;
   }
+}
+
+function deepClone(src: any, dst: any): any {
+  if (Array.isArray(src)) {
+    const dstar = dst as any[];
+    dstar.splice(0, dstar.length, ...src);
+  } else if (typeof src === 'object') {
+    Object.keys(src)
+      .filter(k => dst[k] !== undefined && typeof dst[k] === typeof src[k])
+      .forEach(k => (dst[k] = deepClone(src[k], dst[k])));
+  } else {
+    dst = src;
+  }
+  return dst;
 }

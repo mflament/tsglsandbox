@@ -1,3 +1,4 @@
+import React, { RefObject } from 'react';
 import { vec2, vec4 } from 'gl-matrix';
 import {
   AbstractGLSandbox,
@@ -10,8 +11,7 @@ import {
   DrawMode,
   BufferUsage
 } from 'gl';
-
-import { AABB, QuadTree as QuadTree } from 'utils';
+import { AABB, QuadTree } from 'utils';
 
 const LINE_COLOR: vec4 = [0.7, 0.7, 0.7, 1];
 const POINT_COLOR: vec4 = [0.2, 0.2, 0.9, 1];
@@ -47,6 +47,7 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
   private _selbounds?: AABB;
   private _clickPos?: vec2;
   private readonly _currentPos: vec2 = [0, 0];
+  private readonly controlsRef: RefObject<HTMLDivElement> = React.createRef();
 
   constructor(container: SandboxContainer, name: string, readonly renderProgram: Program) {
     super(container, name, {});
@@ -65,6 +66,9 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
     switch (e.key) {
       case 'r':
         this.addRandomPoints(50);
+        break;
+      case 'R':
+        this.addRandomPoints(500);
         break;
     }
   }
@@ -117,13 +121,9 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
     }
   }
 
-  private insert(points: vec2[]): boolean {
-    let updated = false;
-    points.forEach(p => {
-      updated = this.quadTree.insert(p) || updated;
-    });
-    if (updated) this.updateBuffers();
-    return updated;
+  private insert(points: vec2[]): void {
+    points.forEach(p => this.quadTree.insert(p));
+    this.updateBuffers();
   }
 
   updateSelection(sel?: AABB): void {
@@ -134,11 +134,25 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
     } else {
       this._selbounds = undefined;
     }
+    this.updateControls();
   }
 
   private updateBuffers(): void {
     this.collectPoints(this.quadTree.boundary, POINT_COLOR).update(this.points.buffer);
     this.collectLines().update(this.lines.buffer);
+    this.updateControls();
+  }
+
+  get customControls(): JSX.Element {
+    return <div ref={this.controlsRef}>{this.description}</div>;
+  }
+
+  private updateControls(): void {
+    if (this.controlsRef.current) this.controlsRef.current.textContent = this.description;
+  }
+
+  private get description(): string {
+    return `${this._selbounds ? this.selpoints.buffer.count : 0} / ${this.points.buffer.count}`;
   }
 
   private collectPoints(aabb: AABB, color: vec4): PointsBuffer {

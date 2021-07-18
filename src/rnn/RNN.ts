@@ -96,26 +96,19 @@ export class RNN {
     if (targets.rows < samples.rows)
       throw new Error('invalid targets rows: ' + targets.rows + ', samples is ' + samples.rows);
 
-    this.feedForward(samples);
+    this.feedForward(samples, true);
 
     let layer = this.layers[this.layers.length - 1];
     // dcost
-    layer.a.update((r, c, v) => this.dcost(v, targets.get(r, c)));
+    layer.backward(targets, this.dcost);
 
-    for (let index = this.layers.length - 1; index >= 0; index--) {
+    for (let index = this.layers.length - 2; index >= 0; index--) {
       layer = this.layers[index];
-      const nextLayer = index > 0 ? this.layers[index - 1] : undefined;
-      const inputs = nextLayer ? nextLayer.a : samples;
-      layer.backward(inputs, nextLayer);
+      layer.backward(this.layers[index + 1], this.dcost);
     }
-    const lr = learningRate / samples.rows;
-    this.layers.forEach(l => l.update(lr));
-  }
 
-  private feedForward(samples: Matrix): Matrix {
-    let inputs = samples;
-    this.layers.forEach(l => (inputs = l.forward(inputs)));
-    return inputs;
+    let input = samples;
+    this.layers.forEach(l => (input = l.update(input, learningRate)));
   }
 
   createLabels<T>(outputs: Matrix, labels: T[]): T[] {
@@ -134,14 +127,25 @@ export class RNN {
     }
     return m;
   }
+
+  private feedForward(samples: Matrix, train?: boolean): Matrix {
+    let inputs = samples;
+    this.layers.forEach(l => (inputs = l.forward(inputs, train)));
+    return inputs;
+  }
 }
+
+type Training = {
+  readonly dz: Matrix;
+  readonly delta: Matrix;
+  readonly grads: Matrix;
+};
 
 export class Layer {
   readonly z: Matrix;
   readonly a: Matrix;
 
-  readonly wgrads: Matrix;
-  readonly bgrads: Matrix;
+  private _training?: Training;
 
   constructor(readonly weights: Matrix, readonly biases: Matrix, readonly activation: Activation) {
     if (weights.columns !== biases.columns)
@@ -149,8 +153,6 @@ export class Layer {
     if (biases.rows !== 1) throw new Error(`Invalid layer config ${this}, invalid biases rows count`);
     this.z = newMatrix(0, 0);
     this.a = newMatrix(0, 0);
-    this.wgrads = newMatrix(weights);
-    this.bgrads = newMatrix(biases);
   }
 
   get inputs(): number {
@@ -165,33 +167,56 @@ export class Layer {
     return `{\nweights: ${this.weights}, \nbiases: ${this.biases}`;
   }
 
-  forward(inputs: Matrix): Matrix {
+  forward(inputs: Matrix, train?: boolean): Matrix {
     inputs.dot(this.weights, this.z);
-    this.z.update((_r, c, z) => z + this.biases.get(0, c));
-    this.a.reshape(inputs.rows, this.outputs).fill((r, c) => this.activation.forward(this.z.get(r, c)));
+    this.a.reshape(inputs.rows, this.outputs);
+    this.z.update((r, c, z) => {
+      z += this.biases.get(0, c);
+      this.a.set(r, c, this.activation.forward(z));
+      return z;
+    });
+
+    if (train) {
+      if (!this._training) {
+        this._training = {
+          dz: newMatrix(0, 0),
+          delta: newMatrix(0, 0),
+          grads: newMatrix(this.weights.rows, this.weights.columns)
+        };
+      }
+      const training = this._training;
+      training.dz.reshape(inputs.rows, this.outputs);
+      this.z.forEach((r, c, z) => training.dz.set(r, c, this.activation.backward(z)));
+    }
     return this.a;
   }
 
-  backward(inputs: Matrix, nextLayer: Layer | undefined): void {
-    // layer.a *= dz
-    this.a.update((r, c, v) => v * this.activation.backward(this.z.get(r, c)));
-
-    // bgrads
-    this.a.sumRows(this.bgrads);
-    // wgrads : T(input) . delta
-    inputs.transpose(tempMatrix).dot(this.a, this.wgrads);
-
-    if (nextLayer) {
-      // prepare next delta  = delta . transpose(W)
-      this.weights.transpose(tempMatrix);
-      // this.weights.copy(tempMatrix);
-      this.a.dot(tempMatrix, nextLayer.a);
+  backward(param: Layer | Matrix, dcost: Cost): void {
+    const delta = this.training.delta;
+    delta.reshape(this.z.rows, this.z.columns);
+    if (param instanceof Matrix) {
+      const targets = param;
+      delta.update((r, c, v) => dcost(v, targets.get(r, c)));
+    } else {
+      const rightLayer = param;
+      rightLayer.training.delta.dot(rightLayer.weights.transpose(tempMatrix), delta);
     }
   }
 
-  update(lr: number): void {
-    this.weights.update((r, c, v) => v - lr * this.wgrads.get(r, c));
-    this.biases.update((r, c, b) => b - lr * this.bgrads.get(r, c));
+  update(input: Matrix, lr: number): Matrix {
+    const training = this.training;
+
+    input.transpose(tempMatrix).dot(training.delta, training.grads);
+    this.weights.update((r, c, w) => w - lr * training.grads.get(r, c));
+
+    // training.delta.sumRows(training.grads);
+    // this.biases.update((r, c, b) => b - lr * (training.grads.get(r, c) / input.rows));
+    return this.a;
+  }
+
+  private get training(): Training {
+    if (!this._training) throw new Error('Training not initialized');
+    return this._training;
   }
 }
 

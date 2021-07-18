@@ -348,9 +348,15 @@ function SandboxPanel(props: { sandbox?: GLSandbox; onchange?: ParameterChangeLi
   return (
     <>
       <ParameterControls parameters={sbp.parameters} />
-      {sandbox.customControls}
+      <CustomControls sandbox={sandbox} />
     </>
   );
+}
+
+function CustomControls(props: { sandbox: GLSandbox }): JSX.Element {
+  const cc = props.sandbox.customControls;
+  if (cc) return <div className={'custom-controls ' + props.sandbox.name}>{cc}</div>;
+  else return <></>;
 }
 
 function SandboxHeader(props: { sandbox?: GLSandbox; onReset: () => void; onShare: () => void }): JSX.Element {

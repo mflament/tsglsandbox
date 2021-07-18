@@ -9,16 +9,19 @@ import {
   BufferAttribute,
   VertexBuffer
 } from 'gl';
-import { hashLocation } from 'utils';
 import { PoissonDiscSampler, randomRange } from 'random';
+import { control } from '../../gl/sandbox/ParametersMetadata';
 
 // x,y / r,g,b
 const CITY_FLOATS = 5;
 
 const CITY_RADIUS = 0.015;
 
-interface TSPParameters {
-  cities: number;
+class TSPParameters {
+  @control({ min: 1, max: 5000, step: 1 })
+  cities = 100;
+  @control({ min: 0.01, max: 0.2, step: 0.01 })
+  distance = 0.1;
 }
 
 class TSPUniforms {
@@ -32,24 +35,17 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
       path: 'tsp/tsp-render.glsl',
       uniformLocations: new TSPUniforms()
     });
-    const parameters = { cities: 10 };
-    hashLocation.parseParams(parameters);
-    return new TSP(container, name, parameters, program);
+    return new TSP(container, name, program);
   }
 
   readonly citiesBuffer: CitiesBuffer;
 
-  constructor(
-    container: SandboxContainer,
-    name: string,
-    parameters: TSPParameters,
-    readonly renderProgram: Program<any, TSPUniforms>
-  ) {
-    super(container, name, parameters);
+  constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<any, TSPUniforms>) {
+    super(container, name, new TSPParameters());
     renderProgram.use();
     this.onresize();
     this.citiesBuffer = new CitiesBuffer(this.gl);
-    this.citiesBuffer.cities = randomCities(parameters.cities);
+    this.citiesBuffer.cities = randomCities(this.parameters.cities, this.parameters.distance);
   }
 
   render(): void {
@@ -58,7 +54,7 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
   }
 
   onparameterchange(): void {
-    this.citiesBuffer.cities = randomCities(this.parameters.cities);
+    this.citiesBuffer.cities = randomCities(this.parameters.cities, this.parameters.distance);
   }
 
   onresize(): void {
@@ -90,9 +86,8 @@ interface City {
   b: number;
 }
 
-function randomCities(count: number): City[] {
-  const radius = CITY_RADIUS; // Math.max(CITY_RADIUS, 1 / Math.sqrt(count));
-  const positions = PoissonDiscSampler.samples(count, radius);
+function randomCities(count: number, distance: number): City[] {
+  const positions = PoissonDiscSampler.samples(count, distance);
   return positions.map(randomCity);
 }
 

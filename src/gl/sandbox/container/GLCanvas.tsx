@@ -1,10 +1,11 @@
 import { vec2 } from 'gl-matrix';
 import React, { Component, ReactNode, RefObject } from 'react';
-import { SandboxCanvas, SandboxEventHandler } from '../GLSandbox';
+import { SandboxCanvas } from '../GLSandbox';
+import { SandboxEventHandler } from '../ActionManager';
 
 interface CanvasProps {
   glAttributes?: WebGLContextAttributes;
-  eventHandler?: Partial<SandboxEventHandler>;
+  eventHandler?: SandboxEventHandler;
 }
 
 export class GLCanvas extends Component<CanvasProps> implements SandboxCanvas {

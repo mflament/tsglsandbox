@@ -9,13 +9,7 @@ import {
   TextureAtlas
 } from 'gl';
 
-import { hashLocation } from 'utils';
-
-interface AntsParameters {
-  count: number;
-  accel: number;
-  speed: number;
-}
+class AntsParameters {}
 
 const ANT_REGIONS = 8 * 8 - 2;
 
@@ -24,15 +18,13 @@ class GLAnts extends AbstractGLSandbox<AntsParameters> {
     const texture = await new GLTexture2D(container.canvas.gl).bind().load({ uri: 'images/ant-walk.png' });
     const sprites = await Sprites.create(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]);
     sprites.bind();
-    const parameters = { count: 1, accel: 4, speed: 2 };
-    hashLocation.parseParams(parameters);
-    return new GLAnts(container, name, parameters, sprites);
+    return new GLAnts(container, name, sprites);
   }
 
   readonly antSprite: Sprite;
 
-  constructor(container: SandboxContainer, name: string, parameters: AntsParameters, readonly sprites: Sprites) {
-    super(container, name, parameters);
+  constructor(container: SandboxContainer, name: string, readonly sprites: Sprites) {
+    super(container, name, new AntsParameters());
     const gl = container.canvas.gl;
     gl.enable(WebGL2RenderingContext.DEPTH_TEST);
     gl.enable(WebGL2RenderingContext.BLEND);

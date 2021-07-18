@@ -1,4 +1,5 @@
-import { RNN, activations } from './RNN';
+import { activations } from './Activation';
+import { RNN } from './RNN';
 
 test('create RNN from layers sizes', () => {
   const rnn = RNN.create({ layers: [2, 4, 3] });

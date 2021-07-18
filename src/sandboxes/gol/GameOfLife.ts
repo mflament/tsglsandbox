@@ -168,8 +168,8 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
 
   private toGrid(e: MouseEvent): { x: number; y: number } {
     return {
-      x: Math.floor((e.offsetX / this.dimension[0]) * this.dataSize),
-      y: Math.floor((1 - e.offsetY / this.dimension[1]) * this.dataSize)
+      x: Math.floor((e.offsetX / this.canvas.width) * this.dataSize),
+      y: Math.floor((1 - e.offsetY / this.canvas.height) * this.dataSize)
     };
   }
 

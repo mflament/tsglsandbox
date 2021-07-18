@@ -1,4 +1,5 @@
-import { ProgramLoader } from 'gl';
+import { ProgramLoader } from '../shader/ProgramLoader';
+import { SandboxEventHandler } from './ActionManager';
 
 export type SandboxFactories = { [name: string]: SandboxFactory };
 
@@ -20,36 +21,19 @@ export interface SandboxContainer {
 
 export type SandboxFactory<P = any> = (container: SandboxContainer, name: string) => Promise<GLSandbox<P>>;
 
-export interface SandboxEventHandler {
-  onmousedown: (event: MouseEvent) => void;
-  onmouseup: (event: MouseEvent) => void;
-  onmousemove: (event: MouseEvent) => void;
-
-  onmouseenter: (event: MouseEvent) => void;
-  onmouseleave: (event: MouseEvent) => void;
-
-  ontouchstart: (e: TouchEvent) => void;
-  ontouchend: (e: TouchEvent) => void;
-  ontouchmove: (e: TouchEvent) => void;
-
-  onwheel: (event: WheelEvent) => void;
-
-  onkeydown: (event: KeyboardEvent) => void;
-  onkeyup: (event: KeyboardEvent) => void;
-}
-
 export interface GLSandbox<P = any> {
   readonly container: SandboxContainer;
   readonly name: string;
   readonly defaultParameters: P;
   readonly displayName?: string;
   readonly customControls?: JSX.Element;
+
   parameters: P;
 
   ups: number;
   running: boolean;
 
-  readonly eventHandler?: Partial<SandboxEventHandler>;
+  readonly eventHandler?: SandboxEventHandler;
 
   render(): void;
   /**
