@@ -1,3 +1,5 @@
+import {Partial} from "rollup-plugin-typescript2/dist/partial";
+
 export type MatrixArray = Float32Array | Float64Array;
 type MutableArrayLike<T> = {
   readonly length: number;
@@ -10,17 +12,20 @@ interface MatrixDimension {
 }
 
 function isMatrixDimension(o: any): o is MatrixDimension {
-  return (
-    typeof o === 'object' &&
-    typeof (o as MatrixDimension).rows === 'number' &&
-    typeof (o as MatrixDimension).columns === 'number'
-  );
+  if (typeof o === 'object') {
+    const m = o as Partial<MatrixDimension>;
+    return typeof m.rows === 'number' && typeof m.columns === 'number';
+  }
+  return false;
 }
 
 export interface MatrixFactory<T extends MatrixArray = MatrixArray> {
   (rows: number, columns: number): Matrix<T>;
+
   (dim: MatrixDimension): Matrix<T>;
+
   (values: number[][]): Matrix<T>;
+
   (capacity: number): Matrix<T>;
 }
 
@@ -95,7 +100,7 @@ export class Matrix<T extends MatrixArray = MatrixArray> {
   dot(m: Matrix, out?: Matrix<T>): Matrix<T> {
     if (this._columns !== m._rows) throw new Error(`rows/columns mismatch ${m._rows} , ${this._columns}`);
     out = this.prep(out, this._rows, m._columns);
-    m = this.snapshot(m, out);
+    m = Matrix.snapshot(m, out);
 
     for (let row = 0; row < this._rows; row++) {
       for (let col = 0; col < m._columns; col++) {
@@ -207,7 +212,7 @@ export class Matrix<T extends MatrixArray = MatrixArray> {
     return out;
   }
 
-  private snapshot(m: Matrix, out: Matrix): Matrix {
+  private static snapshot(m: Matrix, out: Matrix): Matrix {
     if (m === out) return m.copy();
     return m;
   }

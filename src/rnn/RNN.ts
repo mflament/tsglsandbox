@@ -1,7 +1,7 @@
-import { RNG } from 'random';
-import { Activation, Activations, activations } from './Activation';
-import { Cost, Costs, costs } from './Cost';
-import { Matrix } from './Matrix';
+import {RNG} from 'random';
+import {Activation, Activations, activations} from './Activation';
+import {Cost, Costs, costs} from './Cost';
+import {Matrix} from './Matrix';
 
 /**
  * Docs
@@ -14,65 +14,86 @@ import { Matrix } from './Matrix';
  * outputs == neurons
  */
 
-export type LayerConfig = { weights: Matrix; biases: Matrix };
+export type LayerConfig = { weights: Matrix | number[][]; biases: Matrix | number[][] };
 
 export const newMatrix = Matrix.float32Factory;
 
 export interface RNNConfig {
-  readonly layers: number[] | { weights: number[][]; biases: number[] }[] | LayerConfig[];
+  readonly layers: number[] | LayerConfig[];
   readonly activation?: keyof Activations;
   readonly dcost?: keyof Costs;
   readonly seed?: string;
 }
 
-export class RNN {
-  static create(config: RNNConfig): RNN {
-    const layers: Layer[] = [];
+export interface RNN {
+  readonly inputs: number;
+  readonly outputs: number;
+  readonly layers: Layer[];
+
+  eval(samples: Matrix): Matrix;
+
+  train(samples: Matrix, targets: Matrix, learningRate: number): void;
+}
+
+export interface Layer {
+  readonly inputs: number;
+  readonly outputs: number;
+  readonly weights: Matrix;
+  readonly biases: Matrix;
+}
+
+function randomizeLayers(layersSizes: number[], seed = RNG.randomSeed(5)): LayerConfig[] {
+  const res: LayerConfig[] = [];
+  const rng = new RNG(seed);
+  let layerInputs = layersSizes[0];
+  for (let index = 1; index < layersSizes.length; index++) {
+    const layerOutputs = layersSizes[index];
+    const weights = newMatrix(layerInputs, layerOutputs);
+    weights.fill(() => rng.uniform() * 6 - 3);
+    const biases = newMatrix(1, layerOutputs);
+    res.push({weights: weights, biases: biases});
+    layerInputs = layerOutputs;
+  }
+  return res;
+}
+
+function createMatrix(config: Matrix | number[][]): Matrix {
+  if (config instanceof Matrix) return config;
+  return newMatrix(config);
+}
+
+export class DefaultRNN implements RNN {
+  static create(config: RNNConfig): DefaultRNN {
     const activation = activations[config.activation || 'sigmoid'] || activations.sigmoid;
     const dcost = costs[config.dcost || 'quadratic'] || costs.quadratic;
-
-    if (typeof config.layers[0] === 'number') {
-      const rng = new RNG(config.seed || RNG.randomSeed(5));
-      const layersSizes = config.layers as number[];
-      let layerInputs = layersSizes[0];
-      for (let index = 1; index < layersSizes.length; index++) {
-        const layerOutputs = layersSizes[index];
-
-        const weights = newMatrix(layerInputs, layerOutputs);
-        weights.fill(() => rng.uniform() * 6 - 3);
-
-        const biases = newMatrix(1, layerOutputs);
-        layers.push(new Layer(weights, biases, activation));
-        layerInputs = layerOutputs;
-      }
-    } else if (isArrayLayerConfig(config.layers[0])) {
-      config.layers.forEach((l: unknown) => {
-        if (isArrayLayerConfig(l)) {
-          const weights = newMatrix(l.weights);
-          const biases = newMatrix(1, l.biases.length).setRow(0, l.biases);
-          layers.push(new Layer(weights, biases, activation));
-        } else throw new Error('Invalid layer config ' + JSON.stringify(l));
-      });
+    const rnn = new DefaultRNN(activation, dcost);
+    let layerConfigs: LayerConfig[];
+    if (isLayerConfigArray(config.layers)) {
+      layerConfigs = config.layers;
     } else {
-      config.layers.forEach((l: unknown) => {
-        if (isLayerConfig(l)) {
-          layers.push(new Layer(l.weights, l.biases, activation));
-        } else throw new Error('Invalid layer config ' + JSON.stringify(l));
-      });
+      layerConfigs = randomizeLayers(config.layers, config.seed);
     }
 
-    layers.reduce((prevLayer, layer) => {
-      if (prevLayer && prevLayer.outputs !== layer.inputs)
-        throw new Error(`Invalid layer config ${layer}, inputs mismatch from previous layer : ${prevLayer}`);
-      return layer;
+    let previousLayer: Layer | undefined;
+    layerConfigs.map(lc => {
+      const weights = createMatrix(lc.weights);
+      const biases = createMatrix(lc.biases);
+      return new DefaultLayer(weights, biases, activation);
+    }).forEach(layer => {
+      if (previousLayer && previousLayer.outputs !== layer.inputs) {
+        //previousLayer.outputs
+        throw new Error(`Invalid layer config ${layer}, inputs mismatch from previous layer : ${previousLayer}`);
+      }
+      rnn.layers.push(layer);
+      previousLayer = layer;
     });
-
-    return new RNN(layers, activation, dcost);
+    return rnn;
   }
 
-  readonly newMatrix = newMatrix;
+  readonly layers: DefaultLayer[] = [];
 
-  private constructor(readonly layers: Layer[], readonly activation: Activation, readonly dcost: Cost) {}
+  private constructor(readonly activation: Activation, readonly dcost: Cost) {
+  }
 
   get inputs(): number {
     return this.layers[0].inputs;
@@ -96,22 +117,25 @@ export class RNN {
     if (targets.rows < samples.rows)
       throw new Error('invalid targets rows: ' + targets.rows + ', samples is ' + samples.rows);
 
-    this.feedForward(samples, true);
+    this.feedForward(samples);
 
     let layer = this.layers[this.layers.length - 1];
     // dcost
-    layer.backward(targets, this.dcost);
+    layer.a.update((row, col, a) => this.dcost(a, targets.get(row, col)));
 
-    for (let index = this.layers.length - 2; index >= 0; index--) {
+    for (let index = this.layers.length - 1; index > 0; index--) {
       layer = this.layers[index];
-      layer.backward(this.layers[index + 1], this.dcost);
+      const previous = this.layers[index - 1];
+      layer.backward(previous.a);
+      // activations[layer - 1] = a . T(weights[layer])
+      layer.a.dot(layer.weights.transpose(tempMatrix), previous.a);
     }
-
-    let input = samples;
-    this.layers.forEach(l => (input = l.update(input, learningRate)));
+    this.layers[0].backward(samples);
+    const lr = learningRate / samples.rows;
+    this.layers.forEach(l => l.update(lr));
   }
 
-  createLabels<T>(outputs: Matrix, labels: T[]): T[] {
+  static createLabels<T>(outputs: Matrix, labels: T[]): T[] {
     const res: T[] = new Array(outputs.rows);
     const maxIndices = outputs.maxIndices();
     for (let output = 0; output < maxIndices.rows; output++) {
@@ -120,7 +144,7 @@ export class RNN {
     return res;
   }
 
-  createOutputs(labelsCount: number, labelIndices: number[]): Matrix {
+  static createOutputs(labelsCount: number, labelIndices: number[]): Matrix {
     const m = newMatrix(labelIndices.length, labelsCount);
     for (let index = 0; index < labelIndices.length; index++) {
       m.set(index, labelIndices[index], 1);
@@ -128,20 +152,19 @@ export class RNN {
     return m;
   }
 
-  private feedForward(samples: Matrix, train?: boolean): Matrix {
+  private feedForward(samples: Matrix): Matrix {
     let inputs = samples;
-    this.layers.forEach(l => (inputs = l.forward(inputs, train)));
+    this.layers.forEach(l => (inputs = l.forward(inputs)));
     return inputs;
   }
 }
 
 type Training = {
-  readonly dz: Matrix;
-  readonly delta: Matrix;
-  readonly grads: Matrix;
+  readonly wgrads: Matrix;
+  readonly bgrads: Matrix;
 };
 
-export class Layer {
+class DefaultLayer implements Layer {
   readonly z: Matrix;
   readonly a: Matrix;
 
@@ -167,7 +190,7 @@ export class Layer {
     return `{\nweights: ${this.weights}, \nbiases: ${this.biases}`;
   }
 
-  forward(inputs: Matrix, train?: boolean): Matrix {
+  forward(inputs: Matrix): Matrix {
     inputs.dot(this.weights, this.z);
     this.a.reshape(inputs.rows, this.outputs);
     this.z.update((r, c, z) => {
@@ -175,71 +198,66 @@ export class Layer {
       this.a.set(r, c, this.activation.forward(z));
       return z;
     });
-
-    if (train) {
-      if (!this._training) {
-        this._training = {
-          dz: newMatrix(0, 0),
-          delta: newMatrix(0, 0),
-          grads: newMatrix(this.weights.rows, this.weights.columns)
-        };
-      }
-      const training = this._training;
-      training.dz.reshape(inputs.rows, this.outputs);
-      this.z.forEach((r, c, z) => training.dz.set(r, c, this.activation.backward(z)));
-    }
     return this.a;
   }
 
-  backward(param: Layer | Matrix, dcost: Cost): void {
-    const delta = this.training.delta;
-    delta.reshape(this.z.rows, this.z.columns);
-    if (param instanceof Matrix) {
-      const targets = param;
-      delta.update((r, c, v) => dcost(v, targets.get(r, c)));
-    } else {
-      const rightLayer = param;
-      rightLayer.training.delta.dot(rightLayer.weights.transpose(tempMatrix), delta);
-    }
-  }
-
-  update(input: Matrix, lr: number): Matrix {
+  backward(inputs: Matrix): void {
+    // a = a * activation_prime(z)
+    this.a.update((row, col, a) => {
+      const dz = this.activation.backward(this.z.get(row, col));
+      return a * dz;
+    })
     const training = this.training;
+    // wgrad = T(inputs) . a
+    inputs.transpose(tempMatrix).dot(this.a, training.wgrads);
+    // bgrad = sum(activations[r])
+    this.a.sumRows(training.bgrads);
+  }
 
-    input.transpose(tempMatrix).dot(training.delta, training.grads);
-    this.weights.update((r, c, w) => w - lr * training.grads.get(r, c));
+  update(lr: number): void {
+    const training = this.training;
+    this.weights.update((row, col, w) => w - lr * training.wgrads.get(row, col));
+    this.biases.update((row, col, b) => b - lr * training.bgrads.get(row, col));
+  }
 
-    // training.delta.sumRows(training.grads);
-    // this.biases.update((r, c, b) => b - lr * (training.grads.get(r, c) / input.rows));
-    return this.a;
+  get wgrads(): Matrix {
+    return this.training.wgrads;
+  }
+
+  get bgrads(): Matrix {
+    return this.training.bgrads;
   }
 
   private get training(): Training {
-    if (!this._training) throw new Error('Training not initialized');
+    if (!this._training) {
+      this._training = {wgrads: newMatrix(this.inputs, this.outputs), bgrads: newMatrix(1, this.outputs)};
+    }
     return this._training;
   }
 }
 
+function isNumberArray(o: any): o is number[] {
+  return Array.isArray(o) && o.every(e => typeof e === 'number');
+}
+
+function isNumberMatrix(o: any): o is number[][] {
+  return Array.isArray(o) && o.every(e => isNumberArray(e));
+}
+
+function isMatrixConfig(o: any): o is number[][] | Matrix {
+  return o instanceof Matrix || isNumberMatrix(o);
+}
+
 function isLayerConfig(o: any): o is LayerConfig {
   if (typeof o === 'object') {
-    const c = o as LayerConfig;
-    return c.weights instanceof Matrix && c.biases instanceof Matrix;
+    const c = o as Partial<LayerConfig>;
+    return isMatrixConfig(c.weights) && isMatrixConfig(c.biases);
   }
   return false;
 }
 
-function isArrayLayerConfig(o: any): o is { weights: number[][]; biases: number[] } {
-  if (typeof o === 'object') {
-    const c = o as { weights: number[][]; biases: number[] };
-    return (
-      Array.isArray(c.weights) &&
-      Array.isArray(c.weights[0]) &&
-      typeof c.weights[0][0] === 'number' &&
-      Array.isArray(c.biases) &&
-      typeof c.biases[0] === 'number'
-    );
-  }
-  return false;
+function isLayerConfigArray(o: any): o is LayerConfig[] {
+  return Array.isArray(o) && o.every(e => isLayerConfig(e));
 }
 
 const tempMatrix = newMatrix(0, 0);

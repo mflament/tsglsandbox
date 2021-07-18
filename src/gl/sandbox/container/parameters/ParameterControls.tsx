@@ -1,15 +1,17 @@
-import React, { Component } from 'react';
+import React, {Component} from 'react';
 import {
   BooleanSandboxParameter,
+  ChoicesSandboxParameter,
   NumberSandboxParameter,
   RangeSandboxParameter,
   SandboxParameter,
   StringSandboxParameter
 } from '../../SandboxParameter';
-import { NumberParameterControl } from './NumberParameterControl';
-import { RangeParameterControl } from './RangeParameterControl';
-import { StringParameterControl } from './StringParameterControl';
-import { BooleanParameterControl } from './BooleanParameterControl';
+import {NumberParameterControl} from './NumberParameterControl';
+import {RangeParameterControl} from './RangeParameterControl';
+import {StringParameterControl} from './StringParameterControl';
+import {BooleanParameterControl} from './BooleanParameterControl';
+import {ChoiceParameterControl} from "./ChoiceParameterControl";
 
 interface ParameterControlsProps {
   parameters: SandboxParameter[];
@@ -19,14 +21,16 @@ export type SupportedParameterTypes =
   | NumberSandboxParameter
   | RangeSandboxParameter
   | StringSandboxParameter
-  | BooleanSandboxParameter;
+  | BooleanSandboxParameter
+  | ChoicesSandboxParameter;
 
 export function isSupported(parameter: SandboxParameter): parameter is SupportedParameterTypes {
   return (
     parameter.type === 'number' ||
     parameter.type === 'range' ||
     parameter.type === 'string' ||
-    parameter.type === 'boolean'
+    parameter.type === 'boolean' ||
+    parameter.type === 'choices'
   );
 }
 
@@ -37,28 +41,28 @@ export class ParameterControls extends Component<ParameterControlsProps> {
 
   render(): JSX.Element {
     const parameters = this.props.parameters;
-    return <>{parameters.map(p => this.renderParameter(p))}</>;
+    return <>{parameters.map(p => ParameterControls.renderParameter(p))}</>;
   }
 
-  private renderParameter(parameter: SandboxParameter): JSX.Element {
+  private static renderParameter(parameter: SandboxParameter): JSX.Element {
     if (!isSupported(parameter)) {
-      return (
-        <>
-          <label>{parameter.label || parameter.name}</label>
-          <div className="unsupported">TODO</div>
-        </>
-      );
+      return <>
+        <label>{parameter.label || parameter.name}</label>
+        <div className="unsupported">TODO</div>
+      </>;
     }
 
     switch (parameter.type) {
       case 'number':
-        return <NumberParameterControl parameter={parameter} />;
+        return <NumberParameterControl parameter={parameter}/>;
       case 'range':
-        return <RangeParameterControl parameter={parameter} />;
+        return <RangeParameterControl parameter={parameter}/>;
       case 'string':
-        return <StringParameterControl parameter={parameter} />;
+        return <StringParameterControl parameter={parameter}/>;
       case 'boolean':
-        return <BooleanParameterControl parameter={parameter} />;
+        return <BooleanParameterControl parameter={parameter}/>;
+      case 'choices':
+        return <ChoiceParameterControl parameter={parameter}/>;
     }
   }
 }

@@ -1,9 +1,10 @@
-import { GLSandbox } from './GLSandbox';
+import {GLSandbox} from './GLSandbox';
 import {
+  Choices,
+  ControlMetadata,
   getParameterMetadata,
   isChoiceMeta,
   isRangeMeta,
-  ControlMetadata,
   ParameterSource,
   ParameterSourceFunction
 } from './ParametersMetadata';
@@ -42,9 +43,9 @@ export interface RangeSandboxParameter extends SandboxParameter {
   readonly step?: number;
 }
 
-export interface ChoicesSandboxParameter<T = any> extends SandboxParameter {
+export interface ChoicesSandboxParameter extends SandboxParameter {
   readonly type: 'choices';
-  readonly choices: () => T[];
+  readonly choices: Choices;
 }
 
 export interface BooleanSandboxParameter extends SandboxParameter {
@@ -87,7 +88,8 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
     readonly parent: ObjectSandboxParameter | SandboxParameters,
     readonly metadata: ControlMetadata,
     readonly onchange?: ParameterChangeListener
-  ) {}
+  ) {
+  }
 
   get value(): any {
     return this.container[this.name];
@@ -137,7 +139,7 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
     return this.metadata.range;
   }
 
-  get choices(): any[] | undefined {
+  get choices(): Choices | undefined {
     return this.getMetadata(this.metadata.choices);
   }
 
@@ -148,6 +150,7 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
 
 class DefaultSandboxParameters implements SandboxParameters {
   readonly parameters: SandboxParameter[];
+
   constructor(readonly sandbox: GLSandbox, readonly onchange?: ParameterChangeListener) {
     this.parameters = createParameters(sandbox.parameters, this, onchange);
   }
@@ -156,6 +159,7 @@ class DefaultSandboxParameters implements SandboxParameters {
 class DefaultObjectParameter extends AbstractSandboxParameter implements ObjectSandboxParameter {
   readonly type = 'object';
   private _parameters: SandboxParameter[];
+
   constructor(
     name: string,
     container: any,
@@ -191,6 +195,23 @@ class DefaultSandboxParameter extends AbstractSandboxParameter implements Sandbo
   }
 }
 
+class ChoiceSandboxParameter extends AbstractSandboxParameter implements ChoicesSandboxParameter {
+  readonly type = 'choices';
+
+  constructor(name: string,
+              container: any,
+              parent: ObjectSandboxParameter | SandboxParameters,
+              metadata: ControlMetadata,
+              onchange?: ParameterChangeListener) {
+    super(name, container, parent, metadata, onchange);
+    if (!metadata.choices) throw new Error("No choices in metadata");
+  }
+
+  get choices(): Choices {
+    return super.choices as Choices;
+  }
+}
+
 function createParameter(
   obj: any,
   name: string,
@@ -200,7 +221,8 @@ function createParameter(
   const value = obj[name];
   const metadata = getParameterMetadata(obj, name);
   const type = resolveParameterType(value, metadata);
-  if (type === 'object') return new DefaultObjectParameter(name, obj, parent, metadata);
+  if (type === 'object') return new DefaultObjectParameter(name, obj, parent, metadata, onchange);
+  if (type === 'choices') return new ChoiceSandboxParameter(name, obj, parent, metadata, onchange);
   return new DefaultSandboxParameter(type, name, obj, parent, metadata, onchange);
 }
 
@@ -214,8 +236,8 @@ function createParameters(
 
 function resolveParameterType(value: any, metadata: ControlMetadata): SandboxParameterType {
   if (isChoiceMeta(metadata)) return 'choices';
-  const vtype = typeof value;
-  switch (vtype) {
+  const valueType = typeof value;
+  switch (valueType) {
     case 'string':
       return 'string';
     case 'number':
@@ -225,6 +247,6 @@ function resolveParameterType(value: any, metadata: ControlMetadata): SandboxPar
     case 'object':
       return Array.isArray(value) ? 'array' : 'object';
     default:
-      throw new Error('Unhandled parameter type ' + vtype);
+      throw new Error('Unhandled parameter type ' + valueType);
   }
 }

@@ -1,40 +1,50 @@
+// noinspection JSUnusedLocalSymbols
+
 import {
+  AbstractDeletable,
   AbstractGLSandbox,
-  SandboxContainer,
-  SandboxFactory,
+  control,
   GLTexture2D,
-  InternalFormat,
-  TextureFormat,
-  TextureWrappingMode,
-  TextureMinFilter,
-  TextureMagFilter,
-  TextureComponentType,
   IndexedDrawable,
+  InternalFormat,
   newQuadDrawable,
   quadProgram,
-  QuadProgram
+  QuadProgram,
+  SandboxContainer,
+  SandboxFactory,
+  TextureComponentType,
+  TextureFormat,
+  TextureMagFilter,
+  TextureMinFilter,
+  TextureWrappingMode
 } from 'gl';
-import React, { ChangeEvent, Component } from 'react';
-import { vec2 } from 'gl-matrix';
-import { Matrix, RNN } from 'rnn';
-import { RNG, simplexNoise2D } from 'random';
-import { AbstractDeletable } from '../../gl/GLUtils';
-import { RefObject } from 'react';
-import { Layer } from '../../rnn/RNN';
+import React, {ChangeEvent, Component, RefObject} from 'react';
+import {vec2} from 'gl-matrix';
+import {DefaultRNN, Layer, Matrix, RNN} from 'rnn';
+import {RNG, simplexNoise2D} from 'random';
+
+enum Mode {
+  PREDS = 0,
+  FLOWERS = 1,
+  SAMPLES_ONLY = 2
+}
 
 class FlowerParameters {
   count = 100;
+  @control({
+    choices: {
+      values: [Mode.PREDS, Mode.FLOWERS, Mode.SAMPLES_ONLY],
+      labels: ['Predictions', 'Flowers', 'Samples']
+    }
+  })
+  mode: Mode = Mode.PREDS;
+  @control({min: 0.001, max: 10, step: 0.1})
+  learningRate = 0.1;
 }
 
 const SIZE = 100;
 const DIM: vec2 = [SIZE, SIZE];
 const SEED = 'abcde';
-
-enum Mode {
-  FLOWERS = 0,
-  PREDS = 1,
-  SAMPLES_ONLY = 2
-}
 
 const newMatrix = Matrix.float32Factory;
 
@@ -59,24 +69,24 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
 
   private readonly customControlsRef: RefObject<NetworkControls>;
 
-  private rnn: RNN;
-  private mode: Mode = Mode.PREDS;
+  private readonly rnn: RNN;
+  private mode: Mode;
   private dirty = true;
-  private accuracy = 0;
 
   constructor(container: SandboxContainer, name: string, readonly renderProgram: QuadProgram<RenderUniforms>) {
     super(container, name, new FlowerParameters());
-    this.inputs = FlowersInputs.create(DIM, SEED);
+    this.inputs = FlowersInputs.create(DIM, linearFlowersGenerator(0.3, 0.2));
     this.flowersTexture = new FlowersTexture(this.gl, 0);
+    this.mode = this.parameters.mode;
 
     this.quad = newQuadDrawable(this.gl).bind();
     renderProgram.use();
     this.gl.uniform1i(renderProgram.uniformLocations.u_flowers, 0);
     this.gl.uniform1i(renderProgram.uniformLocations.u_textures, 1);
-    this.gl.uniform1i(this.renderProgram.uniformLocations.u_mode, this.mode);
+    this.gl.uniform1i(renderProgram.uniformLocations.u_mode, this.mode);
 
-    this.rnn = RNN.create({ layers: [2, 2], seed: SEED });
-    //this.rnn = RNN.create({ layers: [2, 3, 3, 2], seed: SEED });
+    this.rnn = DefaultRNN.create({layers: [2, 2], seed: SEED});
+    // this.rnn = DefaultRNN.create({layers: [2, 3, 3, 2], seed: SEED});
 
     this.customControlsRef = React.createRef();
 
@@ -88,7 +98,6 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
     return (
       <NetworkControls
         network={this.rnn}
-        accuracy={this.accuracy}
         ref={this.customControlsRef}
         onchange={() => (this.dirty = true)}
       />
@@ -113,7 +122,11 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
   }
 
   onparameterchange(): void {
-    if (this.parameters.count != this.inputs.samplesCount) this.pickSamples();
+    if (this.parameters.count != this.inputs.samples.count) this.pickSamples();
+    if (this.parameters.mode != this.mode) {
+      this.mode = this.parameters.mode;
+      this.gl.uniform1i(this.renderProgram.uniformLocations.u_mode, this.mode);
+    }
   }
 
   onkeydown(e: KeyboardEvent): void {
@@ -123,6 +136,8 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
         this.mode++;
         if (this.mode > 2) this.mode = 0;
         this.gl.uniform1i(this.renderProgram.uniformLocations.u_mode, this.mode);
+        this.parameters.mode = this.mode;
+        this.container.updateControls();
         break;
     }
   }
@@ -133,13 +148,13 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
   }
 
   private predict(): void {
-    this.accuracy = this.inputs.predict(this.rnn);
-    if (this.customControlsRef.current) this.customControlsRef.current.accuracy = this.accuracy;
+    this.inputs.predict(this.rnn);
+    if (this.customControlsRef.current) this.customControlsRef.current.accuracy = this.inputs.accuracy;
     this.flowersTexture.update(this.inputs);
   }
 
   private train(): void {
-    this.inputs.train(this.rnn, 0.1);
+    this.inputs.train(this.rnn, this.parameters.learningRate);
     if (this.customControlsRef.current) this.customControlsRef.current.forceUpdate();
     this.dirty = true;
   }
@@ -147,18 +162,19 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
 
 interface NeworkControlsProps {
   network: RNN;
+
   onchange(): void;
 }
 
-class NetworkControls extends Component<NeworkControlsProps & { accuracy: number }, { accuracy: number }> {
+class NetworkControls extends Component<NeworkControlsProps, { accuracy: number }> {
   constructor(props: NeworkControlsProps & { accuracy: number }) {
     super(props);
-    this.state = { accuracy: props.accuracy };
+    this.state = {accuracy: 0};
   }
 
   render(): JSX.Element {
     const layers = this.props.network.layers.map((_layer, index) => (
-      <LayerControls layerIndex={index} network={this.props.network} onchange={this.props.onchange} />
+      <LayerControls layerIndex={index} network={this.props.network} onchange={this.props.onchange}/>
     ));
     return (
       <>
@@ -172,7 +188,7 @@ class NetworkControls extends Component<NeworkControlsProps & { accuracy: number
   }
 
   set accuracy(a: number) {
-    this.setState({ accuracy: a });
+    this.setState({accuracy: a});
   }
 }
 
@@ -225,7 +241,7 @@ class NeuronControls extends Component<NeuronProps> {
     return (
       <div className="neuron">
         <label>Bias</label>
-        <MatrixInput mat={layer.biases} row={0} col={this.props.neuronIndex} onchange={() => this.props.onchange()} />
+        <MatrixInput mat={layer.biases} row={0} col={this.props.neuronIndex} onchange={() => this.props.onchange()}/>
         {this.renderWeights()}
       </div>
     );
@@ -250,24 +266,8 @@ class NeuronControls extends Component<NeuronProps> {
     return weights;
   }
 
-  private setWeight(input: number, w: number) {
-    this.layer.weights.set(input, this.props.neuronIndex, w);
-    this.props.onchange();
-  }
-
   private get layer(): Layer {
     return this.props.network.layers[this.props.layerIndex];
-  }
-
-  private get bias(): number {
-    const layer = this.layer;
-    return layer.biases.get(0, this.props.neuronIndex);
-  }
-
-  private set bias(b: number) {
-    const layer = this.props.network.layers[this.props.layerIndex];
-    layer.biases.set(0, this.props.neuronIndex, b);
-    this.props.onchange();
   }
 }
 
@@ -275,6 +275,7 @@ interface MatrixInputProps {
   mat: Matrix;
   row: number;
   col: number;
+
   onchange(): void;
 }
 
@@ -288,8 +289,8 @@ class MatrixInput extends Component<MatrixInputProps> {
     const value = this.props.mat.get(this.props.row, this.props.col);
     return (
       <>
-        <input type="range" min="-3" max="3" step="0.01" value={value} onChange={this.onchange} />
-        <input type="number" min="-3" max="3" step="0.01" value={value} onChange={this.onchange} />
+        <input type="range" min="-3" max="3" step="0.01" value={value} onChange={this.onchange}/>
+        <input type="number" min="-3" max="3" step="0.01" value={value} onChange={this.onchange}/>
       </>
     );
   }
@@ -301,13 +302,32 @@ class MatrixInput extends Component<MatrixInputProps> {
   }
 }
 
+// pos:0...1
+type FlowersGenerator = (pos: vec2) => number;
+
+function noiseFlowersGenerator(seed = SEED, noiseScale = 1.3): FlowersGenerator {
+  const noiseSeed = new RNG(seed).random(0, 2 ^ 32);
+  const noise = simplexNoise2D(noiseSeed);
+  const pos = vec2.create();
+  return p => {
+    vec2.scale(pos, p, noiseScale);
+    return noise(pos) >= 0 ? 1 : 0;
+  }
+}
+
+// @ts-ignore
+function linearFlowersGenerator(a = 1, b = 0): FlowersGenerator {
+  return p => {
+    const y = a * p[0] + b;
+    return p[1] <= y ? 0 : 1;
+  };
+}
+
 class FlowersInputs {
-  static create(dim: vec2, seed?: string, noiseScale = 1.3): FlowersInputs {
+  static create(dim: vec2, generator: FlowersGenerator = noiseFlowersGenerator()): FlowersInputs {
     const count = dim[0] * dim[1];
     const samples = newMatrix(count, 2);
     const targets = newMatrix(count, 1);
-    const noiseSeed = new RNG(seed).random(0, 2 ^ 32);
-    const noise = simplexNoise2D(noiseSeed);
 
     const size: vec2 = [1 / dim[0], 1 / dim[1]];
     const halfSize = vec2.scale(vec2.create(), size, 0.5);
@@ -318,41 +338,68 @@ class FlowersInputs {
         vec2.add(pos, vec2.mul(pos, vec2.set(pos, x, y), size), halfSize);
         samples.setRow(sample, pos);
 
-        vec2.scale(pos, vec2.div(pos, vec2.set(pos, x, y), dim), noiseScale);
-        const type = noise(pos) >= 0 ? 1 : 0;
-        targets.set(sample, 0, type);
+        vec2.div(pos, vec2.set(pos, x, y), dim);
+        targets.set(sample, 0, generator(pos));
         sample++;
       }
     }
     return new FlowersInputs(samples, targets, dim);
   }
 
-  readonly sampleIndices: Matrix = newMatrix(0, 1);
   outputs?: Matrix;
+  readonly samples = new FlowerSamples(this);
 
-  private constructor(readonly flowers: Matrix, readonly targets: Matrix, readonly dim: vec2) {}
+  private constructor(readonly flowers: Matrix, readonly targets: Matrix, readonly dim: vec2) {
+  }
 
   get count(): number {
     return this.flowers.rows;
   }
 
-  get samplesCount(): number {
-    return this.sampleIndices.rows;
+  get accuracy(): number {
+    return this.samples.accuracy;
   }
 
   pick(count: number, seed?: string): void {
-    const pickeds = new Array(this.count);
+    this.samples.pick(count, seed);
+  }
+
+  predict(rnn: RNN): void {
+    this.outputs = rnn.eval(this.flowers);
+  }
+
+  train(rnn: RNN, learningRate = 0.1): void {
+    rnn.train(this.samples.inputs, this.samples.targets, learningRate);
+  }
+
+}
+
+
+class FlowerSamples {
+  indices: number[] = [];
+  readonly inputs: Matrix = newMatrix(0, 2);
+  readonly targets: Matrix = newMatrix(0, 2);
+
+  constructor(readonly flowers: FlowersInputs) {
+  }
+
+  get count(): number {
+    return this.indices.length;
+  }
+
+  pick(count: number, seed?: string): void {
+    const pickeds = new Array(count);
     const rng = new RNG(seed);
     const remanings = [count / 2, count / 2 - (count % 2)];
     let target = -1;
-    const indices: number[] = [];
+    this.indices = [];
     for (let c = 0; c < count; c++) {
       let index = -1;
       let retry = 0;
       while (retry < 5) {
-        index = rng.random(0, this.count);
+        index = rng.random(0, this.flowers.count);
         if (pickeds[index] === undefined) {
-          target = this.targets.get(index, 0);
+          target = this.flowers.targets.get(index, 0);
           if (remanings[target]) break;
         }
         index = -1;
@@ -362,37 +409,35 @@ class FlowersInputs {
       if (index >= 0) {
         pickeds[index] = 1;
         remanings[target]--;
-        indices.push(index);
+        this.indices.push(index);
       }
     }
-    this.sampleIndices.reshape(indices.length, 1);
-    this.sampleIndices.fill(r => indices[r]);
-  }
 
-  predict(rnn: RNN): number {
-    this.outputs = rnn.eval(this.flowers);
-    let matcheds = 0;
-    for (let sample = 0; sample < this.outputs.rows; sample++) {
-      const actual = this.outputs.maxIndex(sample);
-      const expected = this.targets.get(sample, 0);
-      if (expected === actual) matcheds++;
-    }
-    return matcheds / this.count;
-  }
+    const samplesCount = this.indices.length;
+    const samples = this.inputs.reshape(samplesCount, 2);
+    const targets = this.targets.reshape(samplesCount, 2);
+    for (let sample = 0; sample < samplesCount; sample++) {
+      const sampleIndex = this.indices[sample];
+      samples.set(sample, 0, this.flowers.flowers.get(sampleIndex, 0));
+      samples.set(sample, 1, this.flowers.flowers.get(sampleIndex, 1));
 
-  train(rnn: RNN, learningRate = 0.1): void {
-    const samples = newMatrix(this.samplesCount, 2);
-    const targets = newMatrix(this.samplesCount, 2);
-    for (let sample = 0; sample < this.samplesCount; sample++) {
-      const sampleIndex = this.sampleIndices.get(sample, 0);
-      samples.set(sample, 0, this.flowers.get(sample, 0));
-      samples.set(sample, 1, this.flowers.get(sample, 1));
-
-      const target = this.targets.get(sampleIndex, 0);
+      const target = this.flowers.targets.get(sampleIndex, 0);
       targets.set(sample, 0, target === 0 ? 1 : 0);
       targets.set(sample, 1, target === 1 ? 1 : 0);
     }
-    rnn.train(samples, targets, learningRate);
+  }
+
+  get accuracy(): number {
+    if (!this.flowers.outputs) return 0;
+    let matched = 0;
+    for (let sample = 0; sample < this.indices.length; sample++) {
+      const sampleIndex = this.indices[sample];
+      const pred = this.flowers.outputs.maxIndex(sampleIndex);
+      const target = this.targets.maxIndex(sample);
+      if (pred === target)
+        matched++;
+    }
+    return matched / this.count;
   }
 }
 
@@ -429,18 +474,18 @@ class FlowersTexture extends AbstractDeletable {
     for (let index = 0; index < inputs.count; index++) {
       flowers.getRow(index, pos);
       const target = targets.get(index, 0);
-      const offset = this.pixelOffset(pos, dim);
+      const offset = pixelOffset(pos, dim);
       array[offset] = target;
       if (outputs && index < outputs.rows) {
         array[offset + 1] = outputs.maxIndex(index);
       }
     }
 
-    const sampleIndices = inputs.sampleIndices;
-    for (let index = 0; index < sampleIndices.rows; index++) {
-      const sampleIndex = sampleIndices.get(index, 0);
+    const sampleIndices = inputs.samples.indices;
+    for (let index = 0; index < sampleIndices.length; index++) {
+      const sampleIndex = sampleIndices[index];
       flowers.getRow(sampleIndex, pos);
-      const offset = this.pixelOffset(pos, dim);
+      const offset = pixelOffset(pos, dim);
       array[offset + 2] = 255;
     }
 
@@ -454,15 +499,15 @@ class FlowersTexture extends AbstractDeletable {
     });
   }
 
-  private pixelOffset(pos: vec2, dim: vec2): number {
-    vec2.floor(pos, vec2.mul(pos, pos, dim));
-    return pos[1] * dim[0] * PIXEL_SIZE + pos[0] * PIXEL_SIZE;
-  }
-
   delete(): void {
     this.texture.delete();
     super.delete();
   }
+}
+
+function pixelOffset(pos: vec2, dim: vec2): number {
+  vec2.floor(pos, vec2.mul(pos, pos, dim));
+  return pos[1] * dim[0] * PIXEL_SIZE + pos[0] * PIXEL_SIZE;
 }
 
 export function flowers(): SandboxFactory<FlowerParameters> {

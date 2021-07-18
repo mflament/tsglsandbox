@@ -1,4 +1,4 @@
-import { GLSandbox } from './GLSandbox';
+import {GLSandbox} from './GLSandbox';
 
 export type ParametersMetadata<T, S extends GLSandbox = GLSandbox> = {
   [name in keyof T]?: ControlMetadata<S>;
@@ -11,13 +11,15 @@ export type WithMetadata<T> = {
 export type ParameterSourceFunction<S extends GLSandbox = GLSandbox, T = any> = (sandbox: S) => T;
 export type ParameterSource<S extends GLSandbox = GLSandbox, T = any> = ParameterSourceFunction<S, T> | T;
 
+export type Choices = { values: any[], labels?: string[] };
+
 export interface ControlMetadata<S extends GLSandbox = GLSandbox> {
   label?: ParameterSource<S, string>;
   min?: ParameterSource<S, number>;
   max?: ParameterSource<S, number>;
   step?: ParameterSource<S, number>;
   range?: boolean;
-  choices?: ParameterSource<S, any[]>;
+  choices?: ParameterSource<S, Choices>;
   pattern?: ParameterSource<S, string>;
 }
 
@@ -27,7 +29,7 @@ export interface RangeParameterMetadata<S extends GLSandbox = GLSandbox> extends
 }
 
 export interface ChoiceParameterMetadata<S extends GLSandbox = GLSandbox> extends ControlMetadata<S> {
-  choices?: ParameterSource<S, any[]>;
+  choices: ParameterSource<S, Choices>;
 }
 
 export function control<S extends GLSandbox = GLSandbox>(value: ControlMetadata<S>): any {

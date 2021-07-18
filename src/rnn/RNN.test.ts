@@ -1,8 +1,8 @@
-import { activations } from './Activation';
-import { RNN } from './RNN';
+import {activations} from './Activation';
+import {DefaultRNN, newMatrix} from './RNN';
 
 test('create RNN from layers sizes', () => {
-  const rnn = RNN.create({ layers: [2, 4, 3] });
+  const rnn = DefaultRNN.create({layers: [2, 4, 3]});
   expect(rnn.inputs).toBe(2);
   expect(rnn.outputs).toBe(3);
 
@@ -18,14 +18,14 @@ test('create RNN from layers sizes', () => {
 });
 
 test('[2, 2] eval', () => {
-  const rnn = RNN.create({
+  const rnn = DefaultRNN.create({
     layers: [
       {
         weights: [
           [0.3, 0.2],
           [0.5, 0.7]
         ],
-        biases: [0.4, 0.6]
+        biases: [[0.4, 0.6]]
       }
     ]
   });
@@ -33,7 +33,7 @@ test('[2, 2] eval', () => {
   expect(rnn.outputs).toBe(2);
   expect(rnn.layers.length).toBe(1);
 
-  const samples = rnn.newMatrix([
+  const samples = newMatrix([
     [-0.3, 0.25],
     [0.4, 0.18]
   ]);
@@ -48,53 +48,59 @@ test('[2, 2] eval', () => {
   expect(preds.get(1, 1)).toBeCloseTo(sigmoid(0.4 * 0.2 + 0.18 * 0.7 + 0.6));
 });
 
+test('[2, 2, 2] config', () => {
+  const rnn = new222();
+  let layer =rnn.layers[0];
+  expect(layer.weights.get(0,0)).toBeCloseTo(0.15); //w1
+  expect(layer.weights.get(0,1)).toBeCloseTo(0.25); //w3
+  expect(layer.weights.get(1,0)).toBeCloseTo(0.2); //w2
+  expect(layer.weights.get(1,1)).toBeCloseTo(0.30); //w4
+  layer = rnn.layers[1];
+  expect(layer.weights.get(0,0)).toBeCloseTo(0.40); //w5
+  expect(layer.weights.get(0,1)).toBeCloseTo(0.5); //w7
+  expect(layer.weights.get(1,0)).toBeCloseTo(0.45); //w6
+  expect(layer.weights.get(1,1)).toBeCloseTo(0.55); //w8
+});
+
+
 test('[2, 2, 2] eval', () => {
   const rnn = new222();
 
-  const samples = rnn.newMatrix([[0.05, 0.1]]);
+  const samples = newMatrix([[0.05, 0.1]]);
 
   rnn.eval(samples);
 
   let layer = rnn.layers[0];
-  const neth1 = 0.05 * 0.15 + 0.1 * 0.25 + 0.35;
+  const neth1 = 0.15 * 0.05 + 0.2 * 0.1 + 0.35;
   expect(layer.z.get(0, 0)).toBeCloseTo(neth1);
   expect(layer.z.get(0, 0)).toBeCloseTo(0.3775);
-
-  const neth2 = 0.05 * 0.2 + 0.1 * 0.3 + 0.35;
-  expect(layer.z.get(0, 1)).toBeCloseTo(neth2);
-
+  expect(layer.a.get(0, 0)).toBeCloseTo(0.593269992);
   const oh1 = sigmoid(neth1);
   expect(layer.a.get(0, 0)).toBeCloseTo(oh1);
-  expect(layer.a.get(0, 0)).toBeCloseTo(0.593269992);
 
-  const oh2 = sigmoid(neth2);
+  const oh2 = 0.596884378;
   expect(layer.a.get(0, 1)).toBeCloseTo(oh2);
-  expect(layer.a.get(0, 0)).toBeCloseTo(0.596884378);
 
   layer = rnn.layers[1];
-  const neto1 = oh1 * 0.4 + oh2 * 0.45 + 0.6;
+  const neto1 = 0.4  * oh1 + 0.45 * oh2 + 0.6;
+  expect(neto1).toBeCloseTo(1.105905967);
   expect(layer.z.get(0, 0)).toBeCloseTo(neto1);
 
-  const neto2 = oh1 * 0.5 + oh2 * 0.55 + 0.6;
-  expect(layer.z.get(0, 1)).toBeCloseTo(neto2);
-
   const oo1 = sigmoid(neto1);
+  expect(oo1).toBeCloseTo(0.75136507);
   expect(layer.a.get(0, 0)).toBeCloseTo(oo1);
-  expect(layer.a.get(0, 0)).toBeCloseTo(0.75136507);
 
-  const oo2 = sigmoid(neto2);
+  const oo2 = 0.772928465;
   expect(layer.a.get(0, 1)).toBeCloseTo(oo2);
-  expect(layer.a.get(0, 1)).toBeCloseTo(0.772928465);
 });
 
 test('[2, 2, 2] train', () => {
   const rnn = new222();
-  const samples = rnn.newMatrix([[0.05, 0.1]]);
-  const targets = rnn.newMatrix([[0.01, 0.99]]);
+  const samples = newMatrix([[0.05, 0.1]]);
+  const targets = newMatrix([[0.01, 0.99]]);
 
   rnn.eval(samples);
-  let layer = rnn.layers[0];
-  layer = rnn.layers[1];
+  let layer = rnn.layers[1];
   const neto1 = layer.z.get(0, 0);
   const neto2 = layer.z.get(0, 1);
   const oo1 = layer.a.get(0, 0);
@@ -143,22 +149,22 @@ function dsigmoid(x: number): number {
   return activations.sigmoid.backward(x);
 }
 
-function new222(): RNN {
-  return RNN.create({
+function new222(): DefaultRNN {
+  return DefaultRNN.create({
     layers: [
       {
         weights: [
-          [0.15, 0.2],
-          [0.25, 0.3]
+          [0.15, 0.25], // w1, w3
+          [0.2, 0.3] // w2, w4
         ],
-        biases: [0.35, 0.35]
+        biases: [[0.35, 0.35]]
       },
       {
         weights: [
-          [0.4, 0.5],
-          [0.45, 0.55]
+          [0.4, 0.5], // w5, w7
+          [0.45, 0.55] // w6, w8
         ],
-        biases: [0.6, 0.6]
+        biases: [[0.6, 0.6]]
       }
     ]
   });

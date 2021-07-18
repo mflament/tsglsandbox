@@ -1,14 +1,13 @@
-import React, { Component, ReactNode, RefObject } from 'react';
-import { RenderPanel } from './RenderPanel';
-import { GLSandbox, SandboxContainer, SandboxFactories } from '../GLSandbox';
-import { hashLocation } from '../../../utils/browser/HashLocation';
-import { ProgramLoader } from '../../shader/ProgramLoader';
-import { GLCanvas } from './GLCanvas';
-import { SandboxSelect } from './SandboxSelect';
-import { ParameterControls } from './parameters/ParameterControls';
-import { createSandboxParameters, ParameterChangeListener } from '../SandboxParameter';
-import { StoredState, SandboxStorage } from './SandboxStorage';
-import { LOGGER } from '../../GLUtils';
+import React, {Component, ReactNode, RefObject} from 'react';
+import {RenderPanel} from './RenderPanel';
+import {GLSandbox, SandboxContainer, SandboxFactories} from '../GLSandbox';
+import {hashLocation, LOGGER} from 'utils';
+import {ProgramLoader} from '../../shader/ProgramLoader';
+import {GLCanvas} from './GLCanvas';
+import {SandboxSelect} from './SandboxSelect';
+import {ParameterControls} from './parameters/ParameterControls';
+import {createSandboxParameters, ParameterChangeListener} from '../SandboxParameter';
+import {SandboxStorage, StoredState} from './SandboxStorage';
 
 interface ContainerProps {
   readonly sandboxes: SandboxFactories;
@@ -90,9 +89,9 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
             selectedName={this.state.selectedSandbox}
             onChange={n => this.selectSandbox(n)}
           />
-          <SandboxHeader sandbox={sandbox} onReset={() => this.resetParameters()} onShare={() => this.shareSandbox()} />
-          <hr />
-          <SandboxPanel sandbox={this.state.sandbox} onchange={() => this.paramChanged()} />
+          <SandboxHeader sandbox={sandbox} onReset={() => this.resetParameters()} onShare={() => this.shareSandbox()}/>
+          <hr/>
+          <SandboxPanel sandbox={this.state.sandbox} onchange={() => this.paramChanged()}/>
         </ControlPanel>
       </div>
     );
@@ -157,8 +156,12 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     if (storedParams) {
       sandbox.parameters = storedParams;
     }
-    sandbox.onresize && sandbox.onresize({ width: this.canvas.width, height: this.canvas.height });
-    this.setState({ sandbox: sandbox, loading: undefined });
+    sandbox.onresize && sandbox.onresize({width: this.canvas.width, height: this.canvas.height});
+    this.setState({sandbox: sandbox, loading: undefined});
+  }
+
+  updateControls(): void {
+    this.forceUpdate();
   }
 
   private resetParameters(): void {
@@ -215,13 +218,13 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
         sandbox.running = !sandbox.running;
         break;
       case 'KeyH':
-        this.setState(state => this.nextControlsState(state));
+        this.setState(state => SandboxController.nextControlsState(state));
         break;
     }
   }
 
-  private nextControlsState(state: SandboxControllerState): SandboxControllerState {
-    const showOverlay = state.showOverlay && state.showControls ? false : true;
+  private static nextControlsState(state: SandboxControllerState): SandboxControllerState {
+    const showOverlay = !(state.showOverlay && state.showControls);
     const showControls = state.showOverlay && showOverlay;
     return {
       ...state,
@@ -244,7 +247,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   }
 
   private toggleControls(): void {
-    this.setState(current => ({ ...current, showControls: !current.showControls }));
+    this.setState(current => ({...current, showControls: !current.showControls}));
   }
 
   get sandboxes(): SandboxFactories {
@@ -255,7 +258,9 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
 interface CanvasOverlayProps {
   showOverlay: boolean;
   showControls: boolean;
+
   getFPS(): number;
+
   onShowControls: () => void;
 }
 
@@ -266,7 +271,7 @@ class CanvasOverlay extends Component<CanvasOverlayProps, { fps: number }> {
 
   constructor(props: CanvasOverlayProps) {
     super(props);
-    this.state = { fps: 0 };
+    this.state = {fps: 0};
   }
 
   render(): ReactNode {
@@ -274,7 +279,7 @@ class CanvasOverlay extends Component<CanvasOverlayProps, { fps: number }> {
       <div className={this.className}>
         <div className="fps">{this.state.fps}</div>
         <div className="button toggle-controls" onClick={this.props.onShowControls}>
-          <img src="./images/arrow.png" />
+          <img src="/images/arrow.png" alt="Toggle menu"/>
         </div>
       </div>
     );
@@ -302,7 +307,7 @@ class CanvasOverlay extends Component<CanvasOverlayProps, { fps: number }> {
     const elapsedSec = (this.lastFrameTime - now) / 1000;
     const totalFrames = this.props.getFPS();
     const frames = this.lastFramesCount - totalFrames;
-    this.setState({ fps: Math.round(frames / elapsedSec) });
+    this.setState({fps: Math.round(frames / elapsedSec)});
     this.lastFrameTime = now;
     this.lastFramesCount = totalFrames;
   }
@@ -310,6 +315,7 @@ class CanvasOverlay extends Component<CanvasOverlayProps, { fps: number }> {
 
 class ControlPanel extends Component<{ visible: boolean }> {
   private readonly _panelRef: RefObject<HTMLDivElement>;
+
   constructor(props: { visible: boolean }) {
     super(props);
     this._panelRef = React.createRef();
@@ -347,8 +353,8 @@ function SandboxPanel(props: { sandbox?: GLSandbox; onchange?: ParameterChangeLi
   const sbp = createSandboxParameters(sandbox, props.onchange);
   return (
     <>
-      <ParameterControls parameters={sbp.parameters} />
-      <CustomControls sandbox={sandbox} />
+      <ParameterControls parameters={sbp.parameters}/>
+      <CustomControls sandbox={sandbox}/>
     </>
   );
 }
@@ -365,8 +371,8 @@ function SandboxHeader(props: { sandbox?: GLSandbox; onReset: () => void; onShar
   return (
     <div className="sandbox-title">
       <span>{sandbox.displayName || sandbox.name}</span>
-      <img src="./images/reset.png" title="Reset parameters" onClick={props.onReset} />
-      <img src="./images/share.png" title="Share this sandbox" onClick={props.onShare} />
+      <img src="/images/reset.png" title="Reset parameters" onClick={props.onReset} alt="Reset"/>
+      <img src="/images/share.png" title="Share this sandbox" onClick={props.onShare} alt="Share"/>
     </div>
   );
 }
