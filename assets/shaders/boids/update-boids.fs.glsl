@@ -10,6 +10,7 @@ uniform int u_boidsCount;
 // xy: pos , zw: velocity
 layout(location = 0) out vec4 data;
 
+// https://fr.wikipedia.org/wiki/Boids
 // http://www.red3d.com/cwr/boids/
 // http://www.vergenet.net/~conrad/boids/pseudocode.html
 void main() {

@@ -21,6 +21,7 @@ export interface ControlMetadata<S extends GLSandbox = GLSandbox> {
   range?: boolean;
   choices?: ParameterSource<S, Choices>;
   pattern?: ParameterSource<S, string>;
+  isVisible?: ParameterSource<S, boolean>;
 }
 
 export interface RangeParameterMetadata<S extends GLSandbox = GLSandbox> extends ControlMetadata<S> {

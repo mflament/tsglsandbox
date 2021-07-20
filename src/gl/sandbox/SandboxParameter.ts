@@ -146,6 +146,11 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
   get pattern(): string | undefined {
     return this.getMetadata(this.metadata.pattern);
   }
+
+  get isVisible(): boolean {
+    const visible = this.getMetadata(this.metadata.isVisible);
+    return typeof visible === 'undefined' ? true : visible;
+  }
 }
 
 class DefaultSandboxParameters implements SandboxParameters {
