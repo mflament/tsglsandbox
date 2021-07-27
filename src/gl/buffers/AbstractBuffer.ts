@@ -1,5 +1,5 @@
-import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
-import { ArrayBufferType, BufferTarget, BufferUsage } from './BufferEnums';
+import {AbstractDeletable, Bindable, checkNull} from '../GLUtils';
+import {ArrayBufferType, BufferTarget, BufferUsage} from './BufferEnums';
 
 export abstract class AbstractBuffer<
     B extends ArrayBufferType = ArrayBufferType,

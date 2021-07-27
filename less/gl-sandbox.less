@@ -73,6 +73,7 @@ body {
       pointer-events: all;
       cursor: pointer;
       height: auto;
+
       img {
         width: 24px;
         opacity: 0.5;
@@ -94,15 +95,14 @@ body {
     overflow: hidden;
     visibility: visible;
     max-height: 100%;
+    color: white;
 
     &.hidden {
       visibility: hidden;
       transition: none;
     }
 
-    .control-panel-content {
-      padding: 5px;
-
+    .parameters-table {
       display: grid;
       grid-template-columns: 0.5fr 1fr;
       column-gap: 5px;
@@ -110,12 +110,20 @@ body {
       max-width: 100%;
       max-height: 100%;
       overflow: auto;
-      color: white;
+
+      .row {
+        grid-column: span 2;
+      }
+    }
+
+    .control-panel-content {
+      padding: 5px;
 
       .sandbox-title {
         font-size: 18px;
         padding: 0;
         margin: 0;
+        text-transform: capitalize;
 
         img {
           height: 16px;
@@ -129,6 +137,10 @@ body {
         width: 100%;
       }
 
+      label {
+        text-transform: capitalize;
+      }
+
       input {
         vertical-align: middle;
         width: auto;
@@ -138,16 +150,44 @@ body {
         width: fit-content;
       }
 
-      .custom-controls {
+      .object {
         grid-column: span 2;
+
+        width: 100%;
+        padding: 5px;
+        border: 1px solid lightgray;
+        border-radius: 5px;
+
+        h2 {
+          font-size: 18px;
+          font-weight: bold;
+          text-transform: capitalize;
+          margin: 0 0 5px 0;
+          padding: 0;
+        }
+
+        .parameters-table {
+          padding-left: 10px;
+        }
+      }
+
+      .json {
+        grid-column: span 2;
+      }
+
+      textarea.json {
+        grid-auto-rows: 1fr;
+        min-height: 250px;
+        resize: none;
       }
     }
   }
 }
 
-.flowers.custom-controls {
+.rnn-controls {
   overflow: auto;
   max-height: 100%;
+
   .rnn-accuracy label {
     margin-right: 5px;
   }

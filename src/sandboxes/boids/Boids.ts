@@ -1,21 +1,21 @@
-import { vec4 } from 'gl-matrix';
+import {vec4} from 'gl-matrix';
 import {
-  VertexBuffer,
-  DrawMode,
   AbstractGLSandbox,
-  SandboxContainer,
-  SandboxFactory,
+  DrawMode,
+  FrameBuffer,
   IndexedDrawable,
   InstancedDrawable,
-  FrameBuffer,
-  newQuadDrawable
+  newQuadDrawable,
+  SandboxContainer,
+  SandboxFactory,
+  VertexBuffer
 } from 'gl';
 
-import { BoidsParameters, MAX_BOIDS } from './BoidsParameters';
-import { Boid, randomizedBoids } from './Boid';
-import { BoidFamilly, BoidFamillyBuffer } from './BoidFamilly';
-import { BoidPrograms } from './BoidPrograms';
-import { BoidsDataTextures } from './BoidTextures';
+import {BoidsParameters, MAX_BOIDS} from './BoidsParameters';
+import {Boid, randomizedBoids} from './Boid';
+import {BoidFamilly, BoidFamillyBuffer} from './BoidFamilly';
+import {BoidPrograms} from './BoidPrograms';
+import {BoidsDataTextures} from './BoidTextures';
 
 export function boids(): SandboxFactory<BoidsParameters> {
   return GLBoids.create;
@@ -28,8 +28,8 @@ const TEST_BOIDS: Boid[] | undefined = undefined;
 // ];
 
 class GLBoids extends AbstractGLSandbox<BoidsParameters> {
-  static async create(container: SandboxContainer, name: string): Promise<GLBoids> {
-    return new GLBoids(container, name, await BoidPrograms.create(container.programLoader));
+  static async create(container: SandboxContainer, name: string, parameters?: BoidsParameters): Promise<GLBoids> {
+    return new GLBoids(container, name, await BoidPrograms.create(container.programLoader), parameters);
   }
 
   private readonly frameBuffer: FrameBuffer;
@@ -40,8 +40,8 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
   private readonly famillyBuffers: BoidFamillyBuffer[];
   private readonly boids: BoidsDataTextures[]; // [famillyIndex] : familly's  boids
 
-  constructor(container: SandboxContainer, name: string, readonly programs: BoidPrograms) {
-    super(container, name, new BoidsParameters());
+  constructor(container: SandboxContainer, name: string, readonly programs: BoidPrograms, parameters?: BoidsParameters) {
+    super(container, name, parameters);
 
     this.families = [this.defaultFamilly()];
     this.famillyBuffers = [new BoidFamillyBuffer(this.gl)];
@@ -62,6 +62,10 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
 
     this.programs.renderBoids.use();
     this.renderDrawable.bind();
+  }
+
+  createDefaultParameters(): BoidsParameters {
+    return new BoidsParameters();
   }
 
   render(): void {

@@ -1,24 +1,24 @@
-import React, { RefObject } from 'react';
-import { vec2 } from 'gl-matrix';
+import React, {RefObject} from 'react';
+import {vec2} from 'gl-matrix';
 import {
-  TransformFeedbackDrawMode,
-  Program,
-  VaryingBufferMode,
-  TransformFeedback,
   AbstractGLSandbox,
+  control,
+  Program,
   SandboxContainer,
   SandboxFactory,
-  control
+  TransformFeedback,
+  TransformFeedbackDrawMode,
+  VaryingBufferMode
 } from 'gl';
 import 'reflect-metadata';
-import { ParticleBuffers } from './ParticleBuffer';
+import {ParticleBuffers} from './ParticleBuffer';
 
 class ParticlesParameters {
-  @control<GLParticles>({ min: 5000, max: sandbox => sandbox.maxParticles, step: 1000 })
+  @control<GLParticles>({min: 5000, max: sandbox => sandbox.maxParticles, step: 1000})
   count = 500_000;
-  @control({ min: 0.1, max: 10, step: 0.1 })
+  @control({min: 0.1, max: 10, step: 0.1})
   accel = 4;
-  @control({ min: 0.1, max: 10, step: 0.1 })
+  @control({min: 0.1, max: 10, step: 0.1})
   speed = 2;
 }
 
@@ -43,7 +43,7 @@ class UpdateUniforms {
 }
 
 class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
-  static async create(container: SandboxContainer, name: string): Promise<GLParticles> {
+  static async create(container: SandboxContainer, name: string, parameters?: ParticlesParameters): Promise<GLParticles> {
     const programs = await Promise.all([
       container.programLoader.load({
         path: 'particles/particles-render.glsl',
@@ -55,7 +55,7 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
         varyingMode: VaryingBufferMode.INTERLEAVED
       })
     ]);
-    return new GLParticles(container, name, programs[0], programs[1]);
+    return new GLParticles(container, name, programs[0], programs[1], parameters);
   }
 
   readonly displayName = 'Particles';
@@ -77,9 +77,10 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     container: SandboxContainer,
     name: string,
     readonly renderProgram: Program<RenderUniforms>,
-    readonly updateProgram: Program<UpdateUniforms>
+    readonly updateProgram: Program<UpdateUniforms>,
+    parameters?: ParticlesParameters
   ) {
-    super(container, name, new ParticlesParameters());
+    super(container, name, parameters);
 
     const gl = container.canvas.gl;
     this.particleBuffers = new ParticleBuffers(gl, this.parameters, MAX_PARTICLES);
@@ -91,6 +92,10 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     this._newMode = this._mode;
     this._newParam = this.parameters;
     this.renderProgram.use();
+  }
+
+  createDefaultParameters(): ParticlesParameters {
+    return new ParticlesParameters();
   }
 
   get maxParticles(): number {
@@ -203,14 +208,18 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     this._newTarget = this.clientToWorld(e, this.target);
   }
 
-  get customControls(): JSX.Element {
-    return <div ref={this.controlsRef}> {this.description} </div>;
+  protected createControls(): JSX.Element {
+    return <>
+      {super.createControls()}
+      <div className="row" ref={this.controlsRef}>{this.description}</div>
+    </>
   }
 
   private get description(): string {
     return `${this.particleBuffers.count.toLocaleString()} particles`;
   }
 }
+
 export function glparticles(): SandboxFactory<ParticlesParameters> {
   return GLParticles.create;
 }

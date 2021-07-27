@@ -1,6 +1,6 @@
-import { vec2 } from 'gl-matrix';
-import { Noise, fractalNoise2D, simplexNoise2D, randomSimplexSeed } from 'random';
-import { GLTexture2D } from './GLTexture';
+import {vec2} from 'gl-matrix';
+import {fractalNoise2D, Noise, randomSimplexSeed, simplexNoise2D} from 'random';
+import {GLTexture2D} from './GLTexture';
 import {
   InternalFormat,
   TextureComponentType,

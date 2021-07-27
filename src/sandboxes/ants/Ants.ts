@@ -1,39 +1,44 @@
 import {
   AbstractGLSandbox,
+  GLTexture2D,
   SandboxContainer,
   SandboxFactory,
-  Sprites,
-  Sprite,
-  GLTexture2D,
   splitRegions,
+  Sprite,
+  Sprites,
   TextureAtlas
 } from 'gl';
 
-class AntsParameters {}
+class AntsParameters {
+}
 
 const ANT_REGIONS = 8 * 8 - 2;
 
 class GLAnts extends AbstractGLSandbox<AntsParameters> {
-  static async create(container: SandboxContainer, name: string): Promise<GLAnts> {
-    const texture = await new GLTexture2D(container.canvas.gl).bind().load({ uri: 'images/ant-walk.png' });
+  static async create(container: SandboxContainer, name: string, parameters?: AntsParameters): Promise<GLAnts> {
+    const texture = await new GLTexture2D(container.canvas.gl).bind().load({uri: 'images/ant-walk.png'});
     const sprites = await Sprites.create(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]);
     sprites.bind();
-    return new GLAnts(container, name, sprites);
+    return new GLAnts(container, name, sprites, parameters);
   }
 
   readonly antSprite: Sprite;
 
-  constructor(container: SandboxContainer, name: string, readonly sprites: Sprites) {
-    super(container, name, new AntsParameters());
+  constructor(container: SandboxContainer, name: string, readonly sprites: Sprites, parameters?: AntsParameters) {
+    super(container, name, parameters);
     const gl = container.canvas.gl;
     gl.enable(WebGL2RenderingContext.DEPTH_TEST);
     gl.enable(WebGL2RenderingContext.BLEND);
     gl.blendFunc(WebGL2RenderingContext.SRC_ALPHA, WebGL2RenderingContext.ONE_MINUS_SRC_ALPHA);
     const scale = 0.6;
     this.sprites.bind();
-    this.antSprite = this.sprites.addSprite({ pos: [120, 200], scale: [scale, scale], texture: 0, region: 0 });
-    this.antSprite.animation = { startRegion: 0, endRegion: ANT_REGIONS, duration: 0.8 };
+    this.antSprite = this.sprites.addSprite({pos: [120, 200], scale: [scale, scale], texture: 0, region: 0});
+    this.antSprite.animation = {startRegion: 0, endRegion: ANT_REGIONS, duration: 0.8};
     this.sprites.updateSprite(this.antSprite.index);
+  }
+
+  createDefaultParameters(): AntsParameters {
+    return new AntsParameters();
   }
 
   render(): void {

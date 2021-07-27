@@ -1,5 +1,4 @@
-import { VertexArray, VertexBuffer, BufferAttribute } from 'gl';
-import { BufferUsage } from '../../gl/buffers/BufferEnums';
+import {BufferAttribute, BufferUsage, VertexArray, VertexBuffer} from 'gl';
 
 const PARTICLES_FLOATS = 4;
 
@@ -86,8 +85,8 @@ class ParticleBuffer {
 
   constructor(readonly gl: WebGL2RenderingContext, maxParticles: number) {
     this.vbo = new VertexBuffer<ParticleAttributes>(gl, {
-      position: { size: 2 },
-      speed: { size: 2 }
+      position: {size: 2},
+      speed: {size: 2}
     })
       .bind()
       .allocate(maxParticles * PARTICLES_FLOATS * 4, BufferUsage.STATIC_DRAW);

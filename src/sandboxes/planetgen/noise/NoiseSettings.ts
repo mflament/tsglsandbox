@@ -1,52 +1,34 @@
-export type NoiseFilterType = 'simple' | 'ridgid';
+import {RNG} from 'random';
+import {vec3} from 'gl-matrix';
 
-export type NoiseFilterSettings = {
-  strength: number;
-  roughness: number;
-  center: { x: number; y: number; z: number };
+export class NoiseFilterSettings {
+  strength = 1;
+  roughness = 1.14;
+  center = vec3.create();
 
-  layers: number;
-  persistence: number;
-  baseRoughness: number;
+  layers = 4;
+  persistence = 0.5;
+  baseRoughness = 1.14;
 
-  minValue: number;
-};
+  minValue = 0;
+}
 
-export type SimpleNoiseFilterSettings = NoiseFilterSettings & {
-  type: 'simple';
-};
+export class SimpleNoiseFilterSettings extends NoiseFilterSettings {
+  readonly type = 'simple';
+}
 
-export type RidgidNoiseFilterSettings = NoiseFilterSettings & {
-  type: 'ridgid';
-  weightMultiplier: number;
-};
+export class RigidNoiseFilterSettings extends NoiseFilterSettings {
+  readonly type = 'rigid';
+  weightMultiplier = 1;
+}
 
-export type NoiseFiltersSettings = SimpleNoiseFilterSettings | RidgidNoiseFilterSettings;
+export class NoiseLayerSettings {
+  enabled = true;
+  useMask = false;
+  filterSettings: SimpleNoiseFilterSettings | RigidNoiseFilterSettings = new SimpleNoiseFilterSettings();
+}
 
-export type NoiseLayerSettings = {
-  enabled: boolean;
-  useMask: boolean;
-  filterSettings: NoiseFiltersSettings;
-};
-
-export type NoiseSettings = {
-  seed: string;
-  layers: NoiseLayerSettings[];
-};
-
-export const defaultNoiseLayerSettings: NoiseLayerSettings = {
-  enabled: true,
-  useMask: false,
-  filterSettings: {
-    type: 'simple',
-    strength: 1,
-    roughness: 1.14,
-    center: { x: 0, y: 0, z: 0 },
-
-    layers: 4,
-    persistence: 0.5,
-    baseRoughness: 1.14,
-
-    minValue: 0
-  }
-};
+export class NoiseSettings {
+  seed = RNG.randomSeed(6);
+  layers: NoiseLayerSettings[] = [new NoiseLayerSettings()]
+}

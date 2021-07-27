@@ -1,21 +1,21 @@
 import {
-  FrameBuffer,
-  QuadProgram,
-  GLTexture2D,
-  InternalFormat,
-  TextureComponentType,
-  TextureFormat,
-  TextureMinFilter,
-  TextureMagFilter,
-  TextureWrappingMode,
-  newQuadDrawable,
-  IndexedDrawable,
   AbstractGLSandbox,
+  control,
+  FrameBuffer,
+  GLTexture2D,
+  IndexedDrawable,
+  InternalFormat,
+  LOGGER,
+  newQuadDrawable,
+  QuadProgram,
+  quadProgram,
   SandboxContainer,
   SandboxFactory,
-  quadProgram,
-  control,
-  LOGGER
+  TextureComponentType,
+  TextureFormat,
+  TextureMagFilter,
+  TextureMinFilter,
+  TextureWrappingMode
 } from 'gl';
 
 const DATA_TEXTURE_FORMAT = {
@@ -41,7 +41,7 @@ class UpdateUniforms {
 }
 
 class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
-  static async create(container: SandboxContainer, name: string): Promise<GOLSandbox> {
+  static async create(container: SandboxContainer, name: string, parameters?: GOLParameters): Promise<GOLSandbox> {
     const renderProgram = await quadProgram(container.programLoader, {
       fspath: 'gol/gol-render.fs.glsl',
       uniformLocations: new RenderUniforms()
@@ -50,7 +50,7 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
       fspath: 'gol/gol-update.fs.glsl',
       uniformLocations: new UpdateUniforms()
     });
-    return new GOLSandbox(container, name, new GOLParameters(), renderProgram, updateProgram);
+    return new GOLSandbox(container, name, parameters, renderProgram, updateProgram);
   }
 
   private readonly quadBuffers: IndexedDrawable;
@@ -66,7 +66,7 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
   constructor(
     container: SandboxContainer,
     name: string,
-    parameters: GOLParameters,
+    parameters: GOLParameters | undefined,
     readonly renderProgram: QuadProgram<RenderUniforms>,
     readonly updateProgram: QuadProgram<UpdateUniforms>
   ) {
@@ -87,6 +87,10 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
     this.updateRule();
 
     this.updateTexturesSize();
+  }
+
+  createDefaultParameters(): GOLParameters {
+    return new GOLParameters();
   }
 
   render(): void {

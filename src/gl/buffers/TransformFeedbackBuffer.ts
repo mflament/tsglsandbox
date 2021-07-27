@@ -1,5 +1,5 @@
-import { AbstractBuffer } from './AbstractBuffer';
-import { ArrayBufferType, BufferTarget } from './BufferEnums';
+import {AbstractBuffer} from './AbstractBuffer';
+import {ArrayBufferType, BufferTarget} from './BufferEnums';
 
 export class TransformFeedbackBuffer extends AbstractBuffer<ArrayBufferType, TransformFeedbackBuffer> {
   constructor(gl: WebGL2RenderingContext) {

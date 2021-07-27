@@ -1,4 +1,4 @@
-import { GLSandbox } from '../GLSandbox';
+import {GLSandbox} from '../GLSandbox';
 
 export interface StoredState {
   selectedSandbox: string;

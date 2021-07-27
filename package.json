@@ -51,14 +51,14 @@
     "rollup-plugin-ts-treeshaking": "^1.0.2",
     "rollup-plugin-typescript2": "^0.30.0",
     "ts-node": "^10.0.0",
-    "tsdserver": "^3.0.0",
+    "tsdserver": "^3.0.2",
     "typescript": "^4.2.4"
   },
   "dependencies": {
     "gl-matrix": "^3.3.0",
-    "react": "file:./react-esm/17.0.2/react",
-    "react-dom": "file:./react-esm/17.0.2/react-dom",
+    "react": "npm:@pika/react@^16.13.1",
+    "react-dom": "npm:@pika/react-dom@^16.13.1",
     "reflect-metadata": "^0.1.13",
-    "three": "^0.129.0"
+    "three": "file:/./dependencies/three"
   }
 }

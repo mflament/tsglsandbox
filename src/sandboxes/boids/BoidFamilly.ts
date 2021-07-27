@@ -1,5 +1,5 @@
-import { vec2, vec4 } from 'gl-matrix';
-import { Bindable, BufferUsage, Deletable, UniformBuffer } from 'gl';
+import {vec2, vec4} from 'gl-matrix';
+import {Bindable, BufferUsage, Deletable, UniformBuffer} from 'gl';
 
 /**
  * Boid familly

@@ -1,6 +1,6 @@
 'use strict';
-import { AbstractDeletable, checkNull, LOGGER } from '../GLUtils';
-import { Shader } from './Shader';
+import {AbstractDeletable, checkNull, LOGGER} from '../GLUtils';
+import {Shader} from './Shader';
 
 export interface ProgramLocations<U = any, B = any, A = any> {
   uniformLocations?: U;

@@ -1,4 +1,4 @@
-import { AbstractDeletable, checkNull } from '../GLUtils';
+import {AbstractDeletable, checkNull} from '../GLUtils';
 
 export enum ShaderType {
   VERTEX_SHADER = WebGL2RenderingContext.VERTEX_SHADER,

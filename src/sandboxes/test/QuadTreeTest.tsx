@@ -1,17 +1,17 @@
-import React, { RefObject } from 'react';
-import { vec2, vec4 } from 'gl-matrix';
+import React, {RefObject} from 'react';
+import {vec2, vec4} from 'gl-matrix';
 import {
   AbstractGLSandbox,
+  BufferAttribute,
+  BufferUsage,
+  DrawMode,
+  GLDrawable,
+  Program,
   SandboxContainer,
   SandboxFactory,
-  Program,
-  BufferAttribute,
-  GLDrawable,
-  VertexBuffer,
-  DrawMode,
-  BufferUsage
+  VertexBuffer
 } from 'gl';
-import { AABB, QuadTree } from 'utils';
+import {AABB, QuadTree} from 'utils';
 
 const LINE_COLOR: vec4 = [0.7, 0.7, 0.7, 1];
 const POINT_COLOR: vec4 = [0.2, 0.2, 0.9, 1];
@@ -50,12 +50,16 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
   private readonly controlsRef: RefObject<HTMLDivElement> = React.createRef();
 
   constructor(container: SandboxContainer, name: string, readonly renderProgram: Program) {
-    super(container, name, {});
+    super(container, name);
     renderProgram.use();
     this.points = this.newMappedDrawable(DrawMode.POINTS);
     this.lines = this.newMappedDrawable(DrawMode.LINES);
     this.sellines = this.newMappedDrawable(DrawMode.LINES);
     this.selpoints = this.newMappedDrawable(DrawMode.POINTS);
+  }
+
+  createDefaultParameters(): any {
+    return {};
   }
 
   get selbounds(): AABB | undefined {

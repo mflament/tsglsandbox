@@ -1,4 +1,4 @@
-import { InternalFormat, TextureComponentType, TextureFormat } from './TextureEnums';
+import {InternalFormat, TextureComponentType, TextureFormat} from './TextureEnums';
 
 interface CombinationConfiguration {
   internalFormat: InternalFormat;

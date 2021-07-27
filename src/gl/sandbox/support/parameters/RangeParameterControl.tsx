@@ -1,21 +1,21 @@
-import React, { ChangeEvent } from 'react';
-import { RangeSandboxParameter } from '../../SandboxParameter';
-import { AbstractParameterControl, ControlProps } from './AbstractParameterControl';
+import React, {ChangeEvent} from 'react';
+import {RangeSandboxParameter} from '../../SandboxParameter';
+import {AbstractParameterControl, ControlProps} from './AbstractParameterControl';
 
 export class RangeParameterControl extends AbstractParameterControl<RangeSandboxParameter> {
   constructor(props: ControlProps<RangeSandboxParameter>) {
     super(props);
   }
 
-  protected renderInput(): JSX.Element {
+  protected renderInput(value: number): JSX.Element {
     const param = this.props.parameter;
     return (
-      <div className="range">
+      <div className={param.type}>
         <input
           type="range"
           min={param.min}
           max={param.max}
-          value={param.value}
+          value={value}
           step={param.step}
           onChange={e => this.onChange(e)}
         />
@@ -23,7 +23,7 @@ export class RangeParameterControl extends AbstractParameterControl<RangeSandbox
           type="number"
           min={param.min}
           max={param.max}
-          value={param.value}
+          value={value}
           step={param.step}
           onChange={e => this.onChange(e)}
         />

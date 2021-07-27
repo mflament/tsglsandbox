@@ -1,16 +1,16 @@
 import {
   AbstractGLSandbox,
   Bindable,
+  BufferAttribute,
   Deletable,
+  Program,
   SandboxContainer,
   SandboxFactory,
   VertexArray,
-  Program,
-  BufferAttribute,
   VertexBuffer
 } from 'gl';
-import { PoissonDiscSampler, randomRange } from 'random';
-import { control } from '../../gl/sandbox/ParametersMetadata';
+import {PoissonDiscSampler, randomRange} from 'random';
+import {control} from '../../gl/sandbox/ParametersMetadata';
 
 // x,y / r,g,b
 const CITY_FLOATS = 5;
@@ -18,9 +18,9 @@ const CITY_FLOATS = 5;
 const CITY_RADIUS = 0.015;
 
 class TSPParameters {
-  @control({ min: 1, max: 5000, step: 1 })
+  @control({min: 1, max: 5000, step: 1})
   cities = 100;
-  @control({ min: 0.01, max: 0.2, step: 0.01 })
+  @control({min: 0.01, max: 0.2, step: 0.01})
   distance = 0.1;
 }
 
@@ -30,22 +30,26 @@ class TSPUniforms {
 }
 
 class TSP extends AbstractGLSandbox<TSPParameters> {
-  static async create(container: SandboxContainer, name: string): Promise<TSP> {
+  static async create(container: SandboxContainer, name: string, parameters?: TSPParameters): Promise<TSP> {
     const program = await container.programLoader.load({
       path: 'tsp/tsp-render.glsl',
       uniformLocations: new TSPUniforms()
     });
-    return new TSP(container, name, program);
+    return new TSP(container, name, program, parameters);
   }
 
   readonly citiesBuffer: CitiesBuffer;
 
-  constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<any, TSPUniforms>) {
-    super(container, name, new TSPParameters());
+  constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<any, TSPUniforms>, parameters?: TSPParameters) {
+    super(container, name, parameters);
     renderProgram.use();
     this.onresize();
     this.citiesBuffer = new CitiesBuffer(this.gl);
     this.citiesBuffer.cities = randomCities(this.parameters.cities, this.parameters.distance);
+  }
+
+  createDefaultParameters(): TSPParameters {
+    return new TSPParameters();
   }
 
   render(): void {
@@ -66,8 +70,8 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
     const viewMatrix = new Float32Array([
       sx, 0, 0, -0.5 * sx,
       0, sy, 0, -0.5 * sy,
-      0,  0, 1, 0,
-      0,  0, 0, 1,
+      0, 0, 1, 0,
+      0, 0, 0, 1,
     ]);
     this.gl.uniformMatrix4fv(this.renderProgram.uniformLocations.viewMatrix, false, viewMatrix);
     this.gl.uniform1f(this.renderProgram.uniformLocations.cityRadius, (CITY_RADIUS * canvas.width) / 2);
@@ -115,8 +119,8 @@ class CitiesBuffer implements Bindable, Deletable {
 
   constructor(readonly gl: WebGL2RenderingContext) {
     this.citiesBuffer = new VertexBuffer<CitiesAttributes>(gl, {
-      a_cityPosition: { size: 2 },
-      a_cityColor: { size: 3 }
+      a_cityPosition: {size: 2},
+      a_cityColor: {size: 3}
     }).bind();
 
     this.vao = new VertexArray(gl).bind().mapAttributes(this.citiesBuffer, {

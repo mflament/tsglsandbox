@@ -1,4 +1,4 @@
-import { eslint } from 'rollup-plugin-eslint';
+import {eslint} from 'rollup-plugin-eslint';
 
 import typescript from 'rollup-plugin-typescript2';
 import tstreeshaking from 'rollup-plugin-ts-treeshaking';
@@ -8,8 +8,8 @@ import commonjs from '@rollup/plugin-commonjs';
 
 import replace from '@rollup/plugin-replace';
 
-import { terser } from 'rollup-plugin-terser';
-import { dataToEsm } from 'rollup-pluginutils';
+import {terser} from 'rollup-plugin-terser';
+import {dataToEsm} from 'rollup-pluginutils';
 import fs from 'fs';
 
 const env = "production";

@@ -2,6 +2,7 @@ import {GLSandbox} from './GLSandbox';
 import {
   Choices,
   ControlMetadata,
+  getObjectMetadata,
   getParameterMetadata,
   isChoiceMeta,
   isRangeMeta,
@@ -9,15 +10,25 @@ import {
   ParameterSourceFunction
 } from './ParametersMetadata';
 
-export type SandboxParameterType = 'object' | 'string' | 'number' | 'range' | 'choices' | 'boolean' | 'array';
+export type SandboxParameterType =
+  'object'
+  | 'string'
+  | 'number'
+  | 'range'
+  | 'color'
+  | 'choices'
+  | 'boolean'
+  | 'json';
 
 export type ParameterChangeListener = (parameter: SandboxParameter, newValue: any) => any;
 
 export interface SandboxParameter {
   readonly type: SandboxParameterType;
   readonly name: string;
-  readonly parent: ObjectSandboxParameter | SandboxParameters;
   readonly label?: string;
+  readonly parent: GLSandbox | ObjectSandboxParameter;
+  readonly visible: boolean;
+  readonly debounce: number;
   value: any;
   onchange?: ParameterChangeListener;
 }
@@ -52,42 +63,42 @@ export interface BooleanSandboxParameter extends SandboxParameter {
   readonly type: 'boolean';
 }
 
-export interface ArraySandboxParameter extends SandboxParameter {
-  readonly type: 'array';
-  readonly min?: number;
-  readonly max?: number;
+export interface ColorSandboxParameter extends SandboxParameter {
+  readonly type: 'color';
+}
+
+export interface JSONSandboxParameter extends SandboxParameter {
+  readonly type: 'json';
 }
 
 export interface ObjectSandboxParameter extends SandboxParameter {
   readonly type: 'object';
+  readonly json: boolean;
   readonly parameters: SandboxParameter[];
+  readonly parent: ObjectSandboxParameter | GLSandbox;
 }
 
-export interface SandboxParameters {
-  readonly sandbox: GLSandbox;
-  readonly parameters: SandboxParameter[];
-  onchange?: ParameterChangeListener;
+export function createSandboxParameters(sandbox: GLSandbox, onchange?: ParameterChangeListener): ObjectSandboxParameter {
+  return new DefaultObjectParameter('parameters', sandbox, sandbox, {}, onchange);
 }
 
-export function createSandboxParameters(sandbox: GLSandbox, onchange?: ParameterChangeListener): SandboxParameters {
-  return new DefaultSandboxParameters(sandbox, onchange);
-}
-
-function isSandboxParameters(obj: any): obj is SandboxParameters {
-  const sbp = obj as SandboxParameters;
-  return typeof sbp.sandbox === 'object' && Array.isArray(sbp.parameters);
+export function isObjectParameter(obj: unknown): obj is ObjectSandboxParameter {
+  if (typeof obj === 'object') {
+    return (obj as ObjectSandboxParameter).type === 'object';
+  }
+  return false;
 }
 
 abstract class AbstractSandboxParameter implements SandboxParameter, ControlMetadata {
   abstract readonly type: SandboxParameterType;
-  private _notifying = false;
 
   protected constructor(
     readonly name: string,
     readonly container: any,
-    readonly parent: ObjectSandboxParameter | SandboxParameters,
+    readonly parent: ObjectSandboxParameter | GLSandbox,
     readonly metadata: ControlMetadata,
-    readonly onchange?: ParameterChangeListener
+    readonly onchange: ParameterChangeListener | undefined,
+    readonly defaultDebounce : number
   ) {
   }
 
@@ -97,19 +108,18 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
 
   set value(v: any) {
     this.container[this.name] = v;
-    if (this.onchange && !this._notifying) {
-      this._notifying = true;
-      const stop = this.onchange(this, v) === false;
-      this._notifying = false;
-      if (stop) return;
-    }
-    if (this.parent.onchange) this.parent.onchange(this, v);
+  }
+
+  get debounce(): number {
+    if (this.metadata.debounce !== undefined)
+      return this.metadata.debounce;
+    return this.defaultDebounce;
   }
 
   get sandbox(): GLSandbox {
-    let current: ObjectSandboxParameter | SandboxParameters = this.parent;
-    while (!isSandboxParameters(current)) current = current.parent;
-    return current.sandbox;
+    let current: ObjectSandboxParameter | GLSandbox | undefined = this.parent;
+    while (current && isObjectParameter(current)) current = current.parent;
+    return current;
   }
 
   private getMetadata<T>(source: ParameterSource<GLSandbox, T>): T {
@@ -147,33 +157,34 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
     return this.getMetadata(this.metadata.pattern);
   }
 
-  get isVisible(): boolean {
+  get visible(): boolean {
     const visible = this.getMetadata(this.metadata.isVisible);
     return typeof visible === 'undefined' ? true : visible;
   }
 }
 
-class DefaultSandboxParameters implements SandboxParameters {
-  readonly parameters: SandboxParameter[];
-
-  constructor(readonly sandbox: GLSandbox, readonly onchange?: ParameterChangeListener) {
-    this.parameters = createParameters(sandbox.parameters, this, onchange);
-  }
-}
-
 class DefaultObjectParameter extends AbstractSandboxParameter implements ObjectSandboxParameter {
   readonly type = 'object';
+  readonly json: boolean;
   private _parameters: SandboxParameter[];
 
   constructor(
     name: string,
     container: any,
-    parent: ObjectSandboxParameter | SandboxParameters,
+    parent: GLSandbox | ObjectSandboxParameter,
     metadata: ControlMetadata,
     onchange?: ParameterChangeListener
   ) {
-    super(name, container, parent, metadata, onchange);
-    this._parameters = createParameters(this.value, this);
+    super(name, container, parent, metadata, onchange, 0);
+    const value = container[name];
+
+    const objectMetadata = getObjectMetadata(value);
+    this.json = metadata.json == true || objectMetadata.json === true;
+    if (this.json) {
+      this._parameters = [new DefaultSandboxParameter('json', name, container, parent, {}, onchange)];
+    } else {
+      this._parameters = createParameters(container[name], parent, onchange);
+    }
   }
 
   get parameters(): SandboxParameter[] {
@@ -192,11 +203,12 @@ class DefaultSandboxParameter extends AbstractSandboxParameter implements Sandbo
     readonly type: SandboxParameterType,
     name: string,
     container: any,
-    parent: ObjectSandboxParameter | SandboxParameters,
+    parent: ObjectSandboxParameter | GLSandbox,
     metadata: ControlMetadata,
-    onchange?: ParameterChangeListener
+    onchange?: ParameterChangeListener,
+    defaultDebounce = 100
   ) {
-    super(name, container, parent, metadata, onchange);
+    super(name, container, parent, metadata, onchange, defaultDebounce);
   }
 }
 
@@ -205,10 +217,11 @@ class ChoiceSandboxParameter extends AbstractSandboxParameter implements Choices
 
   constructor(name: string,
               container: any,
-              parent: ObjectSandboxParameter | SandboxParameters,
+              parent: ObjectSandboxParameter | GLSandbox,
               metadata: ControlMetadata,
-              onchange?: ParameterChangeListener) {
-    super(name, container, parent, metadata, onchange);
+              onchange?: ParameterChangeListener,
+              defaultDebounce= 100) {
+    super(name, container, parent, metadata, onchange, defaultDebounce);
     if (!metadata.choices) throw new Error("No choices in metadata");
   }
 
@@ -220,7 +233,7 @@ class ChoiceSandboxParameter extends AbstractSandboxParameter implements Choices
 function createParameter(
   obj: any,
   name: string,
-  parent: ObjectSandboxParameter | SandboxParameters,
+  parent: ObjectSandboxParameter | GLSandbox,
   onchange?: ParameterChangeListener
 ): SandboxParameter {
   const value = obj[name];
@@ -233,7 +246,7 @@ function createParameter(
 
 function createParameters(
   object: any,
-  parent: ObjectSandboxParameter | SandboxParameters,
+  parent: ObjectSandboxParameter | GLSandbox,
   onchange?: ParameterChangeListener
 ): SandboxParameter[] {
   return Object.keys(object).map(key => createParameter(object, key, parent, onchange));
@@ -246,11 +259,13 @@ function resolveParameterType(value: any, metadata: ControlMetadata): SandboxPar
     case 'string':
       return 'string';
     case 'number':
-      return isRangeMeta(metadata) ? 'range' : 'number';
+      return metadata.color === true ? 'color' : isRangeMeta(metadata) ? 'range' : 'number';
     case 'boolean':
       return 'boolean';
     case 'object':
-      return Array.isArray(value) ? 'array' : 'object';
+      if (metadata.json) return 'json';
+      // keep in mind : handle array here
+      return 'object';
     default:
       throw new Error('Unhandled parameter type ' + valueType);
   }

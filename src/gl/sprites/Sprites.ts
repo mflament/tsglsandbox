@@ -1,13 +1,13 @@
-import { mat4, vec2 } from 'gl-matrix';
-import { BufferUsage, DrawMode } from '../buffers/BufferEnums';
-import { UniformBuffer } from '../buffers/UniformBuffer';
-import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
-import { InstancedDrawable } from '../drawable/GLDrawable';
-import { AbstractDeletable, Bindable } from '../GLUtils';
-import { SandboxContainer } from '../sandbox/GLSandbox';
-import { Program } from '../shader/Program';
-import { Sprite } from './Sprite';
-import { TextureAtlas } from './TextureAtlas';
+import {mat4, vec2} from 'gl-matrix';
+import {BufferUsage, DrawMode} from '../buffers/BufferEnums';
+import {UniformBuffer} from '../buffers/UniformBuffer';
+import {BufferAttribute, VertexBuffer} from '../buffers/VertexBuffer';
+import {InstancedDrawable} from '../drawable/GLDrawable';
+import {AbstractDeletable, Bindable} from '../GLUtils';
+import {SandboxContainer} from '../sandbox/GLSandbox';
+import {Program} from '../shader/Program';
+import {Sprite} from './Sprite';
+import {TextureAtlas} from './TextureAtlas';
 
 interface SpritesVertexAttributes {
   a_vertexPos: BufferAttribute;

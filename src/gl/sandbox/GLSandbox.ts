@@ -22,14 +22,15 @@ export interface SandboxContainer {
   updateControls(): void;
 }
 
-export type SandboxFactory<P = any> = (container: SandboxContainer, name: string) => Promise<GLSandbox<P>>;
+export type SandboxFactory<P = any> = (container: SandboxContainer, name: string, parameters?: P) => Promise<GLSandbox<P>>;
 
 export interface GLSandbox<P = any> {
   readonly container: SandboxContainer;
   readonly name: string;
   readonly defaultParameters: P;
   readonly displayName?: string;
-  readonly customControls?: JSX.Element;
+
+  readonly controls?: JSX.Element;
 
   parameters: P;
 

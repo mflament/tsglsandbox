@@ -8,3 +8,4 @@ export * from './sandboxes/test/QuadTreeTest';
 export * from './sandboxes/test/TestSandbox';
 export * from './sandboxes/tsp/TSP';
 export * from './sandboxes/test/TestThreeSandbox';
+export * from './sandboxes/planetgen/PlanetGeneratorSandbox';

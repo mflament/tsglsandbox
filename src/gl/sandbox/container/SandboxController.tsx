@@ -1,12 +1,10 @@
 import React, {Component, ReactNode, RefObject} from 'react';
 import {RenderPanel} from './RenderPanel';
 import {GLSandbox, SandboxContainer, SandboxFactories} from '../GLSandbox';
-import {hashLocation, LOGGER} from 'utils';
+import {hashLocation} from 'utils';
 import {ProgramLoader} from '../../shader/ProgramLoader';
 import {GLCanvas} from './GLCanvas';
 import {SandboxSelect} from './SandboxSelect';
-import {ParameterControls} from './parameters/ParameterControls';
-import {createSandboxParameters, ParameterChangeListener} from '../SandboxParameter';
 import {SandboxStorage, StoredState} from './SandboxStorage';
 
 interface ContainerProps {
@@ -19,9 +17,20 @@ interface SandboxControllerState extends StoredState {
   loading?: boolean;
 }
 
+interface ParsedHash {
+  sandboxName?: string;
+}
+
+function parseHash(): ParsedHash {
+  const hash = hashLocation.path;
+  const matches = hash.match(/\/?(\w+).*/);
+  return {sandboxName: matches ? matches[1] : undefined};
+}
+
 export class SandboxController extends Component<ContainerProps, SandboxControllerState> implements SandboxContainer {
   private readonly storage = new SandboxStorage();
-  private canvasRef: RefObject<GLCanvas>;
+  private readonly canvasRef: RefObject<GLCanvas>;
+  private readonly controlPanelRef: RefObject<ControlPanel>;
 
   private _programLoader?: ProgramLoader;
 
@@ -32,6 +41,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   constructor(props: ContainerProps) {
     super(props);
     this.canvasRef = React.createRef();
+    this.controlPanelRef = React.createRef();
     this.renderFrame = this.renderFrame.bind(this);
     this.state = {
       showOverlay: true,
@@ -40,6 +50,8 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
       ...this.storage.state
     };
     window.onhashchange = () => this.hashChanged();
+    window.onkeydown = (e: KeyboardEvent) => this.onKeyDown(e);
+    window.onkeyup = (e: KeyboardEvent) => this.onKeyUp(e);
   }
 
   get time(): number {
@@ -62,13 +74,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   render(): ReactNode {
     const sandbox = this.state.sandbox;
     return (
-      <div
-        id="glsandbox"
-        className="full-screen"
-        onKeyDown={e => this.handleKeyDown(e.nativeEvent)}
-        onKeyUp={e => this.handleKeyUp(e.nativeEvent)}
-        tabIndex={0}
-      >
+      <div id="glsandbox" className={'full-screen ' + this.sandbox?.name}>
         <RenderPanel onResize={(w, h) => this.resizeCanvas(w, h)}>
           <GLCanvas
             glAttributes={this.props.glAttributes}
@@ -82,32 +88,31 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
             getFPS={() => this._frames}
           />
         </RenderPanel>
-        <ControlPanel visible={this.state.showControls}>
+
+        <ControlPanel visible={this.state.showControls} ref={this.controlPanelRef}>
           <SandboxSelect
             sandboxes={this.sandboxNames}
             sandbox={sandbox}
             selectedName={this.state.selectedSandbox}
-            onChange={n => this.selectSandbox(n)}
-          />
+            onChange={n => this.selectSandbox(n)}/>
           <SandboxHeader sandbox={sandbox} onReset={() => this.resetParameters()} onShare={() => this.shareSandbox()}/>
           <hr/>
-          <SandboxPanel sandbox={this.state.sandbox} onchange={() => this.paramChanged()}/>
+          {sandbox?.controls}
         </ControlPanel>
       </div>
     );
   }
 
-  componentDidMount(): void {
+  async componentDidMount(): Promise<void> {
     self.onbeforeunload = () => this.unload();
-    this.selectSandbox(this.state.selectedSandbox);
+    await this.selectSandbox(this.state.selectedSandbox);
     requestAnimationFrame(this.renderFrame);
   }
 
-  private unload(): void {
-    this.saveSandbox();
-    const sandbox = this.state.sandbox;
-    sandbox?.delete && sandbox.delete();
-    if (this.programLoader) this.programLoader.delete();
+  updateControls(): void {
+    const cp = this.controlPanelRef.current;
+    if (cp)
+      cp.forceUpdate();
   }
 
   private renderFrame(time: number): void {
@@ -147,21 +152,11 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     );
   }
 
-  private async loadSandbox(name: string): Promise<void> {
-    const factory = this.sandboxes[name];
-    if (!factory) return;
-
-    const sandbox = await factory(this, name);
-    const storedParams = this.storage.getSandboxParameters(name);
-    if (storedParams) {
-      sandbox.parameters = storedParams;
-    }
-    sandbox.onresize && sandbox.onresize({width: this.canvas.width, height: this.canvas.height});
-    this.setState({sandbox: sandbox, loading: undefined});
-  }
-
-  updateControls(): void {
-    this.forceUpdate();
+  private unload(): void {
+    this.saveSandbox();
+    const sandbox = this.state.sandbox;
+    sandbox?.delete && sandbox.delete();
+    if (this.programLoader) this.programLoader.delete();
   }
 
   private resetParameters(): void {
@@ -172,7 +167,33 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   }
 
   private shareSandbox(): void {
-    LOGGER.info('shareSandbox');
+    const sandbox = this.sandbox;
+    if (sandbox) {
+      const json = JSON.stringify(sandbox.parameters);
+      console.log('initial json ' + json);
+    }
+  }
+
+  private async hashChanged(): Promise<void> {
+    const parsedHash = parseHash();
+    const newName = parsedHash.sandboxName || this.sandboxNames[0];
+    if (newName !== this.state.selectedSandbox) {
+      if (this.sandboxes[newName]) {
+        await this.selectSandbox(newName);
+      } else {
+        window.location.hash = this.state.selectedSandbox;
+      }
+    }
+  }
+
+  private async loadSandbox(name: string): Promise<void> {
+    const factory = this.sandboxes[name];
+    if (!factory) return;
+
+    const storedParams = this.storage.getSandboxParameters(name);
+    const sandbox = await factory(this, name, storedParams);
+    sandbox.onresize && sandbox.onresize({width: this.canvas.width, height: this.canvas.height});
+    this.setState({sandbox: sandbox, loading: undefined});
   }
 
   private saveSandbox(): void {
@@ -185,17 +206,6 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     if (sandbox) this.storage.setSandboxParameters(sandbox);
   }
 
-  private async hashChanged(): Promise<void> {
-    let tag = hashLocation.path;
-    if (tag.startsWith('/')) tag = tag.substring(1);
-    LOGGER.debug(tag);
-  }
-
-  private paramChanged(): void {
-    const sandbox = this.sandbox;
-    sandbox?.onparameterchange && sandbox.onparameterchange();
-  }
-
   private get sandboxNames(): string[] {
     return Object.keys(this.props.sandboxes);
   }
@@ -204,7 +214,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     return this.state.sandbox;
   }
 
-  private handleKeyDown(evt: KeyboardEvent): void {
+  private onKeyDown(evt: KeyboardEvent): void {
     const sandbox = this.sandbox;
     if (!sandbox) return;
 
@@ -223,6 +233,11 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     }
   }
 
+  private onKeyUp(evt: KeyboardEvent): void {
+    const sandbox = this.sandbox;
+    if (sandbox?.eventHandler?.onkeyup) sandbox.eventHandler.onkeyup(evt);
+  }
+
   private static nextControlsState(state: SandboxControllerState): SandboxControllerState {
     const showOverlay = !(state.showOverlay && state.showControls);
     const showControls = state.showOverlay && showOverlay;
@@ -231,11 +246,6 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
       showOverlay: showOverlay,
       showControls: showControls
     };
-  }
-
-  private handleKeyUp(evt: KeyboardEvent): void {
-    const sandbox = this.sandbox;
-    if (sandbox?.eventHandler?.onkeyup) sandbox.eventHandler.onkeyup(evt);
   }
 
   private resizeCanvas(width: number, height: number): void {
@@ -324,45 +334,28 @@ class ControlPanel extends Component<{ visible: boolean }> {
   render(): JSX.Element {
     return (
       <div ref={this._panelRef} className="control-panel hidden">
-        <div className="control-panel-content">{this.props.children}</div>
+        <div className="control-panel-content parameters-table">{this.props.children}</div>
       </div>
     );
   }
 
   componentDidMount(): void {
-    this.updateMargin();
+    const div = this._panelRef.current;
+    if (div) {
+      this.updateMargin(div);
+      setTimeout(() => div.classList.remove('hidden'), 100);
+    }
   }
 
   componentDidUpdate(): void {
-    this.updateMargin();
-  }
-
-  private updateMargin(): void {
     const div = this._panelRef.current;
-    if (div) {
-      const width = div.getBoundingClientRect().width;
-      div.style.marginRight = this.props.visible ? '' : -width + 'px';
-      setTimeout(() => div.classList.remove('hidden'), 10);
-    }
+    div && this.updateMargin(div);
   }
-}
 
-function SandboxPanel(props: { sandbox?: GLSandbox; onchange?: ParameterChangeListener }): JSX.Element {
-  const sandbox = props.sandbox;
-  if (!sandbox) return <></>;
-  const sbp = createSandboxParameters(sandbox, props.onchange);
-  return (
-    <>
-      <ParameterControls parameters={sbp.parameters}/>
-      <CustomControls sandbox={sandbox}/>
-    </>
-  );
-}
-
-function CustomControls(props: { sandbox: GLSandbox }): JSX.Element {
-  const cc = props.sandbox.customControls;
-  if (cc) return <div className={'custom-controls ' + props.sandbox.name}>{cc}</div>;
-  else return <></>;
+  private updateMargin(div: HTMLDivElement): void {
+    const width = div.getBoundingClientRect().width;
+    div.style.marginRight = this.props.visible ? '' : -width + 'px';
+  }
 }
 
 function SandboxHeader(props: { sandbox?: GLSandbox; onReset: () => void; onShare: () => void }): JSX.Element {

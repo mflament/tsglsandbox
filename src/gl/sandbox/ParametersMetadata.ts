@@ -2,7 +2,7 @@ import {GLSandbox} from './GLSandbox';
 
 export type ParametersMetadata<T, S extends GLSandbox = GLSandbox> = {
   [name in keyof T]?: ControlMetadata<S>;
-};
+} & { self?: ControlMetadata };
 
 export type WithMetadata<T> = {
   metadata?: ParametersMetadata<T>;
@@ -18,10 +18,13 @@ export interface ControlMetadata<S extends GLSandbox = GLSandbox> {
   min?: ParameterSource<S, number>;
   max?: ParameterSource<S, number>;
   step?: ParameterSource<S, number>;
+  json?: boolean;
   range?: boolean;
+  color?: boolean;
   choices?: ParameterSource<S, Choices>;
   pattern?: ParameterSource<S, string>;
   isVisible?: ParameterSource<S, boolean>;
+  debounce?: number;
 }
 
 export interface RangeParameterMetadata<S extends GLSandbox = GLSandbox> extends ControlMetadata<S> {
@@ -55,7 +58,13 @@ export function getParameterMetadata<T>(obj: WithMetadata<T>, name: keyof T): Co
   return res || {};
 }
 
-function setPropMetadata<T>(obj: WithMetadata<T>, name: keyof T, value: ControlMetadata) {
+export function getObjectMetadata<T>(obj: WithMetadata<T>): ControlMetadata {
+  const proto = Object.getPrototypeOf(obj);
+  return proto.constructor.metadata?.self || {};
+}
+
+function setPropMetadata<T>(obj: WithMetadata<T>, name: keyof T | undefined, value: ControlMetadata) {
   obj.metadata = obj.metadata || {};
-  obj.metadata[name] = value;
+  if (name) obj.metadata[name] = value as any;
+  else obj.metadata.self = value;
 }

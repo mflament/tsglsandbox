@@ -1,8 +1,8 @@
-import { createShaderLoader, ShaderLoader } from './ShaderLoader';
-import { AbstractDeletable, LOGGER } from '../GLUtils';
-import { Varyings, VaryingBufferMode, Program, ProgramLocations } from './Program';
-import { CompiledShadersCache } from './CompiledShadersCache';
-import { Shader, ShaderType } from './Shader';
+import {createShaderLoader, ShaderLoader} from './ShaderLoader';
+import {AbstractDeletable, LOGGER} from '../GLUtils';
+import {Program, ProgramLocations, VaryingBufferMode, Varyings} from './Program';
+import {CompiledShadersCache} from './CompiledShadersCache';
+import {Shader, ShaderType} from './Shader';
 import Path from '../../utils/Path';
 
 export class ProgramLoader extends AbstractDeletable {

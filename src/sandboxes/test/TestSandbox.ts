@@ -1,12 +1,12 @@
 import {
   AbstractGLSandbox,
-  SandboxContainer,
-  SandboxFactory,
-  Program,
-  IndexedDrawable,
   GLTexture2D,
+  IndexedDrawable,
   newQuadDrawable,
-  quadProgram
+  Program,
+  quadProgram,
+  SandboxContainer,
+  SandboxFactory
 } from 'gl';
 
 class TestUniforms {
@@ -27,7 +27,7 @@ class TestSandbox extends AbstractGLSandbox {
   readonly texture: GLTexture2D;
 
   constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<TestUniforms>) {
-    super(container, name, {});
+    super(container, name);
     const gl = container.canvas.gl;
     this.texture = new GLTexture2D(gl)
       .activate(0)
@@ -37,6 +37,10 @@ class TestSandbox extends AbstractGLSandbox {
     renderProgram.use();
     gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
     this.quadBuffers = newQuadDrawable(gl).bind();
+  }
+
+  createDefaultParameters(): any {
+    return {};
   }
 
   render(): void {

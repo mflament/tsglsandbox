@@ -2,7 +2,10 @@ import React, {Component} from 'react';
 import {
   BooleanSandboxParameter,
   ChoicesSandboxParameter,
+  ColorSandboxParameter,
+  JSONSandboxParameter,
   NumberSandboxParameter,
+  ObjectSandboxParameter,
   RangeSandboxParameter,
   SandboxParameter,
   StringSandboxParameter
@@ -12,6 +15,9 @@ import {RangeParameterControl} from './RangeParameterControl';
 import {StringParameterControl} from './StringParameterControl';
 import {BooleanParameterControl} from './BooleanParameterControl';
 import {ChoiceParameterControl} from "./ChoiceParameterControl";
+import {ObjectParameterControl} from "./ObjectParameterControl";
+import {ColorParameterControl} from "./ColorParameterControl";
+import {JSONParameterControl} from "./JSONParameterControl";
 
 interface ParameterControlsProps {
   parameters: SandboxParameter[];
@@ -22,7 +28,10 @@ export type SupportedParameterTypes =
   | RangeSandboxParameter
   | StringSandboxParameter
   | BooleanSandboxParameter
-  | ChoicesSandboxParameter;
+  | ChoicesSandboxParameter
+  | ObjectSandboxParameter
+  | ColorSandboxParameter
+  | JSONSandboxParameter;
 
 export function isSupported(parameter: SandboxParameter): parameter is SupportedParameterTypes {
   return (
@@ -30,18 +39,21 @@ export function isSupported(parameter: SandboxParameter): parameter is Supported
     parameter.type === 'range' ||
     parameter.type === 'string' ||
     parameter.type === 'boolean' ||
-    parameter.type === 'choices'
+    parameter.type === 'choices' ||
+    parameter.type === 'object' ||
+    parameter.type === 'color' ||
+    parameter.type === 'json'
   );
 }
 
-export class ParameterControls extends Component<ParameterControlsProps> {
+export class ParametersControls extends Component<ParameterControlsProps> {
   constructor(props: ParameterControlsProps) {
     super(props);
   }
 
   render(): JSX.Element {
     const parameters = this.props.parameters;
-    return <>{parameters.map(p => ParameterControls.renderParameter(p))}</>;
+    return <>{parameters.map(p => ParametersControls.renderParameter(p))}</>;
   }
 
   private static renderParameter(parameter: SandboxParameter): JSX.Element {
@@ -51,7 +63,7 @@ export class ParameterControls extends Component<ParameterControlsProps> {
         <div className="unsupported">TODO</div>
       </>;
     }
-
+    if(!parameter.visible) return <></>;
     switch (parameter.type) {
       case 'number':
         return <NumberParameterControl parameter={parameter}/>;
@@ -63,6 +75,12 @@ export class ParameterControls extends Component<ParameterControlsProps> {
         return <BooleanParameterControl parameter={parameter}/>;
       case 'choices':
         return <ChoiceParameterControl parameter={parameter}/>;
+      case 'object':
+        return <ObjectParameterControl parameter={parameter}/>;
+      case 'color':
+        return <ColorParameterControl parameter={parameter}/>;
+      case 'json':
+        return <JSONParameterControl parameter={parameter}/>
     }
   }
 }

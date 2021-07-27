@@ -1,5 +1,5 @@
-import {activations} from './Activation';
-import {DefaultRNN, newMatrix} from './RNN';
+import {activations} from '../../src/rnn/Activation';
+import {DefaultRNN, newMatrix} from '../../src/rnn/RNN';
 
 test('create RNN from layers sizes', () => {
   const rnn = DefaultRNN.create({layers: [2, 4, 3]});

@@ -1,13 +1,13 @@
-import { Noise } from 'utils';
-import { RidgidNoiseFilterSettings, SimpleNoiseFilterSettings, NoiseFilterSettings } from './NoiseSettings';
-import { vec3 } from 'gl-matrix';
+import {Noise} from 'random';
+import {NoiseFilterSettings, RigidNoiseFilterSettings, SimpleNoiseFilterSettings} from './NoiseSettings';
+import {vec3} from 'gl-matrix';
 
 const noiseInput = vec3.create();
 
 export type NoiseFilter = (point: vec3) => number;
 
 function createCenter(settings: NoiseFilterSettings): vec3 {
-  return vec3.set(vec3.create(), settings.center.x, settings.center.y, settings.center.z);
+  return vec3.copy(vec3.create(), settings.center);
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -33,7 +33,7 @@ export const makeSimpleNoiseFilter = (settings: SimpleNoiseFilterSettings, noise
   };
 };
 
-export const makeRidgidNoiseFilter = (settings: RidgidNoiseFilterSettings, noise3D: Noise<vec3>): NoiseFilter => {
+export const makeRidgidNoiseFilter = (settings: RigidNoiseFilterSettings, noise3D: Noise<vec3>): NoiseFilter => {
   const center = createCenter(settings);
   return (point: vec3): number => {
     let value = 0;

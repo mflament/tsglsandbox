@@ -58,12 +58,12 @@ class RenderUniforms {
 }
 
 class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
-  static async create(container: SandboxContainer, name: string): Promise<FlowersSandbox> {
+  static async create(container: SandboxContainer, name: string, parameters?: FlowerParameters): Promise<FlowersSandbox> {
     const renderProgram = await quadProgram(container.programLoader, {
       fspath: 'flowers/render-flowers.fs.glsl',
       uniformLocations: new RenderUniforms()
     });
-    return new FlowersSandbox(container, name, renderProgram);
+    return new FlowersSandbox(container, name, renderProgram, parameters);
   }
 
   private readonly inputs: FlowersInputs;
@@ -76,8 +76,8 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
   private currentParameters?: FlowerParameters;
   private dirty = true;
 
-  constructor(container: SandboxContainer, name: string, readonly renderProgram: QuadProgram<RenderUniforms>) {
-    super(container, name, new FlowerParameters());
+  constructor(container: SandboxContainer, name: string, readonly renderProgram: QuadProgram<RenderUniforms>, parameters?: FlowerParameters) {
+    super(container, name, parameters);
     this.flowersTexture = new FlowersTexture(this.gl, 0);
     this.quad = newQuadDrawable(this.gl).bind();
     renderProgram.use();
@@ -90,15 +90,18 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
     this.onparameterchange();
   }
 
-  get customControls(): JSX.Element {
+  createDefaultParameters(): FlowerParameters {
+    return new FlowerParameters();
+  }
+
+  protected createControls(): JSX.Element {
     if (!this.rnn) return <></>;
-    return (
-      <NetworkControls
-        network={this.rnn}
-        ref={this.customControlsRef}
-        onchange={() => (this.dirty = true)}
-      />
-    );
+    return <>
+      {super.createControls()}
+      <NetworkControls network={this.rnn}
+                       ref={this.customControlsRef}
+                       onchange={() => (this.dirty = true)}/>
+    </>
   }
 
   render(): void {
@@ -178,13 +181,13 @@ class NetworkControls extends Component<NeworkControlsProps, { accuracy: number 
       <LayerControls layerIndex={index} network={this.props.network} onchange={this.props.onchange}/>
     ));
     return (
-      <>
+      <div className="rnn-controls row">
         <div className="rnn-accuracy">
           <label>Accuracy</label>
           <span>{(this.state.accuracy * 100).toFixed(1) + '%'}</span>
         </div>
         {layers}
-      </>
+      </div>
     );
   }
 

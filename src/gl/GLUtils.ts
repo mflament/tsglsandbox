@@ -1,4 +1,4 @@
-import { LOGGER } from '../utils/Logger';
+import {LOGGER} from '../utils/Logger';
 
 export interface Bindable {
   bind(): Bindable;

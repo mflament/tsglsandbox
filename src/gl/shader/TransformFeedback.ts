@@ -1,6 +1,7 @@
-import { TransformFeedbackDrawMode } from '../buffers/BufferEnums';
-import { VertexBuffer } from '../buffers/VertexBuffer';
-import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
+import {TransformFeedbackDrawMode} from '../buffers/BufferEnums';
+import {VertexBuffer} from '../buffers/VertexBuffer';
+import {AbstractDeletable, Bindable, checkNull} from '../GLUtils';
+
 export class TransformFeedback extends AbstractDeletable implements Bindable {
   private readonly transformFeedback: WebGLTransformFeedback;
 

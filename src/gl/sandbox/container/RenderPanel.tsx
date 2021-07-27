@@ -1,4 +1,4 @@
-import React, { Component, ReactNode, RefObject } from 'react';
+import React, {Component, ReactNode, RefObject} from 'react';
 
 interface RenderPanelProps {
   onResize(width: number, height: number): void;
@@ -39,6 +39,3 @@ export class RenderPanel extends Component<RenderPanelProps> {
     this.props.onResize(rect.width, rect.height);
   }
 }
-
-// export class CanvasOverlay extends Component<RenderPanelProps> {
-// }

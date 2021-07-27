@@ -1,5 +1,5 @@
-import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
-import { GLTexture2D } from '../texture/GLTexture';
+import {AbstractDeletable, Bindable, checkNull} from '../GLUtils';
+import {GLTexture2D} from '../texture/GLTexture';
 
 const FRAMEBUFFER = WebGL2RenderingContext.FRAMEBUFFER;
 

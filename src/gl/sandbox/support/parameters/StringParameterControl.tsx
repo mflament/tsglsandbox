@@ -1,21 +1,22 @@
-import React, { ChangeEvent } from 'react';
-import { StringSandboxParameter } from '../../SandboxParameter';
-import { AbstractParameterControl, ControlProps } from './AbstractParameterControl';
+import React, {ChangeEvent} from 'react';
+import {StringSandboxParameter} from '../../SandboxParameter';
+import {AbstractParameterControl, ControlProps} from './AbstractParameterControl';
 
 export class StringParameterControl extends AbstractParameterControl<StringSandboxParameter> {
   constructor(props: ControlProps<StringSandboxParameter>) {
     super(props);
   }
 
-  protected renderInput(): JSX.Element {
+  protected renderInput(value: string): JSX.Element {
     const param = this.props.parameter;
     return (
       <input
         type="string"
+        className={param.type}
         minLength={param.min}
         maxLength={param.max}
         pattern={param.pattern}
-        value={param.value}
+        value={value}
         onChange={e => this.onChange(e)}
       />
     );

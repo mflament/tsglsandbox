@@ -7,9 +7,9 @@ import {
   TextureMinFilter,
   TextureWrappingMode
 } from 'gl';
-import { AbstractDeletable } from '../../gl/GLUtils';
+import {AbstractDeletable} from '../../gl/GLUtils';
 
-import { Boid } from './Boid';
+import {Boid} from './Boid';
 
 export const TEXTURE_UNITS = {
   data: 0

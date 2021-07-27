@@ -1,6 +1,6 @@
-import { VertexArray, AttributeLocations } from './VertextArray';
-import { AbstractDeletable, Bindable } from '../GLUtils';
-import { DrawMode, IndexBuffer, IndexBufferType, VertexBuffer } from 'gl';
+import {AttributeLocations, VertexArray} from './VertextArray';
+import {AbstractDeletable, Bindable} from '../GLUtils';
+import {DrawMode, IndexBuffer, IndexBufferType, VertexBuffer} from 'gl';
 
 interface VertexBufferParameter<V = any> {
   buffer: VertexBuffer<V>;

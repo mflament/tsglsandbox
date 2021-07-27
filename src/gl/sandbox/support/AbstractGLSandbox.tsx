@@ -1,24 +1,45 @@
-import { vec2, vec4 } from 'gl-matrix';
-import { AbstractDeletable, isDeletable } from '../../GLUtils';
-import { GLSandbox, SandboxCanvas, SandboxContainer } from '../GLSandbox';
-import { ActionHandler, ActionsRegistry, DefaultActionRegistry, SandboxEventHandler } from '../ActionManager';
+import {vec2, vec4} from 'gl-matrix';
+import {AbstractDeletable, isDeletable} from '../../GLUtils';
+import {GLSandbox, SandboxCanvas, SandboxContainer} from '../GLSandbox';
+import {ActionHandler, ActionsRegistry, DefaultActionRegistry, SandboxEventHandler} from '../ActionManager';
+import React from "react";
+import {createSandboxParameters} from "../SandboxParameter";
+import {ParametersControls} from "./parameters/ParametersControls";
 
 export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable implements GLSandbox<P> {
+  readonly defaultParameters: P;
   private _running = false;
   ups = 60;
-  private _parameters: P;
+  private readonly _parameters: P;
   private readonly actionRegistry: ActionsRegistry;
+  private _controls?: JSX.Element;
 
-  constructor(readonly container: SandboxContainer, readonly name: string, readonly defaultParameters: P) {
+  protected constructor(readonly container: SandboxContainer, readonly name: string, parameters?: P) {
     super();
-    const prototype = Object.getPrototypeOf(defaultParameters);
+
+    this.defaultParameters = this.createDefaultParameters();
+    const prototype = Object.getPrototypeOf(this.defaultParameters);
     this._parameters = new prototype.constructor();
-    deepClone(defaultParameters, this._parameters);
+    deepClone(parameters || this.defaultParameters, this._parameters);
+
     this.actionRegistry = new DefaultActionRegistry();
     this.actionRegistry.register({
       id: 'fallback',
       eventHandler: this as ActionHandler
     });
+  }
+
+  abstract createDefaultParameters(): P;
+
+  get controls(): JSX.Element | undefined {
+    if (!this._controls)
+      this._controls = this.createControls();
+    return this._controls;
+  }
+
+  protected createControls(): JSX.Element {
+    const sbp = createSandboxParameters(this, () => this.onparameterchange());
+    return <ParametersControls parameters={sbp.parameters}/>
   }
 
   abstract render(): void;
@@ -86,7 +107,7 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
       y = e.offsetY;
     } else {
       x = e.touches[0].clientX;
-      y = e.touches[0].clientX;
+      y = e.touches[0].clientY;
     }
     vec2.set(out, (x / this.canvas.width) * 2 - 1, (1 - y / this.canvas.height) * 2 - 1);
     return out;
@@ -95,14 +116,26 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
 
 function deepClone(src: any, dst: any): any {
   if (Array.isArray(src)) {
-    const dstar = dst as any[];
-    dstar.splice(0, dstar.length, ...src);
+    const dstarray = dst as any[];
+    dstarray.splice(0, dstarray.length, ...src);
+    return dst;
   } else if (typeof src === 'object') {
     Object.keys(src)
       .filter(k => dst[k] !== undefined && typeof dst[k] === typeof src[k])
       .forEach(k => (dst[k] = deepClone(src[k], dst[k])));
-  } else {
-    dst = src;
+    return dst;
   }
-  return dst;
+  return  src;
 }
+
+// function SandboxPanel(props: { sandbox?: GLSandbox; onchange?: ParameterChangeListener }): JSX.Element {
+//   const sandbox = props.sandbox;
+//   if (!sandbox) return <></>;
+//   const sbp = createSandboxParameters(sandbox, props.onchange);
+//   return (
+//     <>
+//       <ParametersControls parameters={sbp.parameters}/>
+//       <CustomControls sandbox={sandbox}/>
+//     </>
+//   );
+// }

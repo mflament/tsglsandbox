@@ -1,17 +1,17 @@
 import {
   AbstractGLSandbox,
-  SandboxContainer,
-  SandboxFactory,
-  newQuadDrawable,
-  Program,
   GLTexture2D,
   IndexedDrawable,
+  newQuadDrawable,
   NoiseTextureGenerator,
-  quadProgram
+  Program,
+  quadProgram,
+  SandboxContainer,
+  SandboxFactory
 } from 'gl';
-import { control } from '../../gl/sandbox/ParametersMetadata';
-import { NoiseParameters } from '../../gl/texture/NoiseTextureGenerator';
-import { randomSimplexSeed } from '../../random/noise/SimplexNoise';
+import {control} from '../../gl/sandbox/ParametersMetadata';
+import {NoiseParameters} from '../../gl/texture/NoiseTextureGenerator';
+import {randomSimplexSeed} from '../../random/noise/SimplexNoise';
 
 class NoiseUniforms {
   u_sampler: WebGLUniformLocation | null = null;
@@ -28,12 +28,12 @@ class NoiseSandboxParameters {
 }
 
 class NoiseSandbox extends AbstractGLSandbox<NoiseSandboxParameters> {
-  static async create(container: SandboxContainer, name: string): Promise<NoiseSandbox> {
+  static async create(container: SandboxContainer, name: string, parameters?: NoiseSandboxParameters): Promise<NoiseSandbox> {
     const program = await quadProgram(container.programLoader, {
       fspath: 'test/noise.fs.glsl',
       uniformLocations: new NoiseUniforms()
     });
-    return new NoiseSandbox(container, name, program);
+    return new NoiseSandbox(container, name, program, parameters);
   }
 
   private readonly quadBuffers: IndexedDrawable;
@@ -41,13 +41,17 @@ class NoiseSandbox extends AbstractGLSandbox<NoiseSandboxParameters> {
   private readonly generator: NoiseTextureGenerator;
   private readonly seed = randomSimplexSeed();
 
-  constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<NoiseUniforms>) {
-    super(container, name, new NoiseSandboxParameters());
+  constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<NoiseUniforms>, parameters?: NoiseSandboxParameters) {
+    super(container, name, parameters);
     this.generator = new NoiseTextureGenerator(this.gl);
     renderProgram.use();
     this.gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);
     this.quadBuffers = newQuadDrawable(this.gl).bind();
     this.texture = this.generator.create(this.generatorParameters).activate(0).bind();
+  }
+
+  createDefaultParameters(): NoiseSandboxParameters {
+    return new NoiseSandboxParameters();
   }
 
   private get generatorParameters(): NoiseParameters {

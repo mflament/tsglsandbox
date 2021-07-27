@@ -1,6 +1,6 @@
-import { Program, ProgramLoader, quadProgram } from 'gl';
-import { AbstractDeletable } from '../../gl/GLUtils';
-import { TEXTURE_UNITS } from './BoidTextures';
+import {Program, ProgramLoader, quadProgram} from 'gl';
+import {AbstractDeletable} from '../../gl/GLUtils';
+import {TEXTURE_UNITS} from './BoidTextures';
 
 export class BoidsUniforms {
   // sampler2D [boids, 1 ] xy: pos , zw: velocity
