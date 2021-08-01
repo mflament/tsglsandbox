@@ -1,4 +1,4 @@
-import React, {RefObject} from 'react';
+import React from 'react';
 import {vec2, vec4} from 'gl-matrix';
 import {
   AbstractGLSandbox,
@@ -33,7 +33,7 @@ type MappedDrawable = {
 
 class QuadTreeTestSandbox extends AbstractGLSandbox {
   static async create(container: SandboxContainer, name: string): Promise<QuadTreeTestSandbox> {
-    const program = await container.programLoader.load({ path: 'test/quadtree.glsl' });
+    const program = await container.programLoader.load({path: 'test/quadtree.glsl'});
     return new QuadTreeTestSandbox(container, name, program);
   }
 
@@ -47,7 +47,8 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
   private _selbounds?: AABB;
   private _clickPos?: vec2;
   private readonly _currentPos: vec2 = [0, 0];
-  private readonly controlsRef: RefObject<HTMLDivElement> = React.createRef();
+
+  // private readonly controlsRef: RefObject<HTMLDivElement> = React.createRef();
 
   constructor(container: SandboxContainer, name: string, readonly renderProgram: Program) {
     super(container, name);
@@ -147,16 +148,9 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
     this.updateControls();
   }
 
-  get customControls(): JSX.Element {
-    return <div ref={this.controlsRef}>{this.description}</div>;
-  }
-
-  private updateControls(): void {
-    if (this.controlsRef.current) this.controlsRef.current.textContent = this.description;
-  }
-
-  private get description(): string {
-    return `${this._selbounds ? this.selpoints.buffer.count : 0} / ${this.points.buffer.count}`;
+  customControls(): JSX.Element | undefined {
+    const desc = `${this._selbounds ? this.selpoints.buffer.count : 0} / ${this.points.buffer.count}`;
+    return <div className="row">{desc}</div>;
   }
 
   private collectPoints(aabb: AABB, color: vec4): PointsBuffer {
@@ -207,8 +201,8 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
 
   private newMappedDrawable(drawMode: DrawMode): MappedDrawable {
     const vertices = new VertexBuffer<QuadTreeAttributes>(this.gl, {
-      a_position: { size: 2 },
-      a_color: { size: 4 }
+      a_position: {size: 2},
+      a_color: {size: 4}
     });
     const drawable = new GLDrawable<QuadTreeAttributes>(
       this.gl,
@@ -233,6 +227,7 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
 class PointsBuffer {
   readonly array: Float32Array;
   private _count = 0;
+
   constructor(capacity: number) {
     this.array = new Float32Array(capacity * POINT_FLOATS);
   }

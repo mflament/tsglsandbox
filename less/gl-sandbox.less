@@ -102,6 +102,24 @@ body {
       transition: none;
     }
 
+    .sandbox-title {
+      display: flex;
+      font-size: 18px;
+
+      span {
+        flex-grow: 1;
+        text-align: center;
+        display: inline-block;
+      }
+
+      img {
+        float: right;
+        height: 16px;
+        margin-left: 8px;
+        cursor: pointer;
+      }
+    }
+
     .parameters-table {
       display: grid;
       grid-template-columns: 0.5fr 1fr;
@@ -119,25 +137,7 @@ body {
     .control-panel-content {
       padding: 5px;
 
-      .sandbox-title {
-        font-size: 18px;
-        padding: 0;
-        margin: 0;
-        text-transform: capitalize;
-
-        img {
-          height: 16px;
-          margin-left: 8px;
-          cursor: pointer;
-        }
-      }
-
-      hr {
-        grid-column: span 2;
-        width: 100%;
-      }
-
-      label {
+      .capitalized {
         text-transform: capitalize;
       }
 
@@ -161,7 +161,6 @@ body {
         h2 {
           font-size: 18px;
           font-weight: bold;
-          text-transform: capitalize;
           margin: 0 0 5px 0;
           padding: 0;
         }

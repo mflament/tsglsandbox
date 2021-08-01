@@ -94,14 +94,11 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
     return new FlowerParameters();
   }
 
-  protected createControls(): JSX.Element {
-    if (!this.rnn) return <></>;
-    return <>
-      {super.createControls()}
-      <NetworkControls network={this.rnn}
-                       ref={this.customControlsRef}
-                       onchange={() => (this.dirty = true)}/>
-    </>
+  customControls(): JSX.Element | undefined {
+    if (!this.rnn) return undefined;
+    return <NetworkControls network={this.rnn}
+                            ref={this.customControlsRef}
+                            onchange={() => (this.dirty = true)}/>
   }
 
   render(): void {
@@ -449,7 +446,6 @@ class FlowerSamples {
 class FlowersTexture extends AbstractDeletable {
   readonly texture: GLTexture2D;
 
-  readonly inputs: Matrix = newMatrix(0, 2);
   readonly targets: Matrix = newMatrix(0, 2);
 
   constructor(gl: WebGL2RenderingContext, readonly textureUnit: number) {

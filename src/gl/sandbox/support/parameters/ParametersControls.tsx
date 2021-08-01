@@ -15,9 +15,9 @@ import {RangeParameterControl} from './RangeParameterControl';
 import {StringParameterControl} from './StringParameterControl';
 import {BooleanParameterControl} from './BooleanParameterControl';
 import {ChoiceParameterControl} from "./ChoiceParameterControl";
-import {ObjectParameterControl} from "./ObjectParameterControl";
 import {ColorParameterControl} from "./ColorParameterControl";
 import {JSONParameterControl} from "./JSONParameterControl";
+import {ControlProps} from "./AbstractParameterControl";
 
 interface ParameterControlsProps {
   parameters: SandboxParameter[];
@@ -83,4 +83,23 @@ export class ParametersControls extends Component<ParameterControlsProps> {
         return <JSONParameterControl parameter={parameter}/>
     }
   }
+}
+
+export class ObjectParameterControl extends Component<ControlProps<ObjectSandboxParameter>, { value: any }> {
+
+  constructor(props: ControlProps<ObjectSandboxParameter>) {
+    super(props);
+  }
+
+  render(): JSX.Element {
+    const param = this.props.parameter;
+    const headingClass = param.label ? '' : 'capitalized';
+    return <div className={param.type}>
+      <h2 className={headingClass}>{param.label || param.name}</h2>
+      <div className="parameters-table">
+        <ParametersControls parameters={param.parameters}/>
+      </div>
+    </div>;
+  }
+
 }

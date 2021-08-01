@@ -1,9 +1,8 @@
 import {vec2, vec4} from 'gl-matrix';
 import {AbstractDeletable, isDeletable} from '../../GLUtils';
 import {GLSandbox, SandboxCanvas, SandboxContainer} from '../GLSandbox';
-import {ActionHandler, ActionsRegistry, DefaultActionRegistry, SandboxEventHandler} from '../ActionManager';
-import React from "react";
-import {createSandboxParameters} from "../SandboxParameter";
+import React, {Component, RefObject} from "react";
+import {createSandboxParameters, ObjectSandboxParameter, SandboxParameter} from "../SandboxParameter";
 import {ParametersControls} from "./parameters/ParametersControls";
 
 export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable implements GLSandbox<P> {
@@ -11,38 +10,44 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
   private _running = false;
   ups = 60;
   private readonly _parameters: P;
-  private readonly actionRegistry: ActionsRegistry;
-  private _controls?: JSX.Element;
+
+  private readonly _controls: JSX.Element;
+  private readonly controlsRef: RefObject<SandboxControls>;
 
   protected constructor(readonly container: SandboxContainer, readonly name: string, parameters?: P) {
     super();
-
     this.defaultParameters = this.createDefaultParameters();
     const prototype = Object.getPrototypeOf(this.defaultParameters);
     this._parameters = new prototype.constructor();
     deepClone(parameters || this.defaultParameters, this._parameters);
-
-    this.actionRegistry = new DefaultActionRegistry();
-    this.actionRegistry.register({
-      id: 'fallback',
-      eventHandler: this as ActionHandler
-    });
+    this.controlsRef = React.createRef();
+    this._controls = this.createControls();
   }
 
   abstract createDefaultParameters(): P;
 
-  get controls(): JSX.Element | undefined {
-    if (!this._controls)
-      this._controls = this.createControls();
+  abstract render(): void;
+
+  get controls(): JSX.Element {
     return this._controls;
   }
 
-  protected createControls(): JSX.Element {
-    const sbp = createSandboxParameters(this, () => this.onparameterchange());
-    return <ParametersControls parameters={sbp.parameters}/>
+  updateControls(): void {
+    const controls = this.controlsRef.current;
+    if (controls) controls.forceUpdate();
   }
 
-  abstract render(): void;
+  customControls(): JSX.Element | undefined {
+    return undefined;
+  }
+
+  onparameterchange(_p?: SandboxParameter): void {
+    // no op
+  }
+
+  protected createControls(): JSX.Element {
+    return <SandboxControls ref={this.controlsRef} sandbox={this}/>;
+  }
 
   protected clear(color: vec4 = [0, 0, 0, 1], mask = WebGL2RenderingContext.COLOR_BUFFER_BIT): void {
     this.gl.colorMask(true, true, true, true);
@@ -50,21 +55,17 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
     this.gl.clear(mask);
   }
 
-  onparameterchange(): void {
-    // noop
-  }
-
   get parameters(): P {
     return this._parameters;
   }
 
   set parameters(params: P) {
-    deepClone(params, this._parameters);
-    this.onparameterchange();
-  }
+    if (params === this._parameters)
+      return;
 
-  get eventHandler(): SandboxEventHandler {
-    return this.actionRegistry;
+    deepClone(params, this._parameters);
+    this.updateControls();
+    this.onparameterchange();
   }
 
   delete(): void {
@@ -112,6 +113,7 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
     vec2.set(out, (x / this.canvas.width) * 2 - 1, (1 - y / this.canvas.height) * 2 - 1);
     return out;
   }
+
 }
 
 function deepClone(src: any, dst: any): any {
@@ -125,17 +127,34 @@ function deepClone(src: any, dst: any): any {
       .forEach(k => (dst[k] = deepClone(src[k], dst[k])));
     return dst;
   }
-  return  src;
+  return src;
 }
 
-// function SandboxPanel(props: { sandbox?: GLSandbox; onchange?: ParameterChangeListener }): JSX.Element {
-//   const sandbox = props.sandbox;
-//   if (!sandbox) return <></>;
-//   const sbp = createSandboxParameters(sandbox, props.onchange);
-//   return (
-//     <>
-//       <ParametersControls parameters={sbp.parameters}/>
-//       <CustomControls sandbox={sandbox}/>
-//     </>
-//   );
-// }
+interface SandboxControlsProps {
+  sandbox: AbstractGLSandbox;
+}
+
+class SandboxControls extends Component<SandboxControlsProps, { parameter: ObjectSandboxParameter, customControls?: JSX.Element }> {
+  constructor(props: SandboxControlsProps) {
+    super(props);
+    this.state = {parameter: this.createParameters(), customControls: this.props.sandbox.customControls()};
+  }
+
+  render(): JSX.Element {
+    const sandbox = this.props.sandbox;
+    return <div className="sandbox-controls parameters-table">
+      <ParametersControls parameters={this.state.parameter.parameters}/>
+      {sandbox.customControls()}
+    </div>;
+  }
+
+  private createParameters(): ObjectSandboxParameter {
+    return createSandboxParameters(this.props.sandbox, e => this.props.sandbox.onparameterchange(e));
+  }
+
+  componentDidUpdate(prevProps: Readonly<SandboxControlsProps>): void {
+    if (prevProps.sandbox !== this.props.sandbox) {
+      this.setState({parameter: this.createParameters(), customControls: this.props.sandbox.customControls()});
+    }
+  }
+}

@@ -24,7 +24,7 @@ export interface SandboxContainer {
 
 export type SandboxFactory<P = any> = (container: SandboxContainer, name: string, parameters?: P) => Promise<GLSandbox<P>>;
 
-export interface GLSandbox<P = any> {
+export interface GLSandbox<P = any> extends SandboxEventHandler{
   readonly container: SandboxContainer;
   readonly name: string;
   readonly defaultParameters: P;
@@ -37,8 +37,6 @@ export interface GLSandbox<P = any> {
   ups: number;
   running: boolean;
 
-  readonly eventHandler?: SandboxEventHandler;
-
   render(): void;
 
   /**
@@ -49,6 +47,5 @@ export interface GLSandbox<P = any> {
 
   delete?: () => void;
 
-  onparameterchange?: () => any;
   onresize?: (dimension: { width: number; height: number }) => void;
 }

@@ -23,7 +23,7 @@ export type PartialBufferAttributes<A> = {
 };
 
 function isPartialAttribute(o: any): o is PartialBufferAttribute {
-  return typeof o === 'object' && typeof (o as PartialBufferAttribute).size === 'number';
+  return typeof o === 'object' && typeof (o as Partial<PartialBufferAttribute>).size === 'number';
 }
 
 export class VertexBuffer<A = any> extends AbstractBuffer<VertexBufferType, VertexBuffer<A>> {
@@ -44,18 +44,20 @@ export class VertexBuffer<A = any> extends AbstractBuffer<VertexBufferType, Vert
     let offset = 0;
     const attrs: { [key: string]: Readonly<BufferAttribute> } = {};
     for (const name in attributes) {
-      const pa = attributes[name];
-      const bytes = attrBytes[index];
-      attrs[name] = {
-        ...pa,
-        type: attributeType(pa),
-        index: index,
-        offset: offset,
-        bytes: bytes,
-        stride: this.stride
-      };
-      offset += bytes;
-      index++;
+      if (Object.prototype.hasOwnProperty.call(attributes, name)) {
+        const pa = attributes[name];
+        const bytes = attrBytes[index];
+        attrs[name] = {
+          ...pa,
+          type: attributeType(pa),
+          index: index,
+          offset: offset,
+          bytes: bytes,
+          stride: this.stride
+        };
+        offset += bytes;
+        index++;
+      }
     }
     this._attributes = attrs as BufferAttributes<A>;
   }

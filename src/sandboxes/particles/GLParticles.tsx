@@ -1,4 +1,4 @@
-import React, {RefObject} from 'react';
+import React from 'react';
 import {vec2} from 'gl-matrix';
 import {
   AbstractGLSandbox,
@@ -12,6 +12,7 @@ import {
 } from 'gl';
 import 'reflect-metadata';
 import {ParticleBuffers} from './ParticleBuffer';
+import {SandboxEventHandler} from "../../gl/sandbox/ActionManager";
 
 class ParticlesParameters {
   @control<GLParticles>({min: 5000, max: sandbox => sandbox.maxParticles, step: 1000})
@@ -42,7 +43,7 @@ class UpdateUniforms {
   target: WebGLUniformLocation | null = null;
 }
 
-class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
+class GLParticles extends AbstractGLSandbox<ParticlesParameters> implements SandboxEventHandler {
   static async create(container: SandboxContainer, name: string, parameters?: ParticlesParameters): Promise<GLParticles> {
     const programs = await Promise.all([
       container.programLoader.load({
@@ -71,8 +72,6 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
   private _newMode?: TargetMode;
   private _newParam?: Partial<ParticlesParameters>;
 
-  private readonly controlsRef: RefObject<HTMLDivElement>;
-
   constructor(
     container: SandboxContainer,
     name: string,
@@ -88,7 +87,6 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     this.transformFeedback = new TransformFeedback(gl);
     this.running = true;
 
-    this.controlsRef = React.createRef();
     this._newMode = this._mode;
     this._newParam = this.parameters;
     this.renderProgram.use();
@@ -136,7 +134,7 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
 
       if (this._newParam.count !== undefined) {
         this.particleBuffers.count = this._newParam.count;
-        if (this.controlsRef.current) this.controlsRef.current.textContent = this.description;
+        this.updateControls();
       }
 
       this._newParam = undefined;
@@ -204,22 +202,20 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     this._newTarget = vec2.set(this.target, 0, 0);
   }
 
+  customControls(): JSX.Element | undefined {
+    return <ParticlesControls count={this.particleBuffers.count}/>;
+  }
+
   private updateTarget(e: TouchEvent | MouseEvent) {
     this._newTarget = this.clientToWorld(e, this.target);
   }
 
-  protected createControls(): JSX.Element {
-    return <>
-      {super.createControls()}
-      <div className="row" ref={this.controlsRef}>{this.description}</div>
-    </>
-  }
-
-  private get description(): string {
-    return `${this.particleBuffers.count.toLocaleString()} particles`;
-  }
 }
 
+function ParticlesControls(props: {count : number}): JSX.Element {
+  const desc = `${props.count.toLocaleString()} particles`;
+  return <div className="row">{desc}</div>;
+}
 export function glparticles(): SandboxFactory<ParticlesParameters> {
   return GLParticles.create;
 }

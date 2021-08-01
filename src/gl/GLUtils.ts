@@ -14,7 +14,7 @@ export abstract class AbstractDeletable implements Deletable {
   private static nextInstanceId = 0;
   protected readonly instanceId: number;
 
-  constructor() {
+  protected constructor() {
     this.instanceId = AbstractDeletable.nextInstanceId++;
     DEBUG_DELETABLE && LOGGER.debug('Creating ' + this);
   }

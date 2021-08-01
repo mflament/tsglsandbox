@@ -25,6 +25,7 @@ export interface ControlMetadata<S extends GLSandbox = GLSandbox> {
   pattern?: ParameterSource<S, string>;
   isVisible?: ParameterSource<S, boolean>;
   debounce?: number;
+  order?: number;
 }
 
 export interface RangeParameterMetadata<S extends GLSandbox = GLSandbox> extends ControlMetadata<S> {

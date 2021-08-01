@@ -20,8 +20,9 @@ export class TransformFeedback extends AbstractDeletable implements Bindable {
     return this;
   }
 
-  bindBuffer(index: number, buffer: VertexBuffer): TransformFeedback {
-    this.gl.bindBufferBase(WebGL2RenderingContext.TRANSFORM_FEEDBACK_BUFFER, index, buffer.glbuffer);
+  bindBuffer(index: number, buffer: VertexBuffer | WebGLBuffer): TransformFeedback {
+    buffer = buffer instanceof VertexBuffer ? buffer.glbuffer : buffer;
+    this.gl.bindBufferBase(WebGL2RenderingContext.TRANSFORM_FEEDBACK_BUFFER, index, buffer);
     return this;
   }
 

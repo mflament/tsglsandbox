@@ -8,13 +8,14 @@ import {
   Sprites,
   TextureAtlas
 } from 'gl';
+import {SandboxEventHandler} from "../../gl/sandbox/ActionManager";
 
 class AntsParameters {
 }
 
 const ANT_REGIONS = 8 * 8 - 2;
 
-class GLAnts extends AbstractGLSandbox<AntsParameters> {
+class GLAnts extends AbstractGLSandbox<AntsParameters> implements SandboxEventHandler {
   static async create(container: SandboxContainer, name: string, parameters?: AntsParameters): Promise<GLAnts> {
     const texture = await new GLTexture2D(container.canvas.gl).bind().load({uri: 'images/ant-walk.png'});
     const sprites = await Sprites.create(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]);

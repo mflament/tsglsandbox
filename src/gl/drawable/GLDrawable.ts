@@ -4,7 +4,7 @@ import {DrawMode, IndexBuffer, IndexBufferType, VertexBuffer} from 'gl';
 
 interface VertexBufferParameter<V = any> {
   buffer: VertexBuffer<V>;
-  locations: AttributeLocations<V>;
+  locations?: AttributeLocations<V>;
 }
 
 export class GLDrawable<V = any> extends AbstractDeletable implements Bindable {

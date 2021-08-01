@@ -4,23 +4,29 @@ import {isObjectParameter, SandboxParameter} from '../../SandboxParameter';
 export type ControlProps<P extends SandboxParameter> = { parameter: P };
 
 export abstract class AbstractParameterControl<P extends SandboxParameter> extends Component<ControlProps<P>, { value: any }> {
-  readonly qualifiedName: string;
   private debounceTimer?: number;
 
   protected constructor(props: ControlProps<P>) {
     super(props);
-    this.qualifiedName = this.createQualifiedName();
     this.state = {value: props.parameter.value};
   }
 
   render(): JSX.Element {
     const parameter = this.props.parameter;
+    let labelClass = parameter.type;
+    if (!parameter.label) labelClass += ' capitalized';
     return (
       <>
-        <label className={parameter.type}>{parameter.label || parameter.name}</label>
+        <label className={labelClass}>{parameter.label || parameter.name}</label>
         {this.renderInput(this.state.value)}
       </>
     );
+  }
+
+  componentDidUpdate(_prevProps: Readonly<ControlProps<P>>, prevState: Readonly<{ value: P }>): void {
+    if (prevState === this.state) {
+      this.setState({value: this.props.parameter.value});
+    }
   }
 
   protected abstract renderInput(value: unknown): JSX.Element;
@@ -54,14 +60,4 @@ export abstract class AbstractParameterControl<P extends SandboxParameter> exten
     }
   }
 
-
-  private createQualifiedName(): string {
-    let param: SandboxParameter = this.props.parameter;
-    let qname = param.name;
-    while (isObjectParameter(param.parent)) {
-      param = param.parent;
-      qname = param.name + '.' + qname;
-    }
-    return qname;
-  }
 }

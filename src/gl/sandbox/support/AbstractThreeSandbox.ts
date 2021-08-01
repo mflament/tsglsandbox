@@ -1,5 +1,11 @@
 import {AbstractGLSandbox} from './AbstractGLSandbox';
-import {Camera, PerspectiveCamera, Scene, WebGLRenderer, WebGLRendererParameters} from 'three';
+import {
+  Camera,
+  PerspectiveCamera,
+  Scene,
+  WebGLRenderer,
+  WebGLRendererParameters
+} from 'three';
 import {SandboxContainer} from '../GLSandbox';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 

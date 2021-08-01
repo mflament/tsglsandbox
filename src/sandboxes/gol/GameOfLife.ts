@@ -17,6 +17,7 @@ import {
   TextureMinFilter,
   TextureWrappingMode
 } from 'gl';
+import {SandboxEventHandler} from "../../gl/sandbox/ActionManager";
 
 const DATA_TEXTURE_FORMAT = {
   internalFormat: InternalFormat.R8,
@@ -40,7 +41,7 @@ class UpdateUniforms {
   states_matrix: WebGLUniformLocation | null = null;
 }
 
-class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
+class GOLSandbox extends AbstractGLSandbox<GOLParameters> implements SandboxEventHandler {
   static async create(container: SandboxContainer, name: string, parameters?: GOLParameters): Promise<GOLSandbox> {
     const renderProgram = await quadProgram(container.programLoader, {
       fspath: 'gol/gol-render.fs.glsl',

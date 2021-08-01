@@ -10,6 +10,6 @@ export class BoidsParameters {
   maxSpeed = 0.4;
   @control({ min: 1, max: 3600, step: 1 })
   turnSpeed = 180;
-  @control({ min: 5, max: 360, step: 1 })
+  @control({ label: 'FOV', min: 5, max: 360, step: 1 })
   fov = 110;
 }

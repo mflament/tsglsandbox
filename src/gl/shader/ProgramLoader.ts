@@ -3,7 +3,7 @@ import {AbstractDeletable, LOGGER} from '../GLUtils';
 import {Program, ProgramLocations, VaryingBufferMode, Varyings} from './Program';
 import {CompiledShadersCache} from './CompiledShadersCache';
 import {Shader, ShaderType} from './Shader';
-import Path from '../../utils/Path';
+import {Path} from "utils";
 
 export class ProgramLoader extends AbstractDeletable {
   private readonly shadersCache: CompiledShadersCache;
@@ -33,8 +33,10 @@ export class ProgramLoader extends AbstractDeletable {
       this.createShader(ShaderType.FRAGMENT_SHADER, results, config)
     ];
     let varyings: Varyings | undefined;
-    if (config.varyingMode) {
-      varyings = { names: Object.keys(results.vs.outputs), mode: config.varyingMode };
+    if (config.varyings) {
+      varyings = {names: config.varyings, mode: config.varyingMode || VaryingBufferMode.SEPARATE};
+    } else if (config.varyingMode) {
+      varyings = {names: Object.keys(results.vs.outputs), mode: config.varyingMode};
     }
     return new Program<U, B, A>(this.gl, config).link(shaders, varyings);
   }
@@ -45,8 +47,10 @@ export class ProgramLoader extends AbstractDeletable {
     let source = `#version ${version}\n\n`;
     if (config.defines) {
       for (const key in config.defines) {
-        const value = config.defines[key];
-        source += `#define ${key} ${value}\n`;
+        if (Object.prototype.hasOwnProperty.call(config.defines, key)) {
+          const value = config.defines[key];
+          source += `#define ${key} ${value}\n`;
+        }
       }
       source += '\n';
     }
@@ -68,7 +72,7 @@ export class ProgramLoader extends AbstractDeletable {
       const trimmedLine = line.trim();
       if (trimmedLine.length > 0) {
         if (unrolling) {
-          if (this.isUnrollEnd(trimmedLine, unrolling.varName)) {
+          if (ProgramLoader.isUnrollEnd(trimmedLine, unrolling.varName)) {
             unrolling.flush(currentTargets, results);
             unrolling = null;
           } else {
@@ -77,7 +81,7 @@ export class ProgramLoader extends AbstractDeletable {
           continue;
         }
 
-        const version = this.parseVersion(trimmedLine);
+        const version = ProgramLoader.parseVersion(trimmedLine);
         if (version) {
           if (results.version && results.version !== version) {
             LOGGER.error('Conflicting version ' + version + ' / ' + results.version);
@@ -87,36 +91,38 @@ export class ProgramLoader extends AbstractDeletable {
           continue;
         }
 
-        const newTargets = this.parseTargets(trimmedLine);
+        const newTargets = ProgramLoader.parseTargets(trimmedLine);
         if (newTargets) {
           currentTargets = newTargets;
           continue;
         }
 
-        const includePath = this.parseInclude(trimmedLine);
+        const includePath = ProgramLoader.parseInclude(trimmedLine);
         if (includePath) {
           const resolvedPath = Path.resolve(Path.dirname(path), includePath);
           await this.parseShader(resolvedPath, currentTargets, config, results);
           continue;
         }
 
-        unrolling = this.parseUnroll(trimmedLine, config.defines);
+        unrolling = ProgramLoader.parseUnroll(trimmedLine, config.defines);
         if (unrolling) continue;
 
-        const output = this.parseOutput(trimmedLine);
-        if (output) results.addOutput(output, currentTargets);
+        if (config.varyings === undefined) {
+          const output = ProgramLoader.parseOutput(trimmedLine);
+          if (output) results.addOutput(output, currentTargets);
+        }
       }
       results.addLine(line, currentTargets);
     }
   }
 
-  private parseOutput(line: string): ShaderOutput | null {
+  private static parseOutput(line: string): ShaderOutput | null {
     const matches = line.match(/^(?:flat\s+)?out\s+(\w+)\s+(\w+);$/);
-    if (matches) return { name: matches[2], type: matches[1] };
+    if (matches) return {name: matches[2], type: matches[1]};
     return null;
   }
 
-  private parseUnroll(line: string, defines?: Defines): UnrollBlock | null {
+  private static parseUnroll(line: string, defines?: Defines): UnrollBlock | null {
     const matches = line.match(/^\/\/\s*unroll\((\w+)\s*,\s*(\w+)\)$/);
     if (matches) {
       const varName = matches[1];
@@ -128,17 +134,17 @@ export class ProgramLoader extends AbstractDeletable {
     return null;
   }
 
-  private isUnrollEnd(line: string, varName: string): boolean {
+  private static isUnrollEnd(line: string, varName: string): boolean {
     const matches = line.match(/^\/\/\s*end\((\w+)\)$/);
     return matches !== null && matches[1] === varName;
   }
 
-  private parseVersion(line: string): string | null {
+  private static parseVersion(line: string): string | null {
     const matches = line.match(/^#version\s+(.*)$/);
     return matches ? matches[1] : null;
   }
 
-  private parseTargets(line: string): ShaderType[] | null {
+  private static parseTargets(line: string): ShaderType[] | null {
     const matches = line
       .trim()
       .toLowerCase()
@@ -152,15 +158,15 @@ export class ProgramLoader extends AbstractDeletable {
     return null;
   }
 
-  private parseTarget(s: string): ShaderType | null {
+  private static parseTarget(s: string): ShaderType | null {
     s = s.trim().toLowerCase();
     if (s === 'vs') return ShaderType.VERTEX_SHADER;
     if (s === 'fs') return ShaderType.FRAGMENT_SHADER;
     return null;
   }
 
-  private parseInclude(line: string): string | null {
-    const matches = line.match(/^#include\s+(?:"([^"]+)")$|(?:<([^>]+)>)$/);
+  private static parseInclude(line: string): string | null {
+    const matches = line.match(/^#include\s+"(([^"]+))"$|(<([^>]+)>)$/);
     if (matches) return matches[1];
     return null;
   }
@@ -168,10 +174,14 @@ export class ProgramLoader extends AbstractDeletable {
 
 class UnrollBlock {
   readonly lines: string[] = [];
-  constructor(readonly varName: string, readonly count: number) {}
+
+  constructor(readonly varName: string, readonly count: number) {
+  }
+
   push(line: string) {
     this.lines.push(line);
   }
+
   flush(targets: ShaderType[], res: ParsingResults) {
     const unrolledLines = [];
     const varregex = new RegExp('\\$' + this.varName);
@@ -215,6 +225,7 @@ type Defines = { [name: string]: any };
 interface BaseConfiguration<U = any, B = any, A = any> extends ProgramLocations<U, B, A> {
   defines?: Defines;
   varyingMode?: VaryingBufferMode;
+  varyings?: string[];
 }
 
 export interface ShadersConfiguration<U = any, B = any, A = any> extends BaseConfiguration<U, B, A> {
@@ -231,6 +242,6 @@ export type ProgramConfiguration<U = any, B = any, A = any> =
   | MergedConfiguration<U, B, A>;
 
 function isShadersConfig<U, B, A>(config: BaseConfiguration<U, B, A>): config is ShadersConfiguration<U, B, A> {
-  const cfg = config as ShadersConfiguration;
+  const cfg = config as Partial<ShadersConfiguration>;
   return typeof cfg.fspath === 'string' && typeof cfg.vspath === 'string';
 }

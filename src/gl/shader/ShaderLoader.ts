@@ -1,4 +1,4 @@
-import path from '../../utils/Path';
+import {Path} from 'utils';
 
 export interface ShaderLoader {
   load(path: string): Promise<string>;
@@ -17,7 +17,7 @@ class HttpShaderLoader implements ShaderLoader {
   constructor(readonly baseUri?: string) {}
 
   load(shaderPath: string): Promise<string> {
-    if (this.baseUri) shaderPath = path.resolve(this.baseUri, shaderPath);
+    if (this.baseUri) shaderPath = Path.resolve(this.baseUri, shaderPath);
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open('GET', shaderPath);

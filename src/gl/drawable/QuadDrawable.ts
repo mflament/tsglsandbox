@@ -1,13 +1,10 @@
-import {
-  ByteIndexBuffer,
-  DrawMode,
-  IndexedDrawable,
-  Program,
-  ProgramLoader,
-  ShadersConfiguration,
-  VertexBuffer
-} from 'gl';
 import {vec2} from 'gl-matrix';
+import {IndexedDrawable} from "./GLDrawable";
+import {VertexBuffer} from "../buffers/VertexBuffer";
+import {ByteIndexBuffer} from "../buffers/IndexBuffer";
+import {DrawMode} from "../buffers/BufferEnums";
+import {Program} from "../shader/Program";
+import {ProgramLoader, ShadersConfiguration} from "../shader/ProgramLoader";
 
 /**
  * VAO + VBO + IBO for a simple quad with vec2 position attributes:

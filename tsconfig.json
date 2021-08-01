@@ -1,20 +1,37 @@
 {
-  "files": ["src/index.tsx"],
-  "exclude": ["node_modules/**"],
+  "files": [
+    "src/index.tsx"
+  ],
+  "exclude": [
+    "node_modules/**"
+  ],
   "compilerOptions": {
-    "baseUrl": "./src",
+    "baseUrl": "src/.",
     "paths": {
-      "gl": ["gl"],
-      "utils": ["utils"],
-      "random": ["random"],
-      "rnn": ["rnn"]
+      "gl": [
+        "gl"
+      ],
+      "utils": [
+        "utils"
+      ],
+      "random": [
+        "random"
+      ],
+      "rnn": [
+        "rnn"
+      ]
     },
     "jsx": "react",
     "outDir": "dist/",
     "target": "ES2020",
     "module": "ES2020",
     "moduleResolution": "node",
-    "lib": ["ES2020", "DOM", "DOM.Iterable", "ScriptHost"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable",
+      "ScriptHost"
+    ],
     "incremental": false,
     "allowJs": false,
     "allowUmdGlobalAccess": false,
