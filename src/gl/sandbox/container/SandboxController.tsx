@@ -43,12 +43,15 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     this.canvasRef = React.createRef();
     this.controlPanelRef = React.createRef();
     this.renderFrame = this.renderFrame.bind(this);
-    this.state = {
+    const state = {
       showOverlay: true,
       showControls: false,
       selectedSandbox: this.sandboxNames[0],
       ...this.storage.state
     };
+    if (!this.sandboxes[state.selectedSandbox])
+      state.selectedSandbox = this.sandboxNames[0];
+    this.state = state;
     window.onhashchange = () => this.hashChanged();
     window.onkeydown = (e: KeyboardEvent) => this.onKeyDown(e);
     window.onkeyup = (e: KeyboardEvent) => this.onKeyUp(e);
@@ -110,6 +113,8 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   }
 
   selectSandbox(name: string): void {
+    if (!this.sandboxes[name])
+      return;
     this.setState(
       currentState => {
         if (currentState.loading) return currentState;
@@ -364,9 +369,7 @@ class SandboxHeader extends Component<{ controller: SandboxController }> {
 
   private resetParameters(): void {
     const sandbox = this.props.controller.sandbox;
-    if (sandbox) {
-      sandbox.parameters = sandbox.defaultParameters;
-    }
+    sandbox?.resetParameters();
   }
 
   private shareSandbox(): void {

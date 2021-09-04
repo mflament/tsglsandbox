@@ -82,7 +82,7 @@ export interface ObjectSandboxParameter extends SandboxParameter {
 }
 
 export function createSandboxParameters(sandbox: GLSandbox, onchange?: ParameterChangeListener): ObjectSandboxParameter {
-  return new DefaultObjectParameter(0,'parameters', sandbox, sandbox, {}, onchange);
+  return new DefaultObjectParameter(0, 'parameters', sandbox, sandbox, {}, onchange);
 }
 
 export function isObjectParameter(obj: unknown): obj is ObjectSandboxParameter {
@@ -94,20 +94,20 @@ export function isObjectParameter(obj: unknown): obj is ObjectSandboxParameter {
 
 abstract class AbstractSandboxParameter implements SandboxParameter, ControlMetadata {
   abstract readonly type: SandboxParameterType;
-  private _qualifiedName:string;
+  private readonly _qualifiedName: string;
+
   protected constructor(
     readonly index: number,
     readonly name: string,
     readonly container: any,
     readonly parent: ObjectSandboxParameter | GLSandbox,
     readonly metadata: ControlMetadata,
-    readonly onchange: ParameterChangeListener | undefined,
-    readonly defaultDebounce: number
+    readonly onchange: ParameterChangeListener | undefined
   ) {
     this._qualifiedName = getQualifiedName(this);
   }
 
-  get qualifiedName():string {
+  get qualifiedName(): string {
     return this._qualifiedName;
   }
 
@@ -122,7 +122,7 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
   get debounce(): number {
     if (this.metadata.debounce !== undefined)
       return this.metadata.debounce;
-    return this.defaultDebounce;
+    return 0;
   }
 
   get sandbox(): GLSandbox {
@@ -189,7 +189,7 @@ class DefaultObjectParameter extends AbstractSandboxParameter implements ObjectS
     metadata: ControlMetadata,
     onchange?: ParameterChangeListener
   ) {
-    super(index, name, container, parent, metadata, onchange, 0);
+    super(index, name, container, parent, metadata, onchange);
     const value = container[name];
 
     const objectMetadata = getObjectMetadata(value);
@@ -197,7 +197,7 @@ class DefaultObjectParameter extends AbstractSandboxParameter implements ObjectS
     if (this.json) {
       this._parameters = [new DefaultSandboxParameter(0, 'json', name, container, parent, {}, onchange)];
     } else {
-      this._parameters = createParameters(container[name], parent, onchange);
+      this._parameters = createParameters(container[name], this, onchange);
     }
   }
 
@@ -220,10 +220,9 @@ class DefaultSandboxParameter extends AbstractSandboxParameter implements Sandbo
     container: any,
     parent: ObjectSandboxParameter | GLSandbox,
     metadata: ControlMetadata,
-    onchange?: ParameterChangeListener,
-    defaultDebounce = 100
+    onchange?: ParameterChangeListener
   ) {
-    super(index, name, container, parent, metadata, onchange, defaultDebounce);
+    super(index, name, container, parent, metadata, onchange);
   }
 }
 
@@ -235,9 +234,8 @@ class ChoiceSandboxParameter extends AbstractSandboxParameter implements Choices
               container: any,
               parent: ObjectSandboxParameter | GLSandbox,
               metadata: ControlMetadata,
-              onchange?: ParameterChangeListener,
-              defaultDebounce = 100) {
-    super(index, name, container, parent, metadata, onchange, defaultDebounce);
+              onchange?: ParameterChangeListener) {
+    super(index, name, container, parent, metadata, onchange);
     if (!metadata.choices) throw new Error("No choices in metadata");
   }
 
@@ -301,7 +299,7 @@ function compareParameters(sp1: SandboxParameter, sp2: SandboxParameter): number
   return sp1.index - sp2.index;
 }
 
-export  function getQualifiedName(p: SandboxParameter): string {
+export function getQualifiedName(p: SandboxParameter): string {
   let param = p;
   let qname = param.name;
   while (isObjectParameter(param.parent)) {

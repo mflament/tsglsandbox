@@ -1,6 +1,7 @@
 {
   "files": [
-    "src/index.tsx"
+    "src/index.tsx",
+    "src/sandboxes/planetgen/worker/PlanetGeneratorWorker.ts"
   ],
   "exclude": [
     "node_modules/**"
@@ -21,9 +22,10 @@
         "rnn"
       ]
     },
+    "typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"],
     "jsx": "react",
     "outDir": "dist/",
-    "target": "ES2020",
+    "target": "ES2021",
     "module": "ES2020",
     "moduleResolution": "node",
     "lib": [

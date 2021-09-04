@@ -1,6 +1,6 @@
 import {vec3} from 'gl-matrix';
-import {fractalNoise3D, Noise, randomSimplexSeed, simplexNoise3D} from "random";
-import {control} from "gl";
+import {fractalNoise3D, Noise, simplexNoise3D} from "random";
+import {TerrainElevationSettings} from "./PlanetGeneratorSettings";
 
 export interface ElevationModifier {
   elevate(source: vec3): number;
@@ -13,22 +13,6 @@ export class SphereElevationModifier implements ElevationModifier {
   elevate(): number {
     return this.radius;
   }
-}
-
-export class TerrainElevationSettings {
-  seed = randomSimplexSeed();
-  /**
-   * pct of radius that will have varying elevation
-   */
-  @control({min: 0, max: 1, step: 0.01})
-  elevation = 0.2;
-
-  @control({min: 1, max: 12, step: 1})
-  octaves = 4;
-  @control({min: 0, max: 2, step: 0.01})
-  persistence = 0.5;
-  @control({min: 0.1, max: 20, step: 0.01})
-  scale = 1;
 }
 
 export class TerrainElevationModifier implements ElevationModifier {

@@ -13,7 +13,7 @@ export function createShaderLoader(): ShaderLoader {
   return new HttpShaderLoader('shaders');
 }
 
-class HttpShaderLoader implements ShaderLoader {
+export class HttpShaderLoader implements ShaderLoader {
   constructor(readonly baseUri?: string) {}
 
   load(shaderPath: string): Promise<string> {

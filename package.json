@@ -4,7 +4,7 @@
   "description": "WebGL sandbox",
   "main": "index.js",
   "scripts": {
-    "tsdserver": "tsdserver -l tcp://localhost:8080",
+    "tsdserver": "tsdserver -l tcp://localhost:8090",
     "gulp_watch": "gulp watch",
     "tsc_watch": "tsc --watch",
     "test": "jest",
@@ -34,7 +34,7 @@
     "@types/react-dom": "^17.0.8",
     "@typescript-eslint/eslint-plugin": "^4.28.5",
     "@typescript-eslint/parser": "^4.28.5",
-    "babel-jest": "^27.0.2",
+    "@webgpu/types": "^0.1.6",
     "del": "^6.0.0",
     "eslint": "^7.26.0",
     "gulp": "^4.0.2",
@@ -47,9 +47,11 @@
     "rollup-plugin-terser": "7.0.2",
     "rollup-plugin-ts-treeshaking": "^1.0.2",
     "rollup-plugin-typescript2": "^0.30.0",
+    "ts-jest": "^27.0.4",
     "ts-node": "^10.0.0",
     "tsdserver": "^3.0.3",
-    "typescript": "^4.3.5"
+    "typescript": "^4.3.5",
+    "webgl-mock": "^0.1.7"
   },
   "dependencies": {
     "gl-matrix": "^3.3.0",

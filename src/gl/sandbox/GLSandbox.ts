@@ -24,15 +24,13 @@ export interface SandboxContainer {
 
 export type SandboxFactory<P = any> = (container: SandboxContainer, name: string, parameters?: P) => Promise<GLSandbox<P>>;
 
-export interface GLSandbox<P = any> extends SandboxEventHandler{
+export interface GLSandbox<P = any> extends SandboxEventHandler {
   readonly container: SandboxContainer;
   readonly name: string;
   readonly defaultParameters: P;
   readonly displayName?: string;
-
   readonly controls?: JSX.Element;
-
-  parameters: P;
+  readonly parameters: P;
 
   ups: number;
   running: boolean;
@@ -48,4 +46,6 @@ export interface GLSandbox<P = any> extends SandboxEventHandler{
   delete?: () => void;
 
   onresize?: (dimension: { width: number; height: number }) => void;
+
+  resetParameters(): void;
 }

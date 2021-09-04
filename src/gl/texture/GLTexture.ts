@@ -9,20 +9,15 @@ import {
   TextureParameter,
   TextureWrappingMode
 } from './TextureEnums';
-import {
-  defaultFormat,
-  defaultType as defaultComponentType,
-  validateBufferType,
-  validateFormatsCombination
-} from './TextureFormatCombination';
+import {checkTextureCombination, TextureFormats, validateBufferType} from "./TextureFormats";
 
 const TARGET = WebGL2RenderingContext.TEXTURE_2D;
 
 export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>, Deletable {
   private static _activeUnit = 0;
 
-  private _texture: WebGLTexture;
-  private _internalFormat?: InternalFormat;
+  private readonly _texture: WebGLTexture;
+  private _formats?: TextureFormats;
   private _width = 0;
   private _height = 0;
   private _boundTo?: number;
@@ -48,9 +43,9 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
     return this._boundTo;
   }
 
-  get internalFormat(): InternalFormat {
-    if (!this._internalFormat) throw new Error('Not initiazed');
-    return this._internalFormat;
+  get formats(): TextureFormats {
+    if (!this._formats) throw new Error('Not initiazed');
+    return this._formats;
   }
 
   bind(): GLTexture2D {
@@ -89,72 +84,73 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
 
   async load(param: LoadImageData): Promise<GLTexture2D> {
     const image = await loadImage(param.uri);
-    this.bind().data({ ...param, source: image, generateMipmap: true });
+    this.bind().data({...param, source: image, generateMipmap: true});
     if (param.onload) param.onload(this);
     return this;
   }
 
   data(param: TextureData): GLTexture2D {
-    let intformat = param.internalFormat;
-    if (intformat === undefined) intformat = this._internalFormat;
-    if (intformat === undefined) intformat = InternalFormat.RGBA;
-
-    const format = param.format ? param.format : defaultFormat(intformat);
-    const type = param.type ? param.type : defaultComponentType(intformat, format);
-    validateFormatsCombination({ internalFormat: intformat, format: format, type: type });
+    const formats = checkTextureCombination(param);
     const level = param.level ? param.level : 0;
     if (isSizedData(param)) {
       const w = param.width;
       const h = param.height;
       if (isBufferData(param)) {
-        validateBufferType(param.buffer, type);
+        validateBufferType(param.buffer, formats.componentType);
         if (param.unpackAlignment !== undefined)
           this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, param.unpackAlignment);
         const srcOffset = param.srcOffset ? param.srcOffset : 0;
-        this.gl.texImage2D(TARGET, level, intformat, w, h, 0, format, type, param.buffer, srcOffset);
+        this.gl.texImage2D(TARGET, level, formats.internalFormat, w, h, 0, formats.format, formats.componentType, param.buffer, srcOffset);
       } else if (isPBOData(param)) {
-        this.gl.texImage2D(TARGET, level, intformat, w, h, 0, format, type, param.pboOffset);
+        this.gl.texImage2D(TARGET, level, formats.internalFormat, w, h, 0, formats.format, formats.componentType, param.pboOffset);
       } else {
-        this.gl.texImage2D(TARGET, level, intformat, w, h, 0, format, type, null);
+        this.gl.texImage2D(TARGET, level, formats.internalFormat, w, h, 0, formats.format, formats.componentType, null);
       }
       this._width = w;
       this._height = h;
     } else if (isImageSourceData(param)) {
-      this.gl.texImage2D(TARGET, level, intformat, format, type, param.source);
+      this.gl.texImage2D(TARGET, level, formats.internalFormat, formats.format, formats.componentType, param.source);
       this._width = param.source.width;
       this._height = param.source.height;
     } else if (isLoadImageData(param)) {
       loadImage(param.uri).then(image => {
-        this.bind().data({ ...param, source: image, generateMipmap: true } as ImageSourceData);
+        this.bind().data({...param, source: image, generateMipmap: true} as ImageSourceData);
         if (param.onload) param.onload(this);
       });
       return this;
     }
     if (param.generateMipmap) this.generateMimap();
-    this._internalFormat = intformat;
+    this._formats = formats;
     return this;
   }
 
+  printFormats(): string {
+    if (!this._formats) return "undefined";
+    return JSON.stringify({
+      internaleFormat: InternalFormat[this._formats.internalFormat],
+      format: TextureFormat[this._formats.format],
+      componentType: TextureComponentType[this._formats.componentType]
+    });
+  }
+
   subdata(param: TextureSubdata): GLTexture2D {
-    const intformat = this.internalFormat;
-    const format = param.format ? param.format : defaultFormat(intformat);
-    const type = param.type ? param.type : defaultComponentType(intformat, format);
-    validateFormatsCombination({ internalFormat: intformat, format: format, type: type });
+    if (!this._formats) throw new Error("formats not configured yet, call data first");
+    checkTextureCombination({...param, internalFormat: this._formats?.internalFormat});
     const level = param.level ? param.level : 0;
     if (isSizedData(param)) {
       const w = param.width;
       const h = param.height;
       if (isBufferData(param)) {
-        validateBufferType(param.buffer, type);
+        validateBufferType(param.buffer, this.formats.componentType);
         if (param.unpackAlignment !== undefined)
           this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, param.unpackAlignment);
         const srcOffset = param.srcOffset ? param.srcOffset : 0;
-        this.gl.texSubImage2D(TARGET, level, param.x, param.y, w, h, format, type, param.buffer, srcOffset);
+        this.gl.texSubImage2D(TARGET, level, param.x, param.y, w, h, this.formats.format, this.formats.componentType, param.buffer, srcOffset);
       } else if (isPBOData(param)) {
-        this.gl.texSubImage2D(TARGET, level, param.x, param.y, w, h, format, type, param.pboOffset);
+        this.gl.texSubImage2D(TARGET, level, param.x, param.y, w, h, this.formats.format, this.formats.componentType, param.pboOffset);
       }
     } else if (isImageSourceData(param)) {
-      this.gl.texSubImage2D(TARGET, level, param.x, param.y, format, type, param.source);
+      this.gl.texSubImage2D(TARGET, level, param.x, param.y, this.formats.format, this.formats.componentType, param.source);
     }
     return this;
   }
@@ -223,7 +219,7 @@ export type TextureSubdata = BaseTextureData & {
 } & (BufferData | PBOData | ImageSourceData);
 
 function isSizedData(data: any): data is SizedData {
-  const sd = data as SizedData;
+  const sd = data as Partial<SizedData>;
   return typeof sd.width === 'number' && typeof sd.height === 'number';
 }
 
@@ -236,11 +232,11 @@ function isImageSourceData(data: any): data is ImageSourceData {
 }
 
 function isLoadImageData(data: any): data is LoadImageData {
-  return typeof (data as LoadImageData).uri === 'string';
+  return typeof (data as Partial<LoadImageData>).uri === 'string';
 }
 
 function isPBOData(data: any): data is PBOData {
-  return typeof (data as PBOData).pboOffset === 'number';
+  return typeof (data as Partial<PBOData>).pboOffset === 'number';
 }
 
 function loadImage(uri: string): Promise<HTMLImageElement> {

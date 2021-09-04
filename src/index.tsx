@@ -11,12 +11,12 @@ import {
   testThree,
   tsp
 } from './sandboxes';
-import ReactDOM from 'react-dom';
+
 import React from 'react';
-import {SandboxController} from 'gl';
+import ReactDOM from 'react-dom';
+import {SandboxController} from "gl";
 
 const factories = {
-  tt: testThree(),
   flowers: flowers(),
   gol: gameofLife(),
   particles: glparticles(),
@@ -24,6 +24,7 @@ const factories = {
   boids: boids(),
   ants: ants(),
   test: testSandbox(),
+  tt: testThree(),
   qt: quadTreeTest(),
   noise: noise(),
   pg: planetGeneratorSandbox()

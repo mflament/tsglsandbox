@@ -1,5 +1,5 @@
 import React, {Component} from 'react';
-import {isObjectParameter, SandboxParameter} from '../../SandboxParameter';
+import {SandboxParameter} from '../../SandboxParameter';
 
 export type ControlProps<P extends SandboxParameter> = { parameter: P };
 
@@ -24,7 +24,8 @@ export abstract class AbstractParameterControl<P extends SandboxParameter> exten
   }
 
   componentDidUpdate(_prevProps: Readonly<ControlProps<P>>, prevState: Readonly<{ value: P }>): void {
-    if (prevState === this.state) {
+    if (prevState === this.state && _prevProps === this.props) {
+      console.log('componentDidUpdate');
       this.setState({value: this.props.parameter.value});
     }
   }
@@ -32,32 +33,29 @@ export abstract class AbstractParameterControl<P extends SandboxParameter> exten
   protected abstract renderInput(value: unknown): JSX.Element;
 
   set value(v: unknown) {
-    if (this.debounceTimer !== undefined) {
-      self.clearTimeout(this.debounceTimer);
-      this.debounceTimer = undefined;
-    }
-    this.setState({value: v});
-    const debounce = this.props.parameter.debounce;
-    if (debounce > 0) {
-      this.debounceTimer = self.setTimeout(() => {
-        this.update();
+    this.setState(prev => {
+      if (this.debounceTimer !== undefined) {
+        self.clearTimeout(this.debounceTimer);
         this.debounceTimer = undefined;
-      }, debounce);
-    } else {
-      this.update();
-    }
+      }
+
+      const debounce = this.props.parameter.debounce;
+      if (debounce > 0) {
+        this.debounceTimer = self.setTimeout(() => {
+          this.updateParam(v);
+          this.debounceTimer = undefined;
+        }, debounce);
+      } else {
+        this.updateParam(v);
+      }
+      return {...prev, value: v};
+    });
   }
 
-  private update(): void {
-    const value = this.state.value;
+  private updateParam(v: unknown): void {
     const param = this.props.parameter;
-    param.value = value;
-    if (param.onchange) {
-      param.onchange(param, value);
-    }
-    if (isObjectParameter(param.parent) && param.parent.onchange) {
-      param.parent.onchange(param, value);
-    }
+    param.value = v;
+    param.onchange && param.onchange(param, v);
   }
 
 }

@@ -12,7 +12,6 @@ import {
 } from 'gl';
 import 'reflect-metadata';
 import {ParticleBuffers} from './ParticleBuffer';
-import {SandboxEventHandler} from "../../gl/sandbox/ActionManager";
 
 class ParticlesParameters {
   @control<GLParticles>({min: 5000, max: sandbox => sandbox.maxParticles, step: 1000})
@@ -43,7 +42,7 @@ class UpdateUniforms {
   target: WebGLUniformLocation | null = null;
 }
 
-class GLParticles extends AbstractGLSandbox<ParticlesParameters> implements SandboxEventHandler {
+class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
   static async create(container: SandboxContainer, name: string, parameters?: ParticlesParameters): Promise<GLParticles> {
     const programs = await Promise.all([
       container.programLoader.load({
@@ -216,6 +215,7 @@ function ParticlesControls(props: {count : number}): JSX.Element {
   const desc = `${props.count.toLocaleString()} particles`;
   return <div className="row">{desc}</div>;
 }
+
 export function glparticles(): SandboxFactory<ParticlesParameters> {
   return GLParticles.create;
 }

@@ -59,11 +59,8 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
     return this._parameters;
   }
 
-  set parameters(params: P) {
-    if (params === this._parameters)
-      return;
-
-    deepClone(params, this._parameters);
+  resetParameters(): void {
+    deepClone(this.defaultParameters, this._parameters);
     this.updateControls();
     this.onparameterchange();
   }

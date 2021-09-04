@@ -31,6 +31,6 @@ export * from './gl/sprites/TextureAtlas';
 export * from './gl/texture/GLTexture';
 export * from './gl/texture/NoiseTextureGenerator';
 export * from './gl/texture/TextureEnums';
-export * from './gl/texture/TextureFormatCombination';
+export * from './gl/texture/TextureFormats';
 
 export * from './gl/GLUtils';

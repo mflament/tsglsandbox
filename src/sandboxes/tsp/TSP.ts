@@ -7,10 +7,10 @@ import {
   SandboxContainer,
   SandboxFactory,
   VertexArray,
-  VertexBuffer
+  VertexBuffer,
+  control
 } from 'gl';
 import {PoissonDiscSampler, randomRange} from 'random';
-import {control} from '../../gl/sandbox/ParametersMetadata';
 
 // x,y / r,g,b
 const CITY_FLOATS = 5;
