@@ -1,10 +1,11 @@
-import {vec2} from 'gl-matrix';
-import {IndexedDrawable} from "./GLDrawable";
-import {VertexBuffer} from "../buffers/VertexBuffer";
-import {ByteIndexBuffer} from "../buffers/IndexBuffer";
-import {DrawMode} from "../buffers/BufferEnums";
-import {Program} from "../shader/Program";
-import {ProgramLoader, ShadersConfiguration} from "../shader/ProgramLoader";
+import { vec2 } from 'gl-matrix';
+import { IndexedDrawable } from './GLDrawable';
+import { VertexBuffer } from '../buffers/VertexBuffer';
+import { ByteIndexBuffer } from '../buffers/IndexBuffer';
+import { DrawMode } from '../buffers/BufferEnums';
+import { Program } from '../shader/Program';
+import { ProgramLoader, ShadersConfiguration } from '../shader/ProgramLoader';
+import { shaderPath } from '../shader/ShaderLoader';
 
 /**
  * VAO + VBO + IBO for a simple quad with vec2 position attributes:
@@ -18,8 +19,6 @@ import {ProgramLoader, ShadersConfiguration} from "../shader/ProgramLoader";
  */
 const VERTICES = [-1, 1, 1, 1, 1, -1, -1, -1];
 const INDICES = [3, 1, 0, 3, 2, 1];
-
-export const QUAD_VS = 'quad.vs.glsl';
 
 export function newQuadDrawable(gl: WebGL2RenderingContext): IndexedDrawable {
   const vertices = new VertexBuffer(gl, { a_position: { size: 2 } }).bind().setdata(VERTICES);
@@ -40,7 +39,7 @@ export async function quadProgram<U = any, B = any, A = any>(
 ): Promise<QuadProgram<U>> {
   const program = (await programLoader.load({
     ...configuration,
-    vspath: QUAD_VS
+    vspath: shaderPath('quad.vs.glsl', import.meta)
   })) as QuadProgram<U>;
   program.use();
   const transformLocation = program.uniformLocation('u_transform');

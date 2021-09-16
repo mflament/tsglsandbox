@@ -1,13 +1,14 @@
-import {mat4, vec2} from 'gl-matrix';
-import {BufferUsage, DrawMode} from '../buffers/BufferEnums';
-import {UniformBuffer} from '../buffers/UniformBuffer';
-import {BufferAttribute, VertexBuffer} from '../buffers/VertexBuffer';
-import {InstancedDrawable} from '../drawable/GLDrawable';
-import {AbstractDeletable, Bindable} from '../GLUtils';
-import {SandboxContainer} from '../sandbox/GLSandbox';
-import {Program} from '../shader/Program';
-import {Sprite} from './Sprite';
-import {TextureAtlas} from './TextureAtlas';
+import { mat4, vec2 } from 'gl-matrix';
+import { BufferUsage, DrawMode } from '../buffers/BufferEnums';
+import { UniformBuffer } from '../buffers/UniformBuffer';
+import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
+import { InstancedDrawable } from '../drawable/GLDrawable';
+import { AbstractDeletable, Bindable } from '../GLUtils';
+import { SandboxContainer } from '../sandbox/GLSandbox';
+import { Program } from '../shader/Program';
+import { Sprite } from './Sprite';
+import { TextureAtlas } from './TextureAtlas';
+import { shaderPath } from '../shader/ShaderLoader';
 
 interface SpritesVertexAttributes {
   a_vertexPos: BufferAttribute;
@@ -47,7 +48,7 @@ export class Sprites extends AbstractDeletable implements Bindable {
   ): Promise<Sprites> {
     const regionsCount = atlases.map(a => a.regions.length).reduce((prev, current) => prev + current, 0);
     const program = await container.programLoader.load({
-      path: 'sprites/sprites.glsl',
+      path: shaderPath('sprites.glsl', import.meta),
       uniformLocations: new SpritesUniforms(),
       uniformBlockIndices: new SpritesUniformBlocks(),
       defines: { REGIONS_COUNT: regionsCount, TEXTURES_COUNT: atlases.length }

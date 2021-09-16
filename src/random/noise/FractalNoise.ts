@@ -1,5 +1,5 @@
-import {vec2, vec3, vec4} from 'gl-matrix';
-import {Noise, NoiseDimension} from './Noise';
+import { vec2, vec3, vec4 } from 'gl-matrix';
+import { Noise, NoiseDimension } from './Noise';
 
 export function fractalNoise(noise: Noise<number>, octaves?: number, persistence?: number): Noise<number> {
   const f: FractalEval<number> = (v, frequency) => noise(v * frequency);

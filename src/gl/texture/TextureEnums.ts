@@ -123,25 +123,16 @@ export enum TextureWrappingMode {
   REPEAT = WebGL2RenderingContext.REPEAT
 }
 
-export type TextureArrayBuffer =
-  | Int8Array
-  | Uint8Array
-  | Uint8ClampedArray
-  | Int16Array
-  | Uint16Array
-  | Int32Array
-  | Uint32Array
-  | Float32Array;
+export enum PixelStoreParameter {
+  PACK_ROW_LENGTH = WebGL2RenderingContext.PACK_ROW_LENGTH,
+  PACK_SKIP_PIXELS = WebGL2RenderingContext.PACK_SKIP_PIXELS,
+  PACK_SKIP_ROWS = WebGL2RenderingContext.PACK_SKIP_ROWS,
+  PACK_ALIGNMENT = WebGL2RenderingContext.PACK_ALIGNMENT,
 
-export function isTextureArrayBuffer(obj: unknown): obj is TextureArrayBuffer {
-  return (
-    obj instanceof Int8Array ||
-    obj instanceof Uint8Array ||
-    obj instanceof Uint8ClampedArray ||
-    obj instanceof Int16Array ||
-    obj instanceof Uint16Array ||
-    obj instanceof Int32Array ||
-    obj instanceof Uint32Array ||
-    obj instanceof Float32Array
-  );
+  UNPACK_ROW_LENGTH = WebGL2RenderingContext.UNPACK_ROW_LENGTH,
+  UNPACK_IMAGE_HEIGHT = WebGL2RenderingContext.UNPACK_IMAGE_HEIGHT,
+  UNPACK_SKIP_PIXELS = WebGL2RenderingContext.UNPACK_SKIP_PIXELS,
+  UNPACK_SKIP_ROWS = WebGL2RenderingContext.UNPACK_SKIP_ROWS,
+  UNPACK_SKIP_IMAGES = WebGL2RenderingContext.UNPACK_SKIP_IMAGES,
+  UNPACK_ALIGNMENT = WebGL2RenderingContext.UNPACK_ALIGNMENT
 }

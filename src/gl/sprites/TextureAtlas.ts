@@ -1,5 +1,5 @@
-import {vec2} from 'gl-matrix';
-import {GLTexture2D} from '../texture/GLTexture';
+import { vec2 } from 'gl-matrix';
+import { GLTexture2D } from '../texture/GLTexture';
 
 export interface TextureRegion {
   textureOffset: vec2;

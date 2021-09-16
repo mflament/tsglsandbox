@@ -30,24 +30,20 @@ export class Path {
     const fparts: string[] = [];
     parts.forEach(part => {
       if (part === '..') {
-        if (fparts.length > 0) fparts.splice(fparts.length-1, 1);
+        if (fparts.length > 0) fparts.splice(fparts.length - 1, 1);
       } else if (part !== '.' && part !== '') {
         fparts.push(part);
       }
     });
     let res = this.joins(...fparts);
-    if (path.startsWith('/'))
-      res = '/' + res;
+    if (path.startsWith('/')) res = '/' + res;
     return res;
   }
 
   private static joinParts(a: string, b: string): string {
-    if (a.endsWith('/') && b.startsWith('/'))
-      return a + b.substring(1);
-    if (a.endsWith('/') || b.startsWith('/'))
-      return a + b;
+    if (a.endsWith('/') && b.startsWith('/')) return a + b.substring(1);
+    if (a.endsWith('/') || b.startsWith('/')) return a + b;
     if (a === '' || b === '') return a + b;
     return a + '/' + b;
   }
-
 }

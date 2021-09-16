@@ -1,9 +1,9 @@
-import {createShaderLoader, ShaderLoader} from './ShaderLoader';
-import {AbstractDeletable, LOGGER} from '../GLUtils';
-import {Program, ProgramLocations, VaryingBufferMode, Varyings} from './Program';
-import {CompiledShadersCache} from './CompiledShadersCache';
-import {Shader, ShaderType} from './Shader';
-import {Path} from "utils";
+import { createShaderLoader, ShaderLoader } from './ShaderLoader';
+import { AbstractDeletable, LOGGER } from '../GLUtils';
+import { Program, ProgramLocations, VaryingBufferMode, Varyings } from './Program';
+import { CompiledShadersCache } from './CompiledShadersCache';
+import { Shader, ShaderType } from './Shader';
+import { Path } from 'utils';
 
 export class ProgramLoader extends AbstractDeletable {
   private readonly shadersCache: CompiledShadersCache;
@@ -34,9 +34,9 @@ export class ProgramLoader extends AbstractDeletable {
     ];
     let varyings: Varyings | undefined;
     if (config.varyings) {
-      varyings = {names: config.varyings, mode: config.varyingMode || VaryingBufferMode.SEPARATE};
+      varyings = { names: config.varyings, mode: config.varyingMode || VaryingBufferMode.SEPARATE };
     } else if (config.varyingMode) {
-      varyings = {names: Object.keys(results.vs.outputs), mode: config.varyingMode};
+      varyings = { names: Object.keys(results.vs.outputs), mode: config.varyingMode };
     }
     return new Program<U, B, A>(this.gl, config).link(shaders, varyings);
   }
@@ -118,7 +118,7 @@ export class ProgramLoader extends AbstractDeletable {
 
   private static parseOutput(line: string): ShaderOutput | null {
     const matches = line.match(/^(?:flat\s+)?out\s+(\w+)\s+(\w+);$/);
-    if (matches) return {name: matches[2], type: matches[1]};
+    if (matches) return { name: matches[2], type: matches[1] };
     return null;
   }
 
@@ -166,7 +166,7 @@ export class ProgramLoader extends AbstractDeletable {
   }
 
   private static parseInclude(line: string): string | null {
-    const matches = line.match(/^#include\s+"(([^"]+))"$|(<([^>]+)>)$/);
+    const matches = line.match(/^#include\s+"([^"]+)"$|(<([^>]+)>)$/);
     if (matches) return matches[1];
     return null;
   }
@@ -175,8 +175,7 @@ export class ProgramLoader extends AbstractDeletable {
 class UnrollBlock {
   readonly lines: string[] = [];
 
-  constructor(readonly varName: string, readonly count: number) {
-  }
+  constructor(readonly varName: string, readonly count: number) {}
 
   push(line: string) {
     this.lines.push(line);

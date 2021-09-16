@@ -2,5 +2,5 @@
  * @type {import("tsdserver").Options}
  */
 module.exports = {
-  directories: ['.', 'assets']
+  directories: ['assets', 'src', '.']
 };

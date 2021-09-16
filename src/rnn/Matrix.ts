@@ -1,4 +1,4 @@
-import {Partial} from "rollup-plugin-typescript2/dist/partial";
+import { Partial } from 'rollup-plugin-typescript2/dist/partial';
 
 export type MatrixArray = Float32Array | Float64Array;
 type MutableArrayLike<T> = {

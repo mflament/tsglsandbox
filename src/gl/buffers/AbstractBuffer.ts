@@ -1,5 +1,5 @@
-import {AbstractDeletable, Bindable, checkNull, Deletable} from '../GLUtils';
-import {ArrayBufferType, BufferTarget, BufferUsage} from './BufferEnums';
+import { AbstractDeletable, Bindable, checkNull, Deletable } from '../GLUtils';
+import { ArrayBufferType, BufferTarget, BufferUsage } from './BufferEnums';
 
 export interface Buffer extends Bindable, Deletable {
   /**
@@ -14,13 +14,15 @@ export interface Buffer extends Bindable, Deletable {
   setsubdata(source: ArrayBufferType | number[], dstOffset: number, srcOffset?: number, length?: number): void;
 
   getsubdata(destBuffer: ArrayBufferView, srcOffset?: number, destOffset?: number, length?: number): void;
-
 }
 
-export abstract class AbstractBuffer<B extends ArrayBufferType = ArrayBufferType,
-  THIS extends AbstractBuffer<B, THIS> = any>
+export abstract class AbstractBuffer<
+    B extends ArrayBufferType = ArrayBufferType,
+    THIS extends AbstractBuffer<B, THIS> = any
+  >
   extends AbstractDeletable
-  implements Buffer {
+  implements Buffer
+{
   readonly glbuffer: WebGLBuffer;
   private _size = 0; // in bytes
 

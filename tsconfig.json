@@ -1,7 +1,6 @@
 {
   "files": [
-    "src/index.tsx",
-    "src/sandboxes/planetgen/worker/PlanetGeneratorWorker.ts"
+    "src/index.tsx"
   ],
   "exclude": [
     "node_modules/**"

@@ -1,8 +1,7 @@
-import React, {ChangeEvent} from 'react';
-import {ColorSandboxParameter} from '../../SandboxParameter';
-import {AbstractParameterControl, ControlProps} from './AbstractParameterControl';
-import {Color} from "three";
-
+import React, { ChangeEvent } from 'react';
+import { ColorSandboxParameter } from '../../SandboxParameter';
+import { AbstractParameterControl, ControlProps } from './AbstractParameterControl';
+import { Color } from 'three';
 
 function formatColor(value: number): string {
   return '#' + new Color(value).getHexString();
@@ -19,14 +18,7 @@ export class ColorParameterControl extends AbstractParameterControl<ColorSandbox
 
   protected renderInput(value: number): JSX.Element {
     const param = this.props.parameter;
-    return (
-      <input
-        type="color"
-        className={param.type}
-        value={formatColor(value)}
-        onChange={e => this.onChange(e)}
-      />
-    );
+    return <input type="color" className={param.type} value={formatColor(value)} onChange={e => this.onChange(e)} />;
   }
 
   protected onChange(evt: ChangeEvent<HTMLInputElement>): void {

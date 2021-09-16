@@ -1,7 +1,6 @@
-import {AbstractDeletable, Bindable, checkNull, Deletable} from '../GLUtils';
+import { AbstractDeletable, Bindable, checkNull, Deletable } from '../GLUtils';
 import {
   InternalFormat,
-  TextureArrayBuffer,
   TextureComponentType,
   TextureFormat,
   TextureMagFilter,
@@ -9,26 +8,41 @@ import {
   TextureParameter,
   TextureWrappingMode
 } from './TextureEnums';
-import {checkTextureCombination, TextureFormats, validateBufferType} from "./TextureFormats";
+import { getFormatConfiguration, TextureArrayBuffer, TextureFormatConfiguration } from './TextureFormatConfiguration';
+import { Partial } from 'rollup-plugin-typescript2/dist/partial';
 
 const TARGET = WebGL2RenderingContext.TEXTURE_2D;
 
 export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>, Deletable {
   private static _activeUnit = 0;
 
-  private readonly _texture: WebGLTexture;
-  private _formats?: TextureFormats;
+  static setActiveUnit(gl: WebGL2RenderingContext, unit: number): void {
+    if (GLTexture2D._activeUnit !== unit) {
+      gl.activeTexture(WebGL2RenderingContext.TEXTURE0 + unit);
+      GLTexture2D._activeUnit = unit;
+    }
+  }
+
+  readonly gltexture: WebGLTexture;
+
+  private readonly formatConfig: TextureFormatConfiguration;
+
   private _width = 0;
   private _height = 0;
   private _boundTo?: number;
 
-  constructor(readonly gl: WebGL2RenderingContext) {
+  constructor(readonly gl: WebGL2RenderingContext, internalFormat: InternalFormat = InternalFormat.RGBA) {
     super();
-    this._texture = checkNull(() => gl.createTexture());
+    this.formatConfig = getFormatConfiguration(internalFormat);
+    this.gltexture = checkNull(() => gl.createTexture());
   }
 
-  get gltexture(): WebGLTexture {
-    return this._texture;
+  get internalFormat(): InternalFormat {
+    return this.formatConfig.internalFormat;
+  }
+
+  get format(): TextureFormat {
+    return this.formatConfig.format;
   }
 
   get width(): number {
@@ -43,13 +57,8 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
     return this._boundTo;
   }
 
-  get formats(): TextureFormats {
-    if (!this._formats) throw new Error('Not initiazed');
-    return this._formats;
-  }
-
   bind(): GLTexture2D {
-    this.gl.bindTexture(TARGET, this._texture);
+    this.gl.bindTexture(TARGET, this.gltexture);
     this._boundTo = GLTexture2D._activeUnit;
     return this;
   }
@@ -61,98 +70,85 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
   }
 
   activate(unit: number): GLTexture2D {
-    this.activeUnit = unit;
+    GLTexture2D.setActiveUnit(this.gl, unit);
     return this;
   }
 
-  get activeUnit(): number {
-    return GLTexture2D._activeUnit;
-  }
-
-  set activeUnit(unit: number) {
-    if (GLTexture2D._activeUnit !== unit) {
-      this.gl.activeTexture(WebGL2RenderingContext.TEXTURE0 + unit);
-      GLTexture2D._activeUnit = unit;
-    }
-  }
-
   delete(): GLTexture2D {
-    this.gl.deleteTexture(this._texture);
+    this.gl.deleteTexture(this.gltexture);
     super.delete();
     return this;
   }
 
-  async load(param: LoadImageData): Promise<GLTexture2D> {
-    const image = await loadImage(param.uri);
-    this.bind().data({...param, source: image, generateMipmap: true});
-    if (param.onload) param.onload(this);
-    return this;
-  }
-
-  data(param: TextureData): GLTexture2D {
-    const formats = checkTextureCombination(param);
-    const level = param.level ? param.level : 0;
-    if (isSizedData(param)) {
-      const w = param.width;
-      const h = param.height;
-      if (isBufferData(param)) {
-        validateBufferType(param.buffer, formats.componentType);
-        if (param.unpackAlignment !== undefined)
-          this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, param.unpackAlignment);
-        const srcOffset = param.srcOffset ? param.srcOffset : 0;
-        this.gl.texImage2D(TARGET, level, formats.internalFormat, w, h, 0, formats.format, formats.componentType, param.buffer, srcOffset);
-      } else if (isPBOData(param)) {
-        this.gl.texImage2D(TARGET, level, formats.internalFormat, w, h, 0, formats.format, formats.componentType, param.pboOffset);
-      } else {
-        this.gl.texImage2D(TARGET, level, formats.internalFormat, w, h, 0, formats.format, formats.componentType, null);
-      }
-      this._width = w;
-      this._height = h;
-    } else if (isImageSourceData(param)) {
-      this.gl.texImage2D(TARGET, level, formats.internalFormat, formats.format, formats.componentType, param.source);
-      this._width = param.source.width;
-      this._height = param.source.height;
-    } else if (isLoadImageData(param)) {
-      loadImage(param.uri).then(image => {
-        this.bind().data({...param, source: image, generateMipmap: true} as ImageSourceData);
-        if (param.onload) param.onload(this);
-      });
-      return this;
-    }
-    if (param.generateMipmap) this.generateMimap();
-    this._formats = formats;
-    return this;
-  }
-
-  printFormats(): string {
-    if (!this._formats) return "undefined";
-    return JSON.stringify({
-      internaleFormat: InternalFormat[this._formats.internalFormat],
-      format: TextureFormat[this._formats.format],
-      componentType: TextureComponentType[this._formats.componentType]
+  async load(uri: string, type?: TextureComponentType): Promise<GLTexture2D> {
+    type = this.defaultComponentType(type);
+    const image = await loadImage(uri);
+    this.bind().data({
+      level: 0,
+      type: this.defaultComponentType(type),
+      width: image.width,
+      height: image.height,
+      source: image
     });
+    this.generateMimap();
+    return this;
   }
 
-  subdata(param: TextureSubdata): GLTexture2D {
-    if (!this._formats) throw new Error("formats not configured yet, call data first");
-    checkTextureCombination({...param, internalFormat: this._formats?.internalFormat});
-    const level = param.level ? param.level : 0;
-    if (isSizedData(param)) {
-      const w = param.width;
-      const h = param.height;
-      if (isBufferData(param)) {
-        validateBufferType(param.buffer, this.formats.componentType);
-        if (param.unpackAlignment !== undefined)
-          this.gl.pixelStorei(WebGL2RenderingContext.UNPACK_ALIGNMENT, param.unpackAlignment);
-        const srcOffset = param.srcOffset ? param.srcOffset : 0;
-        this.gl.texSubImage2D(TARGET, level, param.x, param.y, w, h, this.formats.format, this.formats.componentType, param.buffer, srcOffset);
-      } else if (isPBOData(param)) {
-        this.gl.texSubImage2D(TARGET, level, param.x, param.y, w, h, this.formats.format, this.formats.componentType, param.pboOffset);
-      }
-    } else if (isImageSourceData(param)) {
-      this.gl.texSubImage2D(TARGET, level, param.x, param.y, this.formats.format, this.formats.componentType, param.source);
-    }
+  freeze(width: number, height: number, levels = 1): GLTexture2D {
+    this.gl.texStorage2D(TARGET, levels, this.formatConfig.internalFormat, width, height);
+    this._width = width;
+    this._height = height;
     return this;
+  }
+
+  data(param: BufferTextureData | UnpackBufferTextureData | ImageTextureData): GLTexture2D {
+    const args = this.parseData(param);
+    this.gl.texImage2D(
+      TARGET,
+      param.level || 0,
+      this.internalFormat,
+      this._width,
+      this._height,
+      0,
+      this.format,
+      this.checkType(param.type),
+      // @ts-ignore
+      ...args
+    );
+    return this;
+  }
+
+  subdata(param: (BufferTextureData | UnpackBufferTextureData | ImageTextureData) & TextureOffset): GLTexture2D {
+    const args = this.parseData(param);
+    this.gl.texSubImage2D(
+      TARGET,
+      param.level || 0,
+      param.x || 0,
+      param.y || 0,
+      this._width,
+      this._height,
+      this.format,
+      this.checkType(param.type),
+      // @ts-ignore
+      ...args
+    );
+    return this;
+  }
+
+  private parseData(param: BufferTextureData | UnpackBufferTextureData | ImageTextureData): any[] {
+    if (isBufferTextureData(param)) {
+      this._width = param.width;
+      this._height = param.height;
+      return [param.srcData, param.srcOffset];
+    } else if (isImageTextureData(param)) {
+      this._width = param.width === undefined ? param.source.width : param.width;
+      this._height = param.height === undefined ? param.source.height : param.height;
+      return [param.source];
+    } else {
+      this._width = param.width;
+      this._height = param.height;
+      return [param.offset];
+    }
   }
 
   generateMimap(): GLTexture2D {
@@ -175,68 +171,53 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
     this.gl.texParameteri(TARGET, TextureParameter.WRAP_T, t);
     return this;
   }
+
+  private defaultComponentType(type?: TextureComponentType): TextureComponentType {
+    if (type !== undefined) return type;
+    return this.formatConfig.types[0];
+  }
+
+  private checkType(type?: TextureComponentType): TextureComponentType {
+    if (type === undefined) return this.formatConfig.types[0];
+    if (this.formatConfig.types.indexOf(type) < 0)
+      throw new Error('Invalid type ' + TextureComponentType[type] + ' for config ' + this.formatConfig);
+    return type;
+  }
 }
 
-export interface BaseTextureData {
-  format?: TextureFormat;
-  type?: TextureComponentType;
+export interface TextureData {
   level?: number;
-}
-
-export interface InitTextureData extends BaseTextureData {
-  internalFormat?: InternalFormat;
-  generateMipmap?: boolean;
-}
-
-export interface SizedData {
+  type?: TextureComponentType;
   width: number;
   height: number;
 }
 
-export interface BufferData extends SizedData {
-  buffer: TextureArrayBuffer;
+export interface TextureOffset {
+  x?: number;
+  y?: number;
+}
+
+export interface BufferTextureData extends TextureData {
+  srcData: TextureArrayBuffer | null;
   srcOffset?: number;
-  unpackAlignment?: number;
 }
 
-export interface PBOData extends SizedData {
-  pboOffset: number;
+export interface UnpackBufferTextureData extends TextureData {
+  offset?: number;
 }
 
-export interface ImageSourceData {
+export interface ImageTextureData extends TextureData {
   source: TexImageSource;
 }
 
-export interface LoadImageData {
-  uri: string;
-  onload?: (texture: GLTexture2D) => any;
+function isBufferTextureData(param: TextureData): param is BufferTextureData {
+  const bd = param as Partial<BufferTextureData>;
+  return bd.srcData !== undefined;
 }
 
-export type TextureData = InitTextureData & (SizedData | BufferData | PBOData | ImageSourceData | LoadImageData);
-export type TextureSubdata = BaseTextureData & {
-  x: number;
-  y: number;
-} & (BufferData | PBOData | ImageSourceData);
-
-function isSizedData(data: any): data is SizedData {
-  const sd = data as Partial<SizedData>;
-  return typeof sd.width === 'number' && typeof sd.height === 'number';
-}
-
-function isBufferData(data: any): data is BufferData {
-  return isSizedData(data) && (data as BufferData).buffer !== undefined;
-}
-
-function isImageSourceData(data: any): data is ImageSourceData {
-  return (data as ImageSourceData).source !== undefined;
-}
-
-function isLoadImageData(data: any): data is LoadImageData {
-  return typeof (data as Partial<LoadImageData>).uri === 'string';
-}
-
-function isPBOData(data: any): data is PBOData {
-  return typeof (data as Partial<PBOData>).pboOffset === 'number';
+function isImageTextureData(param: TextureData): param is ImageTextureData {
+  const id = param as Partial<ImageTextureData>;
+  return typeof id.source !== undefined;
 }
 
 function loadImage(uri: string): Promise<HTMLImageElement> {
@@ -247,3 +228,5 @@ function loadImage(uri: string): Promise<HTMLImageElement> {
     image.addEventListener('error', () => _reject());
   });
 }
+
+//interface PixelStore

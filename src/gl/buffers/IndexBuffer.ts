@@ -1,5 +1,5 @@
-import {AbstractBuffer} from './AbstractBuffer';
-import {BufferTarget, IndexBufferType, IndexComponentType, sizeOf} from './BufferEnums';
+import { AbstractBuffer } from './AbstractBuffer';
+import { BufferTarget, IndexBufferType, IndexComponentType, sizeOf } from './BufferEnums';
 
 export abstract class IndexBuffer<T extends IndexBufferType = never> extends AbstractBuffer<T, IndexBuffer<T>> {
   constructor(gl: WebGL2RenderingContext, readonly componentType: IndexComponentType) {

@@ -1,6 +1,6 @@
-import React, {ChangeEvent} from 'react';
-import {BooleanSandboxParameter} from '../../SandboxParameter';
-import {AbstractParameterControl, ControlProps} from './AbstractParameterControl';
+import React, { ChangeEvent } from 'react';
+import { BooleanSandboxParameter } from '../../SandboxParameter';
+import { AbstractParameterControl, ControlProps } from './AbstractParameterControl';
 
 export class BooleanParameterControl extends AbstractParameterControl<BooleanSandboxParameter> {
   constructor(props: ControlProps<BooleanSandboxParameter>) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import {vec2, vec4} from 'gl-matrix';
+import { vec2, vec4 } from 'gl-matrix';
 import {
   AbstractGLSandbox,
   BufferAttribute,
@@ -9,9 +9,10 @@ import {
   Program,
   SandboxContainer,
   SandboxFactory,
+  shaderPath,
   VertexBuffer
 } from 'gl';
-import {AABB, QuadTree} from 'utils';
+import { AABB, QuadTree } from 'utils';
 
 const LINE_COLOR: vec4 = [0.7, 0.7, 0.7, 1];
 const POINT_COLOR: vec4 = [0.2, 0.2, 0.9, 1];
@@ -33,7 +34,7 @@ type MappedDrawable = {
 
 class QuadTreeTestSandbox extends AbstractGLSandbox {
   static async create(container: SandboxContainer, name: string): Promise<QuadTreeTestSandbox> {
-    const program = await container.programLoader.load({path: 'test/quadtree.glsl'});
+    const program = await container.programLoader.load({ path: shaderPath('/quadtree.glsl', import.meta) });
     return new QuadTreeTestSandbox(container, name, program);
   }
 
@@ -201,8 +202,8 @@ class QuadTreeTestSandbox extends AbstractGLSandbox {
 
   private newMappedDrawable(drawMode: DrawMode): MappedDrawable {
     const vertices = new VertexBuffer<QuadTreeAttributes>(this.gl, {
-      a_position: {size: 2},
-      a_color: {size: 4}
+      a_position: { size: 2 },
+      a_color: { size: 4 }
     });
     const drawable = new GLDrawable<QuadTreeAttributes>(
       this.gl,

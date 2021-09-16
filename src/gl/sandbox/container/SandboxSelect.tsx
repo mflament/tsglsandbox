@@ -1,5 +1,5 @@
-import React, {Component, ReactNode} from 'react';
-import {GLSandbox} from '../GLSandbox';
+import React, { Component, ReactNode } from 'react';
+import { GLSandbox } from '../GLSandbox';
 
 interface SelectProps {
   sandboxes: string[];

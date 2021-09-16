@@ -2,14 +2,13 @@ import {
   GLTexture2D,
   InternalFormat,
   TextureComponentType,
-  TextureFormat,
   TextureMagFilter,
   TextureMinFilter,
   TextureWrappingMode
 } from 'gl';
-import {AbstractDeletable} from '../../gl/GLUtils';
+import { AbstractDeletable } from '../../gl/GLUtils';
 
-import {Boid} from './Boid';
+import { Boid } from './Boid';
 
 export const TEXTURE_UNITS = {
   data: 0
@@ -57,13 +56,7 @@ export class BoidsDataTextures extends AbstractDeletable {
 
 export class BoidsDataTexture extends AbstractDeletable {
   static create(gl: WebGL2RenderingContext, maxBoids: number): BoidsDataTexture {
-    const data = newDataTexture(gl).bind().data({
-      width: maxBoids,
-      height: 1,
-      internalFormat: InternalFormat.RGBA32F,
-      format: TextureFormat.RGBA,
-      type: TextureComponentType.FLOAT
-    });
+    const data = newDataTexture(gl).bind().data({ width: maxBoids, height: 1 });
     return new BoidsDataTexture(data);
   }
 
@@ -89,8 +82,7 @@ export class BoidsDataTexture extends AbstractDeletable {
       .bind()
       .subdata({
         ...textureData,
-        buffer: array,
-        format: TextureFormat.RGBA
+        srcData: array
       });
   }
 
@@ -101,7 +93,7 @@ export class BoidsDataTexture extends AbstractDeletable {
 }
 
 function newDataTexture(gl: WebGL2RenderingContext): GLTexture2D {
-  return new GLTexture2D(gl)
+  return new GLTexture2D(gl, InternalFormat.RGBA32F)
     .bind()
     .minFilter(TextureMinFilter.NEAREST)
     .magFilter(TextureMagFilter.NEAREST)

@@ -11,18 +11,11 @@ import {
   quadProgram,
   SandboxContainer,
   SandboxFactory,
-  TextureComponentType,
-  TextureFormat,
+  shaderPath,
   TextureMagFilter,
   TextureMinFilter,
   TextureWrappingMode
 } from 'gl';
-
-const DATA_TEXTURE_FORMAT = {
-  internalFormat: InternalFormat.R8,
-  format: TextureFormat.RED,
-  type: TextureComponentType.UNSIGNED_BYTE
-};
 
 class GOLParameters {
   @control({ pattern: 'B\\d+S\\d+' })
@@ -43,11 +36,11 @@ class UpdateUniforms {
 class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
   static async create(container: SandboxContainer, name: string, parameters?: GOLParameters): Promise<GOLSandbox> {
     const renderProgram = await quadProgram(container.programLoader, {
-      fspath: 'gol/gol-render.fs.glsl',
+      fspath: shaderPath('gol-render.fs.glsl', import.meta),
       uniformLocations: new RenderUniforms()
     });
     const updateProgram = await quadProgram(container.programLoader, {
-      fspath: 'gol/gol-update.fs.glsl',
+      fspath: shaderPath('gol-update.fs.glsl', import.meta),
       uniformLocations: new UpdateUniforms()
     });
     return new GOLSandbox(container, name, parameters, renderProgram, updateProgram);
@@ -155,11 +148,10 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
     if (this.lastCellIndex !== index) {
       this.data[index] = this.data[index] ? 0 : 0xff;
       this.frontTexture.subdata({
-        ...DATA_TEXTURE_FORMAT,
         ...pos,
         width: 1,
         height: 1,
-        buffer: this.data,
+        srcData: this.data,
         srcOffset: index
       });
       this.lastCellIndex = index;
@@ -188,7 +180,6 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
     const size = this.parameters.size;
     if (this.dataSize !== size) {
       this.backTexture.bind().data({
-        ...DATA_TEXTURE_FORMAT,
         width: size,
         height: size
       });
@@ -206,10 +197,9 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
     }
 
     this.frontTexture.bind().data({
-      ...DATA_TEXTURE_FORMAT,
       width: size,
       height: size,
-      buffer: this.data
+      srcData: this.data
     });
   }
 
@@ -223,15 +213,14 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
   private clearData() {
     this.data.fill(0);
     this.frontTexture.bind().data({
-      ...DATA_TEXTURE_FORMAT,
       width: this.dataSize,
       height: this.dataSize,
-      buffer: this.data
+      srcData: this.data
     });
   }
 
   private createTexture(): GLTexture2D {
-    return new GLTexture2D(this.gl)
+    return new GLTexture2D(this.gl, InternalFormat.R8)
       .bind()
       .minFilter(TextureMinFilter.NEAREST)
       .magFilter(TextureMagFilter.NEAREST)
@@ -260,6 +249,6 @@ function parseRule(rule: string): Uint32Array {
   return res;
 }
 
-export function gameofLife(): SandboxFactory<GOLParameters> {
+export function gameOfLife(): SandboxFactory<GOLParameters> {
   return GOLSandbox.create;
 }

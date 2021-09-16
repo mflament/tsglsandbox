@@ -1,6 +1,6 @@
-import React, {ChangeEvent} from 'react';
-import {StringSandboxParameter} from '../../SandboxParameter';
-import {AbstractParameterControl, ControlProps} from './AbstractParameterControl';
+import React, { ChangeEvent } from 'react';
+import { StringSandboxParameter } from '../../SandboxParameter';
+import { AbstractParameterControl, ControlProps } from './AbstractParameterControl';
 
 export class StringParameterControl extends AbstractParameterControl<StringSandboxParameter> {
   constructor(props: ControlProps<StringSandboxParameter>) {

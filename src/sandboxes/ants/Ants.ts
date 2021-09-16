@@ -8,16 +8,15 @@ import {
   Sprites,
   TextureAtlas
 } from 'gl';
-import {SandboxEventHandler} from "../../gl/sandbox/ActionManager";
+import { SandboxEventHandler } from '../../gl/sandbox/ActionManager';
 
-class AntsParameters {
-}
+class AntsParameters {}
 
 const ANT_REGIONS = 8 * 8 - 2;
 
 class GLAnts extends AbstractGLSandbox<AntsParameters> implements SandboxEventHandler {
   static async create(container: SandboxContainer, name: string, parameters?: AntsParameters): Promise<GLAnts> {
-    const texture = await new GLTexture2D(container.canvas.gl).bind().load({uri: 'images/ant-walk.png'});
+    const texture = await new GLTexture2D(container.canvas.gl).bind().load('images/ant-walk.png');
     const sprites = await Sprites.create(container, [new TextureAtlas(texture, splitRegions(8, 8, ANT_REGIONS))]);
     sprites.bind();
     return new GLAnts(container, name, sprites, parameters);
@@ -33,8 +32,8 @@ class GLAnts extends AbstractGLSandbox<AntsParameters> implements SandboxEventHa
     gl.blendFunc(WebGL2RenderingContext.SRC_ALPHA, WebGL2RenderingContext.ONE_MINUS_SRC_ALPHA);
     const scale = 0.6;
     this.sprites.bind();
-    this.antSprite = this.sprites.addSprite({pos: [120, 200], scale: [scale, scale], texture: 0, region: 0});
-    this.antSprite.animation = {startRegion: 0, endRegion: ANT_REGIONS, duration: 0.8};
+    this.antSprite = this.sprites.addSprite({ pos: [120, 200], scale: [scale, scale], texture: 0, region: 0 });
+    this.antSprite.animation = { startRegion: 0, endRegion: ANT_REGIONS, duration: 0.8 };
     this.sprites.updateSprite(this.antSprite.index);
   }
 

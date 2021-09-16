@@ -1,11 +1,12 @@
-import React, {Component, ReactNode, RefObject} from 'react';
-import {RenderPanel} from './RenderPanel';
-import {GLSandbox, SandboxContainer, SandboxFactories} from '../GLSandbox';
-import {hashLocation} from 'utils';
-import {ProgramLoader} from '../../shader/ProgramLoader';
-import {GLCanvas} from './GLCanvas';
-import {SandboxStorage, StoredState} from './SandboxStorage';
-import {SandboxSelect} from "./SandboxSelect";
+import React, { Component, ReactNode, RefObject } from 'react';
+import { RenderPanel } from './RenderPanel';
+import { GLSandbox, SandboxContainer, SandboxFactories } from '../GLSandbox';
+import { hashLocation } from 'utils';
+import { ProgramLoader } from '../../shader/ProgramLoader';
+import { GLCanvas } from './GLCanvas';
+import { SandboxStorage, StoredState } from './SandboxStorage';
+import { SandboxSelect } from './SandboxSelect';
+import { HttpShaderLoader, ShaderLoader } from '../../shader/ShaderLoader';
 
 interface ContainerProps {
   readonly sandboxes: SandboxFactories;
@@ -24,7 +25,7 @@ interface ParsedHash {
 function parseHash(): ParsedHash {
   const hash = hashLocation.path;
   const matches = hash.match(/\/?(\w+).*/);
-  return {sandboxName: matches ? matches[1] : undefined};
+  return { sandboxName: matches ? matches[1] : undefined };
 }
 
 export class SandboxController extends Component<ContainerProps, SandboxControllerState> implements SandboxContainer {
@@ -33,6 +34,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   private readonly controlPanelRef: RefObject<ControlPanel>;
 
   private _programLoader?: ProgramLoader;
+  private _shaderLoader?: ShaderLoader;
 
   private _lastUpdate = 0;
   private _frames = 0;
@@ -49,8 +51,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
       selectedSandbox: this.sandboxNames[0],
       ...this.storage.state
     };
-    if (!this.sandboxes[state.selectedSandbox])
-      state.selectedSandbox = this.sandboxNames[0];
+    if (!this.sandboxes[state.selectedSandbox]) state.selectedSandbox = this.sandboxNames[0];
     this.state = state;
     window.onhashchange = () => this.hashChanged();
     window.onkeydown = (e: KeyboardEvent) => this.onKeyDown(e);
@@ -61,7 +62,6 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     return this._time;
   }
 
-
   get canvas(): GLCanvas {
     const canvas = this.canvasRef.current;
     if (!canvas) throw new Error('Canvas not created');
@@ -69,10 +69,13 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   }
 
   get programLoader(): ProgramLoader {
-    if (!this._programLoader) {
-      this._programLoader = new ProgramLoader(this.canvas.gl);
-    }
+    if (!this._programLoader) this._programLoader = new ProgramLoader(this.canvas.gl, this.shaderLoader);
     return this._programLoader;
+  }
+
+  get shaderLoader(): ShaderLoader {
+    if (!this._shaderLoader) this._shaderLoader = new HttpShaderLoader();
+    return this._shaderLoader;
   }
 
   async componentDidMount(): Promise<void> {
@@ -86,21 +89,18 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
     return (
       <div id="glsandbox" className={'full-screen ' + this.sandbox?.name}>
         <RenderPanel onResize={(w, h) => this.resizeCanvas(w, h)}>
-          <GLCanvas
-            glAttributes={this.props.glAttributes}
-            ref={this.canvasRef}
-            eventHandler={this.state.sandbox}
-          />
+          <GLCanvas glAttributes={this.props.glAttributes} ref={this.canvasRef} eventHandler={this.state.sandbox} />
           <CanvasOverlay
             showOverlay={sandbox !== undefined && this.state.showOverlay}
             showControls={this.state.showControls}
             onShowControls={() => this.toggleControls()}
-            getFPS={() => this._frames}/>
+            getFPS={() => this._frames}
+          />
         </RenderPanel>
 
         <ControlPanel visible={this.state.showControls} ref={this.controlPanelRef}>
-          <SandboxHeader controller={this}/>
-          <hr/>
+          <SandboxHeader controller={this} />
+          <hr />
           {sandbox?.controls}
         </ControlPanel>
       </div>
@@ -113,8 +113,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   }
 
   selectSandbox(name: string): void {
-    if (!this.sandboxes[name])
-      return;
+    if (!this.sandboxes[name]) return;
     this.setState(
       currentState => {
         if (currentState.loading) return currentState;
@@ -176,8 +175,8 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
 
     const storedParams = this.storage.getSandboxParameters(name);
     const sandbox = await factory(this, name, storedParams);
-    sandbox.onresize && sandbox.onresize({width: this.canvas.width, height: this.canvas.height});
-    this.setState({sandbox: sandbox, loading: undefined});
+    sandbox.onresize && sandbox.onresize({ width: this.canvas.width, height: this.canvas.height });
+    this.setState({ sandbox: sandbox, loading: undefined });
   }
 
   private saveSandbox(): void {
@@ -244,7 +243,7 @@ export class SandboxController extends Component<ContainerProps, SandboxControll
   }
 
   private toggleControls(): void {
-    this.setState(current => ({...current, showControls: !current.showControls}));
+    this.setState(current => ({ ...current, showControls: !current.showControls }));
   }
 
   get sandboxes(): SandboxFactories {
@@ -268,7 +267,7 @@ class CanvasOverlay extends Component<CanvasOverlayProps, { fps: number }> {
 
   constructor(props: CanvasOverlayProps) {
     super(props);
-    this.state = {fps: 0};
+    this.state = { fps: 0 };
   }
 
   render(): ReactNode {
@@ -276,7 +275,7 @@ class CanvasOverlay extends Component<CanvasOverlayProps, { fps: number }> {
       <div className={this.className}>
         <div className="fps">{this.state.fps}</div>
         <div className="button toggle-controls" onClick={this.props.onShowControls}>
-          <img src="/images/arrow.png" alt="Toggle menu"/>
+          <img src="/images/arrow.png" alt="Toggle menu" />
         </div>
       </div>
     );
@@ -304,7 +303,7 @@ class CanvasOverlay extends Component<CanvasOverlayProps, { fps: number }> {
     const elapsedSec = (this.lastFrameTime - now) / 1000;
     const totalFrames = this.props.getFPS();
     const frames = this.lastFramesCount - totalFrames;
-    this.setState({fps: Math.round(frames / elapsedSec)});
+    this.setState({ fps: Math.round(frames / elapsedSec) });
     this.lastFrameTime = now;
     this.lastFramesCount = totalFrames;
   }
@@ -355,16 +354,19 @@ class SandboxHeader extends Component<{ controller: SandboxController }> {
     const sandbox = this.props.controller.sandbox;
     if (!sandbox) return <></>;
     const titleClass = sandbox.displayName ? '' : 'capitalized';
-    return <div className="sandbox-title">
-      <SandboxSelect
-        sandboxes={controller.sandboxNames}
-        sandbox={sandbox}
-        selectedName={controller.selectedSandbox}
-        onChange={n => controller.selectSandbox(n)}/>
-      <span className={titleClass}>{sandbox.displayName || sandbox.name}</span>
-      <img src="/images/reset.png" title="Reset parameters" onClick={() => this.resetParameters()} alt="Reset"/>
-      <img src="/images/share.png" title="Share this sandbox" onClick={() => this.shareSandbox()} alt="Share"/>
-    </div>;
+    return (
+      <div className="sandbox-title">
+        <SandboxSelect
+          sandboxes={controller.sandboxNames}
+          sandbox={sandbox}
+          selectedName={controller.selectedSandbox}
+          onChange={n => controller.selectSandbox(n)}
+        />
+        <span className={titleClass}>{sandbox.displayName || sandbox.name}</span>
+        <img src="/images/reset.png" title="Reset parameters" onClick={() => this.resetParameters()} alt="Reset" />
+        <img src="/images/share.png" title="Share this sandbox" onClick={() => this.shareSandbox()} alt="Share" />
+      </div>
+    );
   }
 
   private resetParameters(): void {
@@ -379,6 +381,4 @@ class SandboxHeader extends Component<{ controller: SandboxController }> {
       console.log('initial json ' + json);
     }
   }
-
-
 }

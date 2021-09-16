@@ -14,6 +14,7 @@ export * from './gl/sandbox/GLSandbox';
 export * from './gl/sandbox/support/AbstractGLSandbox';
 export * from './gl/sandbox/support/AbstractThreeSandbox';
 export * from './gl/sandbox/container/SandboxController';
+export * from './gl/sandbox/SandboxParameter';
 export * from './gl/sandbox/ParametersMetadata';
 export * from './gl/sandbox/container/SandboxController';
 
@@ -31,6 +32,6 @@ export * from './gl/sprites/TextureAtlas';
 export * from './gl/texture/GLTexture';
 export * from './gl/texture/NoiseTextureGenerator';
 export * from './gl/texture/TextureEnums';
-export * from './gl/texture/TextureFormats';
+export * from './gl/texture/TextureFormatConfiguration';
 
 export * from './gl/GLUtils';

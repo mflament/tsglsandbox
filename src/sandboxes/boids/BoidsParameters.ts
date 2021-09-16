@@ -1,4 +1,4 @@
-import {control} from 'gl';
+import { control } from 'gl';
 
 export const MAX_BOIDS = 1024;
 export class BoidsParameters {

@@ -1,6 +1,6 @@
-import React, {ChangeEvent} from 'react';
-import {ChoicesSandboxParameter} from '../../SandboxParameter';
-import {AbstractParameterControl, ControlProps} from './AbstractParameterControl';
+import React, { ChangeEvent } from 'react';
+import { ChoicesSandboxParameter } from '../../SandboxParameter';
+import { AbstractParameterControl, ControlProps } from './AbstractParameterControl';
 
 export class ChoiceParameterControl extends AbstractParameterControl<ChoicesSandboxParameter> {
   private choices: any[] = [];
@@ -22,7 +22,11 @@ export class ChoiceParameterControl extends AbstractParameterControl<ChoicesSand
   private option(index: number, choice: string | number, selected: boolean): JSX.Element {
     const choices = this.props.parameter.choices;
     const label = choices.labels && choices.labels[index] ? choices.labels[index] : choice.toString();
-    return <option selected={selected} value={choice}>{label}</option>;
+    return (
+      <option selected={selected} value={choice}>
+        {label}
+      </option>
+    );
   }
 
   protected onChange(evt: ChangeEvent<HTMLSelectElement>): void {

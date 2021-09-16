@@ -1,5 +1,7 @@
 import {
   AbstractGLSandbox,
+  control,
+  FractalNoiseParameters,
   GLTexture2D,
   IndexedDrawable,
   newQuadDrawable,
@@ -7,11 +9,10 @@ import {
   Program,
   quadProgram,
   SandboxContainer,
-  SandboxFactory
+  SandboxFactory,
+  shaderPath
 } from 'gl';
-import {control} from '../../gl/sandbox/ParametersMetadata';
-import {NoiseParameters} from '../../gl/texture/NoiseTextureGenerator';
-import {randomSimplexSeed} from '../../random/noise/SimplexNoise';
+import { randomSimplexSeed } from 'random';
 
 class NoiseUniforms {
   u_sampler: WebGLUniformLocation | null = null;
@@ -23,25 +24,38 @@ class NoiseSandboxParameters {
   size = 512;
   @control({ min: 1, max: 100, step: 1 })
   scale = 10;
+  @control({ min: 1, max: 16, step: 1 })
+  octaves = 8;
+  @control({ min: 0, max: 1, step: 0.001 })
+  persistence = 0.6;
   normalize = false;
   float32 = true;
 }
 
 class NoiseSandbox extends AbstractGLSandbox<NoiseSandboxParameters> {
-  static async create(container: SandboxContainer, name: string, parameters?: NoiseSandboxParameters): Promise<NoiseSandbox> {
+  static async create(
+    container: SandboxContainer,
+    name: string,
+    parameters?: NoiseSandboxParameters
+  ): Promise<NoiseSandbox> {
     const program = await quadProgram(container.programLoader, {
-      fspath: 'test/noise.fs.glsl',
+      fspath: shaderPath('noise.fs.glsl', import.meta),
       uniformLocations: new NoiseUniforms()
     });
     return new NoiseSandbox(container, name, program, parameters);
   }
 
   private readonly quadBuffers: IndexedDrawable;
-  private readonly texture: GLTexture2D;
   private readonly generator: NoiseTextureGenerator;
   private readonly seed = randomSimplexSeed();
+  private texture: GLTexture2D;
 
-  constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<NoiseUniforms>, parameters?: NoiseSandboxParameters) {
+  constructor(
+    container: SandboxContainer,
+    name: string,
+    readonly renderProgram: Program<NoiseUniforms>,
+    parameters?: NoiseSandboxParameters
+  ) {
     super(container, name, parameters);
     this.generator = new NoiseTextureGenerator(this.gl);
     renderProgram.use();
@@ -54,7 +68,7 @@ class NoiseSandbox extends AbstractGLSandbox<NoiseSandboxParameters> {
     return new NoiseSandboxParameters();
   }
 
-  private get generatorParameters(): NoiseParameters {
+  private get generatorParameters(): FractalNoiseParameters {
     const params = this.parameters;
     return {
       seed: this.seed,
@@ -62,7 +76,9 @@ class NoiseSandbox extends AbstractGLSandbox<NoiseSandboxParameters> {
       height: params.size,
       scale: params.scale,
       normalize: params.normalize,
-      float32: params.float32
+      float32: params.float32,
+      octaves: params.octaves,
+      persistence: params.persistence
     };
   }
 
@@ -71,7 +87,8 @@ class NoiseSandbox extends AbstractGLSandbox<NoiseSandboxParameters> {
   }
 
   onparameterchange(): void {
-    this.generator.update(this.generatorParameters, this.texture);
+    this.texture = this.generator.update(this.generatorParameters, this.texture);
+    this.texture.activate(0).bind();
   }
 }
 

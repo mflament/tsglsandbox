@@ -1,4 +1,4 @@
-import React, {Component, ReactNode, RefObject} from 'react';
+import React, { Component, ReactNode, RefObject } from 'react';
 
 interface RenderPanelProps {
   onResize(width: number, height: number): void;

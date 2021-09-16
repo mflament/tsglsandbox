@@ -1,6 +1,6 @@
-import {vec2, vec3, vec4} from 'gl-matrix';
+import { vec2, vec3, vec4 } from 'gl-matrix';
 
-import {Noise} from './Noise';
+import { Noise } from './Noise';
 
 export function simplexNoise(seed?: number): Noise<number> {
   const noise = makeNoise2D(seed);

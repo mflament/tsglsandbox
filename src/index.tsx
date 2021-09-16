@@ -2,24 +2,25 @@ import {
   ants,
   boids,
   flowers,
-  gameofLife,
-  glparticles,
+  gameOfLife,
+  glParticles,
+  lacrSandbox,
   noise,
-  planetGeneratorSandbox,
   quadTreeTest,
   testSandbox,
   testThree,
   tsp
 } from './sandboxes';
+import { planetGeneratorSandbox } from './sandboxes/terrain/planet/PlanetGeneratorSandbox';
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {SandboxController} from "gl";
+import { SandboxController } from 'gl';
 
 const factories = {
   flowers: flowers(),
-  gol: gameofLife(),
-  particles: glparticles(),
+  gol: gameOfLife(),
+  particles: glParticles(),
   tsp: tsp(),
   boids: boids(),
   ants: ants(),
@@ -27,7 +28,8 @@ const factories = {
   tt: testThree(),
   qt: quadTreeTest(),
   noise: noise(),
-  pg: planetGeneratorSandbox()
+  pg: planetGeneratorSandbox(),
+  lacr: lacrSandbox()
 };
 
-ReactDOM.render(<SandboxController sandboxes={factories}/>, document.body);
+ReactDOM.render(<SandboxController sandboxes={factories} />, document.body);

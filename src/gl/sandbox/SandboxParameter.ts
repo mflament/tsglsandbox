@@ -1,4 +1,4 @@
-import {GLSandbox} from './GLSandbox';
+import { GLSandbox } from './GLSandbox';
 import {
   Choices,
   ControlMetadata,
@@ -10,15 +10,7 @@ import {
   ParameterSourceFunction
 } from './ParametersMetadata';
 
-export type SandboxParameterType =
-  'object'
-  | 'string'
-  | 'number'
-  | 'range'
-  | 'color'
-  | 'choices'
-  | 'boolean'
-  | 'json';
+export type SandboxParameterType = 'object' | 'string' | 'number' | 'range' | 'color' | 'choices' | 'boolean' | 'json';
 
 export type ParameterChangeListener = (parameter: SandboxParameter, newValue: any) => any;
 
@@ -81,7 +73,10 @@ export interface ObjectSandboxParameter extends SandboxParameter {
   readonly parent: ObjectSandboxParameter | GLSandbox;
 }
 
-export function createSandboxParameters(sandbox: GLSandbox, onchange?: ParameterChangeListener): ObjectSandboxParameter {
+export function createSandboxParameters(
+  sandbox: GLSandbox,
+  onchange?: ParameterChangeListener
+): ObjectSandboxParameter {
   return new DefaultObjectParameter(0, 'parameters', sandbox, sandbox, {}, onchange);
 }
 
@@ -120,8 +115,7 @@ abstract class AbstractSandboxParameter implements SandboxParameter, ControlMeta
   }
 
   get debounce(): number {
-    if (this.metadata.debounce !== undefined)
-      return this.metadata.debounce;
+    if (this.metadata.debounce !== undefined) return this.metadata.debounce;
     return 0;
   }
 
@@ -229,14 +223,16 @@ class DefaultSandboxParameter extends AbstractSandboxParameter implements Sandbo
 class ChoiceSandboxParameter extends AbstractSandboxParameter implements ChoicesSandboxParameter {
   readonly type = 'choices';
 
-  constructor(index: number,
-              name: string,
-              container: any,
-              parent: ObjectSandboxParameter | GLSandbox,
-              metadata: ControlMetadata,
-              onchange?: ParameterChangeListener) {
+  constructor(
+    index: number,
+    name: string,
+    container: any,
+    parent: ObjectSandboxParameter | GLSandbox,
+    metadata: ControlMetadata,
+    onchange?: ParameterChangeListener
+  ) {
     super(index, name, container, parent, metadata, onchange);
-    if (!metadata.choices) throw new Error("No choices in metadata");
+    if (!metadata.choices) throw new Error('No choices in metadata');
   }
 
   get choices(): Choices {
@@ -290,12 +286,9 @@ function resolveParameterType(value: any, metadata: ControlMetadata): SandboxPar
 }
 
 function compareParameters(sp1: SandboxParameter, sp2: SandboxParameter): number {
-  if (sp1.order !== undefined && sp2.order !== undefined)
-    return sp1.order - sp2.order;
-  if (sp1.order !== undefined)
-    return -1;
-  if (sp2.order !== undefined)
-    return 1;
+  if (sp1.order !== undefined && sp2.order !== undefined) return sp1.order - sp2.order;
+  if (sp1.order !== undefined) return -1;
+  if (sp2.order !== undefined) return 1;
   return sp1.index - sp2.index;
 }
 

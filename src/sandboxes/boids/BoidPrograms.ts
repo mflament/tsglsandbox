@@ -1,6 +1,5 @@
-import {Program, ProgramLoader, quadProgram} from 'gl';
-import {AbstractDeletable} from '../../gl/GLUtils';
-import {TEXTURE_UNITS} from './BoidTextures';
+import { AbstractDeletable, Program, ProgramLoader, quadProgram, shaderPath } from 'gl';
+import { TEXTURE_UNITS } from './BoidTextures';
 
 export class BoidsUniforms {
   // sampler2D [boids, 1 ] xy: pos , zw: velocity
@@ -28,12 +27,12 @@ export class BoidPrograms extends AbstractDeletable {
     if (!programLoader.gl.getExtension('OES_texture_float_linear')) throw new Error('need OES_texture_float_linear');
     return new BoidPrograms(
       await programLoader.load({
-        path: 'boids/render-boids.glsl',
+        path: shaderPath('render-boids.glsl', import.meta),
         uniformLocations: new RenderUniforms(),
         uniformBlockIndices: new BoidsUniformsBlocks()
       }),
       await quadProgram(programLoader, {
-        fspath: 'boids/update-boids.fs.glsl',
+        fspath: shaderPath('update-boids.fs.glsl', import.meta),
         uniformLocations: new UpdateUniforms(),
         uniformBlockIndices: new BoidsUniformsBlocks()
       })

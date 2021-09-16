@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React, { Component } from 'react';
 import {
   BooleanSandboxParameter,
   ChoicesSandboxParameter,
@@ -10,14 +10,14 @@ import {
   SandboxParameter,
   StringSandboxParameter
 } from '../../SandboxParameter';
-import {NumberParameterControl} from './NumberParameterControl';
-import {RangeParameterControl} from './RangeParameterControl';
-import {StringParameterControl} from './StringParameterControl';
-import {BooleanParameterControl} from './BooleanParameterControl';
-import {ChoiceParameterControl} from "./ChoiceParameterControl";
-import {ColorParameterControl} from "./ColorParameterControl";
-import {JSONParameterControl} from "./JSONParameterControl";
-import {ControlProps} from "./AbstractParameterControl";
+import { NumberParameterControl } from './NumberParameterControl';
+import { RangeParameterControl } from './RangeParameterControl';
+import { StringParameterControl } from './StringParameterControl';
+import { BooleanParameterControl } from './BooleanParameterControl';
+import { ChoiceParameterControl } from './ChoiceParameterControl';
+import { ColorParameterControl } from './ColorParameterControl';
+import { JSONParameterControl } from './JSONParameterControl';
+import { ControlProps } from './AbstractParameterControl';
 
 interface ParameterControlsProps {
   parameters: SandboxParameter[];
@@ -58,35 +58,36 @@ export class ParametersControls extends Component<ParameterControlsProps> {
 
   private static renderParameter(parameter: SandboxParameter): JSX.Element {
     if (!isSupported(parameter)) {
-      return <>
-        <label>{parameter.label || parameter.name}</label>
-        <div className="unsupported">TODO</div>
-      </>;
+      return (
+        <>
+          <label>{parameter.label || parameter.name}</label>
+          <div className="unsupported">TODO</div>
+        </>
+      );
     }
-    if(!parameter.visible) return <></>;
+    if (!parameter.visible) return <></>;
     switch (parameter.type) {
       case 'number':
-        return <NumberParameterControl parameter={parameter}/>;
+        return <NumberParameterControl parameter={parameter} />;
       case 'range':
-        return <RangeParameterControl parameter={parameter}/>;
+        return <RangeParameterControl parameter={parameter} />;
       case 'string':
-        return <StringParameterControl parameter={parameter}/>;
+        return <StringParameterControl parameter={parameter} />;
       case 'boolean':
-        return <BooleanParameterControl parameter={parameter}/>;
+        return <BooleanParameterControl parameter={parameter} />;
       case 'choices':
-        return <ChoiceParameterControl parameter={parameter}/>;
+        return <ChoiceParameterControl parameter={parameter} />;
       case 'object':
-        return <ObjectParameterControl parameter={parameter}/>;
+        return <ObjectParameterControl parameter={parameter} />;
       case 'color':
-        return <ColorParameterControl parameter={parameter}/>;
+        return <ColorParameterControl parameter={parameter} />;
       case 'json':
-        return <JSONParameterControl parameter={parameter}/>
+        return <JSONParameterControl parameter={parameter} />;
     }
   }
 }
 
 export class ObjectParameterControl extends Component<ControlProps<ObjectSandboxParameter>, { value: any }> {
-
   constructor(props: ControlProps<ObjectSandboxParameter>) {
     super(props);
   }
@@ -94,12 +95,13 @@ export class ObjectParameterControl extends Component<ControlProps<ObjectSandbox
   render(): JSX.Element {
     const param = this.props.parameter;
     const headingClass = param.label ? '' : 'capitalized';
-    return <div className={param.type}>
-      <h2 className={headingClass}>{param.label || param.name}</h2>
-      <div className="parameters-table">
-        <ParametersControls parameters={param.parameters}/>
+    return (
+      <div className={param.type}>
+        <h2 className={headingClass}>{param.label || param.name}</h2>
+        <div className="parameters-table">
+          <ParametersControls parameters={param.parameters} />
+        </div>
       </div>
-    </div>;
+    );
   }
-
 }

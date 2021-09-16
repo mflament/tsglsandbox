@@ -1,14 +1,17 @@
-import React, {Component} from 'react';
-import {SandboxParameter} from '../../SandboxParameter';
+import React, { Component } from 'react';
+import { SandboxParameter } from '../../SandboxParameter';
 
 export type ControlProps<P extends SandboxParameter> = { parameter: P };
 
-export abstract class AbstractParameterControl<P extends SandboxParameter> extends Component<ControlProps<P>, { value: any }> {
+export abstract class AbstractParameterControl<P extends SandboxParameter> extends Component<
+  ControlProps<P>,
+  { value: any }
+> {
   private debounceTimer?: number;
 
   protected constructor(props: ControlProps<P>) {
     super(props);
-    this.state = {value: props.parameter.value};
+    this.state = { value: props.parameter.value };
   }
 
   render(): JSX.Element {
@@ -26,7 +29,7 @@ export abstract class AbstractParameterControl<P extends SandboxParameter> exten
   componentDidUpdate(_prevProps: Readonly<ControlProps<P>>, prevState: Readonly<{ value: P }>): void {
     if (prevState === this.state && _prevProps === this.props) {
       console.log('componentDidUpdate');
-      this.setState({value: this.props.parameter.value});
+      this.setState({ value: this.props.parameter.value });
     }
   }
 
@@ -48,7 +51,7 @@ export abstract class AbstractParameterControl<P extends SandboxParameter> exten
       } else {
         this.updateParam(v);
       }
-      return {...prev, value: v};
+      return { ...prev, value: v };
     });
   }
 
@@ -57,5 +60,4 @@ export abstract class AbstractParameterControl<P extends SandboxParameter> exten
     param.value = v;
     param.onchange && param.onchange(param, v);
   }
-
 }

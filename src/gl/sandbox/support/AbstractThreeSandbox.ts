@@ -1,13 +1,7 @@
-import {AbstractGLSandbox} from './AbstractGLSandbox';
-import {
-  Camera,
-  PerspectiveCamera,
-  Scene,
-  WebGLRenderer,
-  WebGLRendererParameters
-} from 'three';
-import {SandboxContainer} from '../GLSandbox';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
+import { AbstractGLSandbox } from './AbstractGLSandbox';
+import { Camera, PerspectiveCamera, Scene, WebGLRenderer, WebGLRendererParameters } from 'three';
+import { SandboxContainer } from '../GLSandbox';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 export abstract class AbstractThreeSandbox<P = any> extends AbstractGLSandbox<P> {
   protected readonly renderer: WebGLRenderer;
@@ -16,7 +10,7 @@ export abstract class AbstractThreeSandbox<P = any> extends AbstractGLSandbox<P>
 
   protected constructor(container: SandboxContainer, name: string, parameters?: P & WebGLRendererParameters) {
     super(container, name, parameters);
-    this.renderer = new WebGLRenderer({canvas: container.canvas.element, ...parameters});
+    this.renderer = new WebGLRenderer({ canvas: container.canvas.element, ...parameters });
     this.scene = new Scene();
     this.camera = this.createCamera();
   }
@@ -42,4 +36,4 @@ export abstract class AbstractThreeSandbox<P = any> extends AbstractGLSandbox<P>
   }
 }
 
-export {OrbitControls};
+export { OrbitControls };

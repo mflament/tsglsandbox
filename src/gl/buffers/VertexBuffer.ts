@@ -1,5 +1,5 @@
-import {AbstractBuffer} from './AbstractBuffer';
-import {BufferTarget, sizeOf, VertexBufferType, VertexComponentType} from './BufferEnums';
+import { AbstractBuffer } from './AbstractBuffer';
+import { BufferTarget, sizeOf, VertexBufferType, VertexComponentType } from './BufferEnums';
 
 export interface PartialBufferAttribute {
   size: number;

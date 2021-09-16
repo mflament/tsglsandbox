@@ -1,7 +1,7 @@
-import {RNG} from 'random';
-import {Activation, Activations, activations} from './Activation';
-import {Cost, Costs, costs} from './Cost';
-import {Matrix} from './Matrix';
+import { RNG } from 'random';
+import { Activation, Activations, activations } from './Activation';
+import { Cost, Costs, costs } from './Cost';
+import { Matrix } from './Matrix';
 
 /**
  * Docs
@@ -51,7 +51,7 @@ function randomizeLayers(layersSizes: number[], seed = RNG.randomSeed(5)): Layer
     const weights = newMatrix(layerInputs, layerOutputs);
     weights.fill(() => rng.uniform() * 6 - 3);
     const biases = newMatrix(1, layerOutputs);
-    res.push({weights: weights, biases: biases});
+    res.push({ weights: weights, biases: biases });
     layerInputs = layerOutputs;
   }
   return res;
@@ -75,25 +75,26 @@ export class DefaultRNN implements RNN {
     }
 
     let previousLayer: Layer | undefined;
-    layerConfigs.map(lc => {
-      const weights = createMatrix(lc.weights);
-      const biases = createMatrix(lc.biases);
-      return new DefaultLayer(weights, biases, activation);
-    }).forEach(layer => {
-      if (previousLayer && previousLayer.outputs !== layer.inputs) {
-        //previousLayer.outputs
-        throw new Error(`Invalid layer config ${layer}, inputs mismatch from previous layer : ${previousLayer}`);
-      }
-      rnn.layers.push(layer);
-      previousLayer = layer;
-    });
+    layerConfigs
+      .map(lc => {
+        const weights = createMatrix(lc.weights);
+        const biases = createMatrix(lc.biases);
+        return new DefaultLayer(weights, biases, activation);
+      })
+      .forEach(layer => {
+        if (previousLayer && previousLayer.outputs !== layer.inputs) {
+          //previousLayer.outputs
+          throw new Error(`Invalid layer config ${layer}, inputs mismatch from previous layer : ${previousLayer}`);
+        }
+        rnn.layers.push(layer);
+        previousLayer = layer;
+      });
     return rnn;
   }
 
   readonly layers: DefaultLayer[] = [];
 
-  private constructor(readonly activation: Activation, readonly dcost: Cost) {
-  }
+  private constructor(readonly activation: Activation, readonly dcost: Cost) {}
 
   get inputs(): number {
     return this.layers[0].inputs;
@@ -206,7 +207,7 @@ class DefaultLayer implements Layer {
     this.a.update((row, col, a) => {
       const dz = this.activation.backward(this.z.get(row, col));
       return a * dz;
-    })
+    });
     const training = this.training;
     // wgrad = T(inputs) . a
     inputs.transpose(tempMatrix).dot(this.a, training.wgrads);
@@ -230,7 +231,7 @@ class DefaultLayer implements Layer {
 
   private get training(): Training {
     if (!this._training) {
-      this._training = {wgrads: newMatrix(this.inputs, this.outputs), bgrads: newMatrix(1, this.outputs)};
+      this._training = { wgrads: newMatrix(this.inputs, this.outputs), bgrads: newMatrix(1, this.outputs) };
     }
     return this._training;
   }

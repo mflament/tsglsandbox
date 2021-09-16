@@ -1,9 +1,9 @@
-import {vec2, vec4} from 'gl-matrix';
-import {AbstractDeletable, isDeletable} from '../../GLUtils';
-import {GLSandbox, SandboxCanvas, SandboxContainer} from '../GLSandbox';
-import React, {Component, RefObject} from "react";
-import {createSandboxParameters, ObjectSandboxParameter, SandboxParameter} from "../SandboxParameter";
-import {ParametersControls} from "./parameters/ParametersControls";
+import { vec2, vec4 } from 'gl-matrix';
+import { AbstractDeletable, isDeletable } from '../../GLUtils';
+import { GLSandbox, SandboxCanvas, SandboxContainer } from '../GLSandbox';
+import React, { Component, RefObject } from 'react';
+import { createSandboxParameters, ObjectSandboxParameter } from '../SandboxParameter';
+import { ParametersControls } from './parameters/ParametersControls';
 
 export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable implements GLSandbox<P> {
   readonly defaultParameters: P;
@@ -41,12 +41,12 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
     return undefined;
   }
 
-  onparameterchange(_p?: SandboxParameter): void {
+  onparameterchange(_p?: P): void {
     // no op
   }
 
   protected createControls(): JSX.Element {
-    return <SandboxControls ref={this.controlsRef} sandbox={this}/>;
+    return <SandboxControls ref={this.controlsRef} sandbox={this} />;
   }
 
   protected clear(color: vec4 = [0, 0, 0, 1], mask = WebGL2RenderingContext.COLOR_BUFFER_BIT): void {
@@ -110,7 +110,6 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
     vec2.set(out, (x / this.canvas.width) * 2 - 1, (1 - y / this.canvas.height) * 2 - 1);
     return out;
   }
-
 }
 
 function deepClone(src: any, dst: any): any {
@@ -131,18 +130,23 @@ interface SandboxControlsProps {
   sandbox: AbstractGLSandbox;
 }
 
-class SandboxControls extends Component<SandboxControlsProps, { parameter: ObjectSandboxParameter, customControls?: JSX.Element }> {
+class SandboxControls extends Component<
+  SandboxControlsProps,
+  { parameter: ObjectSandboxParameter; customControls?: JSX.Element }
+> {
   constructor(props: SandboxControlsProps) {
     super(props);
-    this.state = {parameter: this.createParameters(), customControls: this.props.sandbox.customControls()};
+    this.state = { parameter: this.createParameters(), customControls: this.props.sandbox.customControls() };
   }
 
   render(): JSX.Element {
     const sandbox = this.props.sandbox;
-    return <div className="sandbox-controls parameters-table">
-      <ParametersControls parameters={this.state.parameter.parameters}/>
-      {sandbox.customControls()}
-    </div>;
+    return (
+      <div className="sandbox-controls parameters-table">
+        <ParametersControls parameters={this.state.parameter.parameters} />
+        {sandbox.customControls()}
+      </div>
+    );
   }
 
   private createParameters(): ObjectSandboxParameter {
@@ -151,7 +155,7 @@ class SandboxControls extends Component<SandboxControlsProps, { parameter: Objec
 
   componentDidUpdate(prevProps: Readonly<SandboxControlsProps>): void {
     if (prevProps.sandbox !== this.props.sandbox) {
-      this.setState({parameter: this.createParameters(), customControls: this.props.sandbox.customControls()});
+      this.setState({ parameter: this.createParameters(), customControls: this.props.sandbox.customControls() });
     }
   }
 }

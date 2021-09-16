@@ -1,5 +1,5 @@
-import {AbstractDeletable, Bindable, checkNull} from '../GLUtils';
-import {BufferAttribute, VertexBuffer} from '../buffers/VertexBuffer';
+import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
+import { BufferAttribute, VertexBuffer } from '../buffers/VertexBuffer';
 
 export type AttributeLocations<T = never> = {
   [P in keyof T]?: number;

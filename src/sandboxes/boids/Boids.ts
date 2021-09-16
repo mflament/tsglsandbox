@@ -1,4 +1,4 @@
-import {vec4} from 'gl-matrix';
+import { vec4 } from 'gl-matrix';
 import {
   AbstractGLSandbox,
   DrawMode,
@@ -11,11 +11,11 @@ import {
   VertexBuffer
 } from 'gl';
 
-import {BoidsParameters, MAX_BOIDS} from './BoidsParameters';
-import {Boid, randomizedBoids} from './Boid';
-import {BoidFamilly, BoidFamillyBuffer} from './BoidFamilly';
-import {BoidPrograms} from './BoidPrograms';
-import {BoidsDataTextures} from './BoidTextures';
+import { BoidsParameters, MAX_BOIDS } from './BoidsParameters';
+import { Boid, randomizedBoids } from './Boid';
+import { BoidFamilly, BoidFamillyBuffer } from './BoidFamilly';
+import { BoidPrograms } from './BoidPrograms';
+import { BoidsDataTextures } from './BoidTextures';
 
 export function boids(): SandboxFactory<BoidsParameters> {
   return GLBoids.create;
@@ -40,7 +40,12 @@ class GLBoids extends AbstractGLSandbox<BoidsParameters> {
   private readonly famillyBuffers: BoidFamillyBuffer[];
   private readonly boids: BoidsDataTextures[]; // [famillyIndex] : familly's  boids
 
-  constructor(container: SandboxContainer, name: string, readonly programs: BoidPrograms, parameters?: BoidsParameters) {
+  constructor(
+    container: SandboxContainer,
+    name: string,
+    readonly programs: BoidPrograms,
+    parameters?: BoidsParameters
+  ) {
     super(container, name, parameters);
 
     this.families = [this.defaultFamilly()];
