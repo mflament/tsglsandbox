@@ -1,7 +1,7 @@
 #version 300 es
 precision mediump float;
 
-#include "../noise2d.glsl"
+#include "shaders/noise2d.glsl"
 #include "./boids.glsl"
 
 uniform vec2 u_time; // x: time, y: delta time

@@ -5,7 +5,6 @@ import { ByteIndexBuffer } from '../buffers/IndexBuffer';
 import { DrawMode } from '../buffers/BufferEnums';
 import { Program } from '../shader/Program';
 import { ProgramLoader, ShadersConfiguration } from '../shader/ProgramLoader';
-import { shaderPath } from '../shader/ShaderLoader';
 
 /**
  * VAO + VBO + IBO for a simple quad with vec2 position attributes:
@@ -33,13 +32,13 @@ export interface QuadProgram<U = any, B = any, A = any> extends Program<U, B, A>
 
 type QuadProgramConfiguration<U, B, A> = Omit<ShadersConfiguration<U, B, A>, 'vspath'>;
 
-export async function quadProgram<U = any, B = any, A = any>(
+export async function newQuadProgram<U = any, B = any, A = any>(
   programLoader: ProgramLoader,
   configuration: QuadProgramConfiguration<U, B, A>
 ): Promise<QuadProgram<U>> {
   const program = (await programLoader.load({
     ...configuration,
-    vspath: shaderPath('quad.vs.glsl', import.meta)
+    vspath: 'gl/drawable/quad.vs.glsl'
   })) as QuadProgram<U>;
   program.use();
   const transformLocation = program.uniformLocation('u_transform');

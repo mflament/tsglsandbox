@@ -8,7 +8,6 @@ import { SandboxContainer } from '../sandbox/GLSandbox';
 import { Program } from '../shader/Program';
 import { Sprite } from './Sprite';
 import { TextureAtlas } from './TextureAtlas';
-import { shaderPath } from '../shader/ShaderLoader';
 
 interface SpritesVertexAttributes {
   a_vertexPos: BufferAttribute;
@@ -48,7 +47,7 @@ export class Sprites extends AbstractDeletable implements Bindable {
   ): Promise<Sprites> {
     const regionsCount = atlases.map(a => a.regions.length).reduce((prev, current) => prev + current, 0);
     const program = await container.programLoader.load({
-      path: shaderPath('sprites.glsl', import.meta),
+      path: 'gl/sprites/sprites.glsl',
       uniformLocations: new SpritesUniforms(),
       uniformBlockIndices: new SpritesUniformBlocks(),
       defines: { REGIONS_COUNT: regionsCount, TEXTURES_COUNT: atlases.length }
@@ -205,7 +204,7 @@ export class Sprites extends AbstractDeletable implements Bindable {
     this.program.use();
     this.drawable.bind();
     this.uniformBuffer.bind(0);
-    this.atlases.forEach((a, i) => a.texture.activate(this.textureIndices[i]).bind());
+    this.atlases.forEach((a, i) => a.texture.bind(this.textureIndices[i]));
     return this;
   }
 

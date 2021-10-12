@@ -4,9 +4,9 @@ import {
   TextureComponentType,
   TextureMagFilter,
   TextureMinFilter,
-  TextureWrappingMode
+  TextureWrappingMode,
+  AbstractDeletable
 } from 'gl';
-import { AbstractDeletable } from '../../gl/GLUtils';
 
 import { Boid } from './Boid';
 
@@ -65,7 +65,7 @@ export class BoidsDataTexture extends AbstractDeletable {
   }
 
   bind(): BoidsDataTexture {
-    this.data.activate(TEXTURE_UNITS.data).bind();
+    this.data.bind(TEXTURE_UNITS.data);
     return this;
   }
 
@@ -77,13 +77,10 @@ export class BoidsDataTexture extends AbstractDeletable {
       array.set(boid.pos, offset); // xy : pos
       array.set(boid.velocity, offset + 2); // xy : pos
     });
-    this.data
-      .activate(TEXTURE_UNITS.data)
-      .bind()
-      .subdata({
-        ...textureData,
-        srcData: array
-      });
+    this.data.bind(TEXTURE_UNITS.data).subdata({
+      ...textureData,
+      srcData: array
+    });
   }
 
   delete(): void {

@@ -2,14 +2,13 @@ import {
   AbstractGLSandbox,
   Bindable,
   BufferAttribute,
+  control,
   Deletable,
   Program,
   SandboxContainer,
   SandboxFactory,
   VertexArray,
-  VertexBuffer,
-  control,
-  shaderPath
+  VertexBuffer
 } from 'gl';
 import { PoissonDiscSampler, randomRange } from 'random';
 
@@ -33,7 +32,7 @@ class TSPUniforms {
 class TSP extends AbstractGLSandbox<TSPParameters> {
   static async create(container: SandboxContainer, name: string, parameters?: TSPParameters): Promise<TSP> {
     const program = await container.programLoader.load({
-      path: shaderPath('tsp-render.glsl', import.meta),
+      path: 'sandboxes/tsp/tsp-render.glsl',
       uniformLocations: new TSPUniforms()
     });
     return new TSP(container, name, program, parameters);
@@ -71,7 +70,7 @@ class TSP extends AbstractGLSandbox<TSPParameters> {
     const canvas = this.canvas;
     const ar = canvas.aspectRatio;
     const sx = Math.min(1, 1 / ar) * 2;
-    const sy = Math.min(1, 1 * ar) * 2;
+    const sy = Math.min(1, ar) * 2;
     /* prettier-ignore */
     const viewMatrix = new Float32Array([
       sx, 0, 0, -0.5 * sx,

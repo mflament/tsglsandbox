@@ -1,57 +1,39 @@
-import { BufferGeometry, InterleavedBuffer, InterleavedBufferAttribute, Mesh, Uint32BufferAttribute } from 'three';
-import { PlanetIndexBuffer } from './index/PlanetIndexBuffer';
-import { PlanetVertexBuffer } from './vertex/PlanetVertexBuffer';
+import { Mesh } from 'three';
 import { PlanetMaterial } from './PlanetMaterial';
+import { PlanetBufferGeometry } from './PlanetBufferGeometry';
+import { Deletable } from 'gl';
 
-export class Planet {
-  readonly mesh: Mesh;
+export const NORMAL_OFFSET = 3;
+export const UV_OFFSET = 6;
+export const COLOR_OFFSET = 8;
 
-  private _indexBuffer?: PlanetIndexBuffer;
-  private _vertexBuffer?: PlanetVertexBuffer;
+export class Planet implements Deletable {
+  readonly mesh: Mesh<PlanetBufferGeometry, PlanetMaterial>;
+  private _triangleStrip = true;
 
-  constructor(readonly material: PlanetMaterial) {
-    this.mesh = new Mesh(new BufferGeometry(), material);
+  constructor(readonly material: PlanetMaterial, readonly maxResolution: number, triangleStrip: boolean) {
+    this.mesh = new Mesh(new PlanetBufferGeometry(maxResolution, false), material);
+    this.triangleStrip = triangleStrip;
   }
 
-  get indexBuffer(): PlanetIndexBuffer | undefined {
-    return this._indexBuffer;
+  get geometry(): PlanetBufferGeometry {
+    return this.mesh.geometry;
   }
 
   get indexCount(): number {
-    return this._indexBuffer?.count || 0;
-  }
-
-  triangleCount(resolution: number): number {
-    return this._indexBuffer?.trianglesCount(resolution) || 0;
-  }
-
-  get vertexBuffer(): PlanetVertexBuffer | undefined {
-    return this._vertexBuffer;
+    return this.geometry.indexCount;
   }
 
   get vertexCount(): number {
-    return this._vertexBuffer?.vertexCount || 0;
+    return this.geometry.vertexCount;
   }
 
-  update(index: PlanetIndexBuffer, vertex: PlanetVertexBuffer): void {
-    if (index !== this._indexBuffer || vertex != this._vertexBuffer) {
-      this.mesh.geometry.dispose();
-      const geometry = new BufferGeometry();
-      geometry.setIndex(new Uint32BufferAttribute(index.array, 1));
-      const interleavedBuffer = new InterleavedBuffer(vertex.array, vertex.stride);
-      vertex
-        .getAttributes()
-        .forEach(attribute =>
-          geometry.setAttribute(
-            attribute.name,
-            new InterleavedBufferAttribute(interleavedBuffer, attribute.size, attribute.offset)
-          )
-        );
-      this.mesh.mode = index.drawMode;
-      this.mesh.geometry = geometry;
-      this._indexBuffer = index;
-      this._vertexBuffer = vertex;
-    }
+  get triangleStrip(): boolean {
+    return this._triangleStrip;
+  }
+
+  set triangleStrip(ts: boolean) {
+    this.mesh.mode = ts ? WebGL2RenderingContext.TRIANGLE_STRIP : WebGL2RenderingContext.TRIANGLES;
   }
 
   delete(): void {

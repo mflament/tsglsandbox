@@ -1,6 +1,7 @@
 import { ProgramLoader } from '../shader/ProgramLoader';
-import { SandboxEventHandler } from './ActionManager';
+import { SandboxInputHandler } from './ActionManager';
 import { ShaderLoader } from '../shader/ShaderLoader';
+import { ShaderParser } from '../shader/ShaderParser';
 
 export type SandboxFactories = { [name: string]: SandboxFactory };
 
@@ -10,14 +11,13 @@ export interface SandboxCanvas {
   readonly width: number;
   readonly height: number;
   readonly aspectRatio: number;
-  eventHandler?: SandboxEventHandler;
-
-  resize(width: number, height: number): void;
+  eventHandler?: SandboxInputHandler;
 }
 
 export interface SandboxContainer {
   readonly canvas: SandboxCanvas;
   readonly shaderLoader: ShaderLoader;
+  readonly shaderParser: ShaderParser;
   readonly programLoader: ProgramLoader;
   readonly time: number;
 
@@ -30,7 +30,7 @@ export type SandboxFactory<P = any> = (
   parameters?: P
 ) => Promise<GLSandbox<P>>;
 
-export interface GLSandbox<P = any> extends SandboxEventHandler {
+export interface GLSandbox<P = any> extends SandboxInputHandler {
   readonly container: SandboxContainer;
   readonly name: string;
   readonly defaultParameters: P;

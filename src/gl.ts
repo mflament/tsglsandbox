@@ -30,8 +30,10 @@ export * from './gl/sprites/Sprites';
 export * from './gl/sprites/TextureAtlas';
 
 export * from './gl/texture/GLTexture';
-export * from './gl/texture/NoiseTextureGenerator';
 export * from './gl/texture/TextureEnums';
 export * from './gl/texture/TextureFormatConfiguration';
 
 export * from './gl/GLUtils';
+export * from './gl/texture/noise/NoiseTextureGenerator';
+export * from './gl/texture/noise/JSNoiseTextureGenerator';
+export * from './gl/texture/noise/ShaderNoiseTextureGenerator';

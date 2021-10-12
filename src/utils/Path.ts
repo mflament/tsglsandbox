@@ -10,6 +10,10 @@ export class Path {
     return paths.reduce((prev, curr) => Path.joinParts(prev, curr), '');
   }
 
+  static isRelative(path: string): boolean {
+    return path.startsWith('./') || path.startsWith('../');
+  }
+
   /**
    * ('/') : '/'
    * ('..') : ''

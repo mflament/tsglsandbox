@@ -6,12 +6,10 @@ import {
   Program,
   SandboxContainer,
   SandboxFactory,
-  shaderPath,
   TransformFeedback,
   TransformFeedbackDrawMode,
   VaryingBufferMode
 } from 'gl';
-import 'reflect-metadata';
 import { ParticleBuffers } from './ParticleBuffer';
 
 class ParticlesParameters {
@@ -51,11 +49,11 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
   ): Promise<GLParticles> {
     const programs = await Promise.all([
       container.programLoader.load({
-        path: shaderPath('particles-render.glsl', import.meta),
+        path: 'sandboxes/particles/particles-render.glsl',
         uniformLocations: new RenderUniforms()
       }),
       container.programLoader.load({
-        path: shaderPath('particles-update.glsl', import.meta),
+        path: 'sandboxes/particles/particles-update.glsl',
         uniformLocations: new UpdateUniforms(),
         varyingMode: VaryingBufferMode.INTERLEAVED
       })
@@ -189,17 +187,12 @@ class GLParticles extends AbstractGLSandbox<ParticlesParameters> {
     this._newMode = TargetMode.ATTRACT;
   }
 
-  ontouchstart(e: TouchEvent): void {
-    this.updateTarget(e);
-    this._newMode = TargetMode.REPUSLE;
-  }
+  // ontouchstart(): void {
+  //   super.ontouchstart();
+  // }
 
   ontouchmove(e: TouchEvent): void {
     this.updateTarget(e);
-  }
-
-  ontouchend(): void {
-    this._newMode = TargetMode.ATTRACT;
   }
 
   onmouseleave(): void {

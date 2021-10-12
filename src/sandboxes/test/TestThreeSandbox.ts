@@ -1,9 +1,23 @@
 import { AbstractThreeSandbox, OrbitControls, SandboxContainer, SandboxFactory } from 'gl';
-import { AmbientLight, BoxGeometry, Mesh, MeshStandardMaterial, PointLight, WebGLRendererParameters } from 'three';
+import {
+  AmbientLight,
+  BoxGeometry,
+  Mesh,
+  MeshStandardMaterial,
+  PointLight,
+  WebGLRenderer,
+  WebGLRendererParameters
+} from 'three';
 
 class TestThreeSandbox extends AbstractThreeSandbox {
-  static async create(container: SandboxContainer, name: string): Promise<TestThreeSandbox> {
-    return new TestThreeSandbox(container, name, {});
+  static readonly factory = AbstractThreeSandbox.sandboxFactory(TestThreeSandbox.create);
+
+  private static async create(
+    container: SandboxContainer,
+    renderer: WebGLRenderer,
+    name: string
+  ): Promise<TestThreeSandbox> {
+    return new TestThreeSandbox(container, renderer, name, {});
   }
 
   private readonly cube: Mesh;
@@ -12,8 +26,8 @@ class TestThreeSandbox extends AbstractThreeSandbox {
   readonly orbitControls: OrbitControls;
   private readonly pointLight: PointLight;
 
-  constructor(container: SandboxContainer, name: string, parameters: WebGLRendererParameters) {
-    super(container, name, parameters);
+  constructor(container: SandboxContainer, renderer: WebGLRenderer, name: string, parameters: WebGLRendererParameters) {
+    super(container, renderer, name, parameters);
     const geometry = new BoxGeometry();
     const material = new MeshStandardMaterial({ color: 0x00ff00 });
     this.cube = new Mesh(geometry, material);
@@ -44,5 +58,5 @@ class TestThreeSandbox extends AbstractThreeSandbox {
 }
 
 export function testThree(): SandboxFactory {
-  return TestThreeSandbox.create;
+  return TestThreeSandbox.factory;
 }

@@ -5,11 +5,10 @@ import {
   GLTexture2D,
   IndexedDrawable,
   newQuadDrawable,
-  quadProgram,
+  newQuadProgram,
   QuadProgram,
   SandboxContainer,
   SandboxFactory,
-  shaderPath,
   TextureMagFilter,
   TextureMinFilter,
   TextureWrappingMode
@@ -61,8 +60,8 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
     name: string,
     parameters?: FlowerParameters
   ): Promise<FlowersSandbox> {
-    const renderProgram = await quadProgram(container.programLoader, {
-      fspath: shaderPath('render-flowers.fs.glsl', import.meta),
+    const renderProgram = await newQuadProgram(container.programLoader, {
+      fspath: 'sandboxes/flowers/render-flowers.fs.glsl',
       uniformLocations: new RenderUniforms()
     });
     return new FlowersSandbox(container, name, renderProgram, parameters);
@@ -455,15 +454,14 @@ class FlowersTexture extends AbstractDeletable {
   constructor(gl: WebGL2RenderingContext, readonly textureUnit: number) {
     super();
     this.texture = new GLTexture2D(gl)
-      .activate(textureUnit)
-      .bind()
+      .bind(textureUnit)
       .wrap(TextureWrappingMode.CLAMP_TO_EDGE)
       .minFilter(TextureMinFilter.NEAREST)
       .magFilter(TextureMagFilter.NEAREST);
   }
 
   bind(): FlowersTexture {
-    this.texture.activate(this.textureUnit).bind();
+    this.texture.bind(this.textureUnit);
     return this;
   }
 

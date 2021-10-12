@@ -3,11 +3,10 @@ import {
   GLTexture2D,
   IndexedDrawable,
   newQuadDrawable,
+  newQuadProgram,
   Program,
-  quadProgram,
   SandboxContainer,
-  SandboxFactory,
-  shaderPath
+  SandboxFactory
 } from 'gl';
 
 class TestUniforms {
@@ -17,8 +16,8 @@ class TestUniforms {
 
 class TestSandbox extends AbstractGLSandbox {
   static async create(container: SandboxContainer, name: string): Promise<TestSandbox> {
-    const program = await quadProgram(container.programLoader, {
-      fspath: shaderPath('test.fs.glsl', import.meta),
+    const program = await newQuadProgram(container.programLoader, {
+      fspath: 'sandboxes/test/test.fs.glsl',
       uniformLocations: new TestUniforms()
     });
     return new TestSandbox(container, name, program);
@@ -30,7 +29,7 @@ class TestSandbox extends AbstractGLSandbox {
   constructor(container: SandboxContainer, name: string, readonly renderProgram: Program<TestUniforms>) {
     super(container, name);
     const gl = container.canvas.gl;
-    this.texture = new GLTexture2D(gl).activate(0).bind();
+    this.texture = new GLTexture2D(gl).bind();
     this.texture.load('images/momotte.jpg').catch(e => console.error('Error loading texture', e));
     renderProgram.use();
     gl.uniform1i(renderProgram.uniformLocations.u_sampler, 0);

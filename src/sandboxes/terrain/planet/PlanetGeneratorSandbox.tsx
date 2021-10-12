@@ -1,10 +1,11 @@
 import React from 'react';
-import { SandboxParameter, AbstractThreeSandbox, control, OrbitControls, SandboxContainer, SandboxFactory } from 'gl';
-import { AmbientLight, PointLight, Texture, TextureLoader } from 'three';
+import { AbstractThreeSandbox, control, ISandboxParameter, OrbitControls, SandboxContainer, SandboxFactory } from 'gl';
+import { AmbientLight, PointLight, Texture, TextureLoader, WebGLRenderer } from 'three';
 import { Planet } from './Planet';
 import { BasicPlanetMaterial, PlanetMaterial } from './PlanetMaterial';
-import { DefaultPlanetGeneratorSettings } from './PlanetGeneratorSettings';
+import { DefaultPlanetGeneratorSettings, MAX_RESOLUTION } from './PlanetGeneratorSettings';
 import { DefaultPlanetGenerator, PlanetGenerator } from './generator/PlanetGenerator';
+import { CancellablePromise } from './generator/CancellablePromise';
 
 class PGParameters extends DefaultPlanetGeneratorSettings {
   @control({ order: 0 })
@@ -14,35 +15,38 @@ class PGParameters extends DefaultPlanetGeneratorSettings {
 }
 
 export class PlanetGeneratorSandbox extends AbstractThreeSandbox<PGParameters> {
-  static async create(
+  static readonly factory = AbstractThreeSandbox.sandboxFactory(PlanetGeneratorSandbox.create);
+
+  private static async create(
     container: SandboxContainer,
+    renderer: WebGLRenderer,
     name: string,
     parameters?: PGParameters
   ): Promise<PlanetGeneratorSandbox> {
-    // const material = await ShaderPlanetMaterial.load();
+    // const material = await ShaderPlanetMaterial.load(container.shaderLoader);
     const material = new BasicPlanetMaterial();
-    // const generator = new DirectPlanetGenerator();
-    const generator = new DefaultPlanetGenerator();
-    //const generator = await ShaderPlanetGenerator.load(container.canvas.gl, container.programLoader);
-    return new PlanetGeneratorSandbox(container, name, parameters, generator, material);
+    return new PlanetGeneratorSandbox(container, renderer, name, parameters, material);
   }
 
   readonly displayName = 'Planet Generator';
 
   private readonly planet: Planet;
   private readonly orbitControls: OrbitControls;
+  private readonly generator: PlanetGenerator;
+
+  private generatorPromise?: CancellablePromise<void | 'cancelled'>;
 
   private planetTexture?: Texture;
   private lastGenerationTime = 0;
 
   constructor(
     container: SandboxContainer,
+    renderer: WebGLRenderer,
     name: string,
     parameters: PGParameters | undefined,
-    readonly generator: PlanetGenerator,
     readonly planetMaterial: PlanetMaterial
   ) {
-    super(container, name, parameters);
+    super(container, renderer, name, parameters);
 
     this.camera.position.z = 2;
     this.orbitControls = new OrbitControls(this.camera, container.canvas.element);
@@ -53,7 +57,8 @@ export class PlanetGeneratorSandbox extends AbstractThreeSandbox<PGParameters> {
     const loader = new TextureLoader();
     loader.load('images/earth.png', t => this.textureLoaded(t));
 
-    this.planet = new Planet(this.planetMaterial);
+    this.generator = new DefaultPlanetGenerator();
+    this.planet = new Planet(this.planetMaterial, MAX_RESOLUTION, this.parameters.triangleStrip);
     this.scene.add(this.planet.mesh);
 
     this.onparameterchange();
@@ -76,16 +81,22 @@ export class PlanetGeneratorSandbox extends AbstractThreeSandbox<PGParameters> {
     this.scene.add(this.camera); // add the camera to the scene
   }
 
-  onparameterchange(p?: SandboxParameter): void {
+  onparameterchange(p?: ISandboxParameter): void {
+    if (this.generatorPromise) {
+      this.generatorPromise.cancel();
+      this.generatorPromise = undefined;
+    }
+
     if (PlanetGeneratorSandbox.shouldUpdateShape(p)) {
-      this.generatePlanet().then(() => this.updateMesh(p));
+      this.generatorPromise = this.generatePlanet().then(() => this.updateMesh(p));
     } else {
       this.updateMesh(p);
     }
   }
 
-  private updateMesh(p?: SandboxParameter): void {
+  private updateMesh(p?: ISandboxParameter): void {
     if (!p || p.name === 'color') this.planetMaterial.setColor(this.parameters.color);
+    if (!p || p.name === 'triangleStrip') this.planet.triangleStrip = this.parameters.triangleStrip;
     if (!p || p.name === 'texture')
       this.planetMaterial.setTexture(this.parameters.texture && this.planetTexture ? this.planetTexture : null);
     if (!p || p.name === 'wireframe') this.planetMaterial.wireframe = this.parameters.wireframe;
@@ -97,12 +108,19 @@ export class PlanetGeneratorSandbox extends AbstractThreeSandbox<PGParameters> {
     super.delete();
   }
 
-  private async generatePlanet(): Promise<void> {
+  private generatePlanet(): CancellablePromise<void> {
     const start = performance.now();
-    if ((await this.generator.generate(this.parameters, this.planet)) !== 'cancelled') {
-      this.lastGenerationTime = performance.now() - start;
-      this.updateControls();
-    }
+    return this.generator.generate(this.parameters, this.planet).then(
+      () => {
+        this.lastGenerationTime = performance.now() - start;
+        this.updateControls();
+      },
+      error => {
+        if (error !== 'cancelled') {
+          console.error('Error generating planet', error);
+        }
+      }
+    );
   }
 
   customControls(): JSX.Element | undefined {
@@ -112,8 +130,6 @@ export class PlanetGeneratorSandbox extends AbstractThreeSandbox<PGParameters> {
         <span>{this.vertices}</span>
         <label>Indices</label>
         <span>{this.indices}</span>
-        <label>Triangles</label>
-        <span>{this.triangles}</span>
         <label>Generated in</label>
         <span>{this.lastGenerationTime.toLocaleString() + 'ms'}</span>
       </>
@@ -128,17 +144,17 @@ export class PlanetGeneratorSandbox extends AbstractThreeSandbox<PGParameters> {
     return this.planet.indexCount.toLocaleString();
   }
 
-  private get triangles(): string {
-    return this.planet.triangleCount(this.parameters.resolution).toLocaleString();
-  }
-
-  private static shouldUpdateShape(p?: SandboxParameter): boolean {
+  private static shouldUpdateShape(p?: ISandboxParameter): boolean {
     return (
-      !p || p.name === 'resolution' || p.name === 'drawMode' || p.name === 'shapeType' || p.parent?.name === 'terrain'
+      !p ||
+      p.name === 'resolution' ||
+      p.name === 'triangleStrip' ||
+      p.name === 'shapeType' ||
+      p.parent?.name === 'terrain'
     );
   }
 }
 
 export function planetGeneratorSandbox(): SandboxFactory {
-  return PlanetGeneratorSandbox.create;
+  return PlanetGeneratorSandbox.factory;
 }

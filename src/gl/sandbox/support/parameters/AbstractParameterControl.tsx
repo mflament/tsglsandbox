@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { SandboxParameter } from '../../SandboxParameter';
+import { SandboxParameter } from 'gl';
 
 export type ControlProps<P extends SandboxParameter> = { parameter: P };
 
@@ -58,6 +58,6 @@ export abstract class AbstractParameterControl<P extends SandboxParameter> exten
   private updateParam(v: unknown): void {
     const param = this.props.parameter;
     param.value = v;
-    param.onchange && param.onchange(param, v);
+    param.onchange && param.onchange(param);
   }
 }

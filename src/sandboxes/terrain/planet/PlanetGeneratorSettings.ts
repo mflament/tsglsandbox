@@ -1,11 +1,12 @@
-import { control, DrawMode } from 'gl';
+import { control } from 'gl';
 import { randomSimplexSeed } from 'random';
 
+export const MAX_RESOLUTION = 512;
 export type ShapeType = 'cube' | 'sphere' | 'terrain';
 
 export interface PlanetGeneratorSettings {
   shapeType: ShapeType;
-  drawMode: DrawMode;
+  triangleStrip: boolean;
   resolution: number;
   color: number;
   terrain: TerrainElevationSettings;
@@ -23,12 +24,9 @@ export class DefaultPlanetGeneratorSettings implements PlanetGeneratorSettings {
   @control({ choices: { values: ['cube', 'sphere', 'terrain'] } })
   shapeType: ShapeType = 'cube';
 
-  @control({
-    choices: { values: [DrawMode.TRIANGLES, DrawMode.TRIANGLE_STRIP], labels: ['Triangles', 'Triangles Strip'] }
-  })
-  drawMode: DrawMode = DrawMode.TRIANGLE_STRIP;
+  triangleStrip = true;
 
-  @control({ min: 2, max: 512, step: 1, debounce: 250 })
+  @control({ min: 2, max: MAX_RESOLUTION, step: 1, debounce: 250 })
   resolution = 64;
 
   @control({ color: true })

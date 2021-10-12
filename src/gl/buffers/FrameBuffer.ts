@@ -1,7 +1,7 @@
 import { AbstractDeletable, Bindable, checkNull } from '../GLUtils';
 import { GLTexture2D } from '../texture/GLTexture';
 
-const FRAMEBUFFER = WebGL2RenderingContext.FRAMEBUFFER;
+const FRAMEBUFFER = WebGL2RenderingContext.DRAW_FRAMEBUFFER;
 
 export enum FrameBufferStatus {
   COMPLETE = WebGL2RenderingContext.FRAMEBUFFER_COMPLETE,

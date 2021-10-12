@@ -1,17 +1,7 @@
 import { GLSandbox } from './GLSandbox';
 
-export type ParametersMetadata<T, S extends GLSandbox = GLSandbox> = {
-  [name in keyof T]?: ControlMetadata<S>;
-} & { self?: ControlMetadata };
-
-export type WithMetadata<T> = {
-  metadata?: ParametersMetadata<T>;
-};
-
 export type ParameterSourceFunction<S extends GLSandbox = GLSandbox, T = any> = (sandbox: S) => T;
 export type ParameterSource<S extends GLSandbox = GLSandbox, T = any> = ParameterSourceFunction<S, T> | T;
-
-export type Choices = { values: any[]; labels?: string[] };
 
 export interface ControlMetadata<S extends GLSandbox = GLSandbox> {
   label?: ParameterSource<S, string>;
@@ -22,6 +12,7 @@ export interface ControlMetadata<S extends GLSandbox = GLSandbox> {
   range?: boolean;
   color?: boolean;
   choices?: ParameterSource<S, Choices>;
+  labels?: ParameterSource<S, string[]>;
   pattern?: ParameterSource<S, string>;
   isVisible?: ParameterSource<S, boolean>;
   debounce?: number;
@@ -37,8 +28,12 @@ export interface ChoiceParameterMetadata<S extends GLSandbox = GLSandbox> extend
   choices: ParameterSource<S, Choices>;
 }
 
+export type Choices = { values: any[]; labels?: string[] };
+
 export function control<S extends GLSandbox = GLSandbox>(value: ControlMetadata<S>): any {
-  return (target: any, propertyKey: string): void => setPropMetadata(target, propertyKey, value as ControlMetadata);
+  return (target: any, propertyKey: string): void => {
+    setPropertyMetadata(target, propertyKey, value);
+  };
 }
 
 export function isRangeMeta<S extends GLSandbox = GLSandbox>(
@@ -47,25 +42,39 @@ export function isRangeMeta<S extends GLSandbox = GLSandbox>(
   return obj.range !== false && obj.min !== undefined && obj.max !== undefined;
 }
 
-export function isChoiceMeta<S extends GLSandbox = GLSandbox>(
-  obj: ControlMetadata<S>
-): obj is ChoiceParameterMetadata<S> {
+export function isChoiceMeta(obj: ControlMetadata): obj is ChoiceParameterMetadata {
   return obj.choices !== undefined;
 }
 
-export function getParameterMetadata<T>(obj: WithMetadata<T>, name: keyof T): ControlMetadata {
-  let res: ControlMetadata | undefined;
-  if (obj.metadata) res = obj.metadata[name];
-  return res || {};
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function getMetadata(obj: any): ObjectMetadata {
+  const metadata: ObjectMetadata = {};
+  let current = obj;
+  while (current !== null) {
+    if (current.metadata) {
+      Object.getOwnPropertyNames(current.metadata).forEach(n => {
+        if (metadata[n] === undefined) metadata[n] = current.metadata[n];
+      });
+    }
+    current = Object.getPrototypeOf(current);
+  }
+  return metadata;
 }
 
-export function getObjectMetadata<T>(obj: WithMetadata<T>): ControlMetadata {
-  const proto = Object.getPrototypeOf(obj);
-  return proto.constructor.metadata?.self || {};
+export function getParameterMetadata<T>(obj: T, name: keyof T): ControlMetadata {
+  const metadata = getMetadata(obj);
+  return metadata[name] || {};
 }
 
-function setPropMetadata<T>(obj: WithMetadata<T>, name: keyof T | undefined, value: ControlMetadata) {
-  obj.metadata = obj.metadata || {};
-  if (name) obj.metadata[name] = value as any;
-  else obj.metadata.self = value;
+function setPropertyMetadata(objType: any, name: string, controlMetadata: ControlMetadata<any>) {
+  let mdDesc = Object.getOwnPropertyDescriptor(objType, 'metadata');
+  if (!mdDesc) {
+    mdDesc = { configurable: false, writable: false, value: {} };
+    Object.defineProperty(objType, 'metadata', mdDesc);
+  }
+  mdDesc.value[name] = controlMetadata;
 }
+
+type ObjectMetadata<T = any> = {
+  [P in keyof T]?: ControlMetadata;
+};

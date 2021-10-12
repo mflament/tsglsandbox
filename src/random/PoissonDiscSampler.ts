@@ -4,6 +4,7 @@ export class PoissonDiscSampler {
   }
 
   static samples(max: number, radius = 0.01, k = 30): Point[] {
+    if (radius <= 0) return [];
     const cellSize = radius / Math.sqrt(2);
     const gridSize = Math.ceil(1 / cellSize);
     const grid: number[] = new Array(gridSize * gridSize);

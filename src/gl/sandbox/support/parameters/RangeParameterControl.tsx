@@ -1,6 +1,6 @@
 import React, { ChangeEvent } from 'react';
-import { RangeSandboxParameter } from '../../SandboxParameter';
 import { AbstractParameterControl, ControlProps } from './AbstractParameterControl';
+import { RangeSandboxParameter } from 'gl';
 
 export class RangeParameterControl extends AbstractParameterControl<RangeSandboxParameter> {
   constructor(props: ControlProps<RangeSandboxParameter>) {
@@ -10,7 +10,7 @@ export class RangeParameterControl extends AbstractParameterControl<RangeSandbox
   protected renderInput(value: number): JSX.Element {
     const param = this.props.parameter;
     return (
-      <div className={param.type}>
+      <div className={'inputs ' + param.type}>
         <input
           type="range"
           min={param.min}

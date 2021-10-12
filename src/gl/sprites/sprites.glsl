@@ -1,5 +1,3 @@
-#version 300 es
-
 precision mediump float;
 
 // in vs
@@ -54,11 +52,13 @@ out vec4 color;
 
 void main() {
   switch (textureIndex) {
-    // unroll(i, TEXTURES_COUNT)
+    /**
+    unroll(i, TEXTURES_COUNT)
     case $i:
       color = texture(u_textures[$i], textureUV);
       break;
-    // end(i)
+    end(i)
+    **/
     default:
       color = vec4(1.0, 0.0, 1.0, 1.0);
       break;

@@ -1,4 +1,4 @@
-export interface SandboxEventHandler {
+export interface SandboxInputHandler {
   onmousedown?: (event: MouseEvent) => any;
   onmouseup?: (event: MouseEvent) => any;
   onmousemove?: (event: MouseEvent) => any;
@@ -16,12 +16,12 @@ export interface SandboxEventHandler {
   onkeyup?: (event: KeyboardEvent) => any;
 }
 
-export interface ActionsRegistry extends SandboxEventHandler {
+export interface ActionsRegistry extends SandboxInputHandler {
   register(action: Action): boolean;
   unregister(action: Action): boolean;
 }
 
-export interface ActionHandler extends SandboxEventHandler {
+export interface ActionHandler extends SandboxInputHandler {
   name: string;
 }
 

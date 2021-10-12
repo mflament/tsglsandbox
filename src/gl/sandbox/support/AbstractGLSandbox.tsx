@@ -2,8 +2,10 @@ import { vec2, vec4 } from 'gl-matrix';
 import { AbstractDeletable, isDeletable } from '../../GLUtils';
 import { GLSandbox, SandboxCanvas, SandboxContainer } from '../GLSandbox';
 import React, { Component, RefObject } from 'react';
-import { createSandboxParameters, ObjectSandboxParameter } from '../SandboxParameter';
+import { createSandboxParameters, ISandboxParameter, ObjectSandboxParameter } from '../SandboxParameter';
 import { ParametersControls } from './parameters/ParametersControls';
+
+const TOUCH_START_THRESHOLD = 200;
 
 export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable implements GLSandbox<P> {
   readonly defaultParameters: P;
@@ -14,12 +16,16 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
   private readonly _controls: JSX.Element;
   private readonly controlsRef: RefObject<SandboxControls>;
 
+  private _touchStartTime?: number;
+
   protected constructor(readonly container: SandboxContainer, readonly name: string, parameters?: P) {
     super();
     this.defaultParameters = this.createDefaultParameters();
+
     const prototype = Object.getPrototypeOf(this.defaultParameters);
     this._parameters = new prototype.constructor();
     deepClone(parameters || this.defaultParameters, this._parameters);
+
     this.controlsRef = React.createRef();
     this._controls = this.createControls();
   }
@@ -34,14 +40,33 @@ export abstract class AbstractGLSandbox<P = any> extends AbstractDeletable imple
 
   updateControls(): void {
     const controls = this.controlsRef.current;
-    if (controls) controls.forceUpdate();
+    if (controls) {
+      controls.forceUpdate();
+      controls.updateCustomControls();
+    }
+  }
+
+  ontouchstart(): void {
+    this._touchStartTime = performance.now();
+  }
+
+  ontouchend(): void {
+    if (this._touchStartTime !== undefined) {
+      const elapsed = performance.now() - this._touchStartTime;
+      if (elapsed < TOUCH_START_THRESHOLD) {
+        if (this.running) this.stop();
+        else this.start();
+      }
+      this._touchStartTime = undefined;
+    }
   }
 
   customControls(): JSX.Element | undefined {
     return undefined;
   }
 
-  onparameterchange(_p?: P): void {
+  // eslint-disable-next-line
+  onparameterchange(_param?: ISandboxParameter): void {
     // no op
   }
 
@@ -140,17 +165,31 @@ class SandboxControls extends Component<
   }
 
   render(): JSX.Element {
-    const sandbox = this.props.sandbox;
     return (
       <div className="sandbox-controls parameters-table">
         <ParametersControls parameters={this.state.parameter.parameters} />
-        {sandbox.customControls()}
+        {this.customControls()}
       </div>
     );
   }
 
+  private customControls(): JSX.Element | undefined {
+    if (this.state.customControls)
+      return (
+        <>
+          <hr />
+          {this.state.customControls}
+        </>
+      );
+    return undefined;
+  }
+
   private createParameters(): ObjectSandboxParameter {
     return createSandboxParameters(this.props.sandbox, e => this.props.sandbox.onparameterchange(e));
+  }
+
+  updateCustomControls(): void {
+    this.setState({ customControls: this.props.sandbox.customControls() });
   }
 
   componentDidUpdate(prevProps: Readonly<SandboxControlsProps>): void {

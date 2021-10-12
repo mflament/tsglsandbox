@@ -7,11 +7,11 @@ import {
   InternalFormat,
   LOGGER,
   newQuadDrawable,
+  newQuadProgram,
+  PixelStoreParameter,
   QuadProgram,
-  quadProgram,
   SandboxContainer,
   SandboxFactory,
-  shaderPath,
   TextureMagFilter,
   TextureMinFilter,
   TextureWrappingMode
@@ -35,12 +35,12 @@ class UpdateUniforms {
 
 class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
   static async create(container: SandboxContainer, name: string, parameters?: GOLParameters): Promise<GOLSandbox> {
-    const renderProgram = await quadProgram(container.programLoader, {
-      fspath: shaderPath('gol-render.fs.glsl', import.meta),
+    const renderProgram = await newQuadProgram(container.programLoader, {
+      fspath: 'sandboxes/gol/gol-render.fs.glsl',
       uniformLocations: new RenderUniforms()
     });
-    const updateProgram = await quadProgram(container.programLoader, {
-      fspath: shaderPath('gol-update.fs.glsl', import.meta),
+    const updateProgram = await newQuadProgram(container.programLoader, {
+      fspath: 'sandboxes/gol/gol-update.fs.glsl',
       uniformLocations: new UpdateUniforms()
     });
     return new GOLSandbox(container, name, parameters, renderProgram, updateProgram);
@@ -68,7 +68,7 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
 
     this.frontTexture = this.createTexture();
     this.backTexture = this.createTexture();
-    this.frontTexture.activate(0);
+    this.frontTexture.bind(0);
 
     this.frameBuffer = new FrameBuffer(this.gl);
 
@@ -190,24 +190,27 @@ class GOLSandbox extends AbstractGLSandbox<GOLParameters> {
   }
 
   private randomizeData(size = this.dataSize, odds = 0.8): void {
-    const length = size * size;
-    if (this.data.length < length) this.data = new Uint8Array(length);
-    for (let index = 0; index < length; index++) {
+    const pixels = size * size;
+    if (this.data.length < pixels) this.data = new Uint8Array(pixels);
+    for (let index = 0; index < pixels; index++) {
       this.data[index] = Math.random() >= odds ? 0xff : 0x0;
     }
 
-    this.frontTexture.bind().data({
-      width: size,
-      height: size,
-      srcData: this.data
-    });
+    this.frontTexture.bind().data(
+      {
+        width: size,
+        height: size,
+        srcData: this.data
+      },
+      [PixelStoreParameter.UNPACK_ALIGNMENT, 1]
+    );
   }
 
   private swapTexture() {
     const buf = this.frontTexture;
     this.frontTexture = this.backTexture;
     this.backTexture = buf;
-    this.frontTexture.bind().activate(0);
+    this.frontTexture.bind(0);
   }
 
   private clearData() {

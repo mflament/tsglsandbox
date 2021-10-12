@@ -9,7 +9,6 @@ import {
   Program,
   SandboxContainer,
   SandboxFactory,
-  shaderPath,
   VertexBuffer
 } from 'gl';
 import { AABB, QuadTree } from 'utils';
@@ -34,7 +33,7 @@ type MappedDrawable = {
 
 class QuadTreeTestSandbox extends AbstractGLSandbox {
   static async create(container: SandboxContainer, name: string): Promise<QuadTreeTestSandbox> {
-    const program = await container.programLoader.load({ path: shaderPath('/quadtree.glsl', import.meta) });
+    const program = await container.programLoader.load({ path: 'sandboxes/test/quadtree.glsl' });
     return new QuadTreeTestSandbox(container, name, program);
   }
 

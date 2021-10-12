@@ -1,5 +1,5 @@
 import { AdditiveBlending, Color, FrontSide, Material, MeshStandardMaterial, ShaderMaterial, Texture } from 'three';
-import { ShaderLoader, shaderPath } from 'gl';
+import { ShaderLoader } from 'gl';
 
 export type PlanetMaterial = Material & {
   wireframe: boolean;
@@ -23,8 +23,8 @@ export class BasicPlanetMaterial extends MeshStandardMaterial implements PlanetM
 
 export class ShaderPlanetMaterial extends ShaderMaterial implements PlanetMaterial {
   static async load(loader: ShaderLoader): Promise<ShaderPlanetMaterial> {
-    const vs = await loader.load(shaderPath('render-planet.vs.glsl', import.meta));
-    const fs = await loader.load(shaderPath('render-planet.fs.glsl', import.meta));
+    const vs = await loader.load('sandboxes/terrain/planet/render-planet.vs.glsl');
+    const fs = await loader.load('sandboxes/terrain/planet/render-planet.fs.glsl');
     return new ShaderPlanetMaterial(vs, fs);
   }
 

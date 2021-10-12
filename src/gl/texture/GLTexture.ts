@@ -1,6 +1,7 @@
-import { AbstractDeletable, Bindable, checkNull, Deletable } from '../GLUtils';
+import { AbstractDeletable, checkNull } from '../GLUtils';
 import {
   InternalFormat,
+  PixelStoreParameter,
   TextureComponentType,
   TextureFormat,
   TextureMagFilter,
@@ -13,14 +14,34 @@ import { Partial } from 'rollup-plugin-typescript2/dist/partial';
 
 const TARGET = WebGL2RenderingContext.TEXTURE_2D;
 
-export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>, Deletable {
+export class GLTexture2D extends AbstractDeletable {
   private static _activeUnit = 0;
+  private static _textureUnits: (GLTexture2D | undefined)[] = [];
 
-  static setActiveUnit(gl: WebGL2RenderingContext, unit: number): void {
+  private static bind(gl: WebGL2RenderingContext, unit: number, texture: GLTexture2D): void {
     if (GLTexture2D._activeUnit !== unit) {
       gl.activeTexture(WebGL2RenderingContext.TEXTURE0 + unit);
       GLTexture2D._activeUnit = unit;
     }
+
+    const textureUnits = GLTexture2D._textureUnits;
+    const current = textureUnits[unit];
+    if (current !== texture) {
+      if (current) current._unit = unit;
+      gl.bindTexture(TARGET, texture.gltexture);
+      textureUnits[unit] = texture;
+    }
+  }
+
+  private static unbind(gl: WebGL2RenderingContext, texture: GLTexture2D): void {
+    const unit = texture._unit;
+    if (unit === undefined || GLTexture2D._textureUnits[unit] !== texture) return;
+    if (GLTexture2D._activeUnit !== unit) {
+      gl.activeTexture(WebGL2RenderingContext.TEXTURE0 + unit);
+      GLTexture2D._activeUnit = unit;
+    }
+    gl.bindTexture(TARGET, null);
+    delete GLTexture2D._textureUnits[unit];
   }
 
   readonly gltexture: WebGLTexture;
@@ -29,7 +50,7 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
 
   private _width = 0;
   private _height = 0;
-  private _boundTo?: number;
+  private _unit?: number;
 
   constructor(readonly gl: WebGL2RenderingContext, internalFormat: InternalFormat = InternalFormat.RGBA) {
     super();
@@ -53,24 +74,15 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
     return this._height;
   }
 
-  get boundTo(): number | undefined {
-    return this._boundTo;
-  }
-
-  bind(): GLTexture2D {
-    this.gl.bindTexture(TARGET, this.gltexture);
-    this._boundTo = GLTexture2D._activeUnit;
+  bind(unit = 0): GLTexture2D {
+    GLTexture2D.bind(this.gl, unit, this);
+    this._unit = unit;
     return this;
   }
 
   unbind(): GLTexture2D {
-    this.gl.bindTexture(TARGET, null);
-    this._boundTo = undefined;
-    return this;
-  }
-
-  activate(unit: number): GLTexture2D {
-    GLTexture2D.setActiveUnit(this.gl, unit);
+    GLTexture2D.unbind(this.gl, this);
+    this._unit = undefined;
     return this;
   }
 
@@ -83,7 +95,7 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
   async load(uri: string, type?: TextureComponentType): Promise<GLTexture2D> {
     type = this.defaultComponentType(type);
     const image = await loadImage(uri);
-    this.bind().data({
+    this.bind(this._unit || 0).data({
       level: 0,
       type: this.defaultComponentType(type),
       width: image.width,
@@ -101,8 +113,14 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
     return this;
   }
 
-  data(param: BufferTextureData | UnpackBufferTextureData | ImageTextureData): GLTexture2D {
+  data(
+    param: BufferTextureData | UnpackBufferTextureData | ImageTextureData,
+    ...storage: [PixelStoreParameter, number | boolean][]
+  ): GLTexture2D {
     const args = this.parseData(param);
+
+    storage.forEach(p => this.gl.pixelStorei(p[0], p[1]));
+
     this.gl.texImage2D(
       TARGET,
       param.level || 0,
@@ -118,8 +136,13 @@ export class GLTexture2D extends AbstractDeletable implements Partial<Bindable>,
     return this;
   }
 
-  subdata(param: (BufferTextureData | UnpackBufferTextureData | ImageTextureData) & TextureOffset): GLTexture2D {
+  subdata(
+    param: (BufferTextureData | UnpackBufferTextureData | ImageTextureData) & TextureOffset,
+    ...storage: [PixelStoreParameter, number | boolean][]
+  ): GLTexture2D {
     const args = this.parseData(param);
+    storage.forEach(p => this.gl.pixelStorei(p[0], p[1]));
+
     this.gl.texSubImage2D(
       TARGET,
       param.level || 0,

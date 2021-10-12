@@ -21,7 +21,7 @@ export class SandboxStorage {
     this.storage.setItem(STATE_KEY, JSON.stringify(state));
   }
 
-  getSandboxParameters(sandboxName: string): any {
+  getSandboxParameters<P = unknown>(sandboxName: string): P | undefined {
     if (!this.storage) return undefined;
     const json = this.storage.getItem(parametersKey(sandboxName));
     return json ? JSON.parse(json) : undefined;

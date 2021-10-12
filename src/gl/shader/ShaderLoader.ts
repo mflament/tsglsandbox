@@ -1,36 +1,48 @@
-import { Path } from 'utils';
-
 export interface ShaderLoader {
   load(path: string): Promise<string>;
 }
 
-export function createShaderLoader(): ShaderLoader {
-  // @ts-ignore
-  const sources = self['shaderSources'];
-  if (sources && typeof sources === 'object') {
-    return new StaticShaderLoader(sources);
-  }
-  return new HttpShaderLoader();
-}
-
-export class HttpShaderLoader implements ShaderLoader {
+class HttpShaderLoader implements ShaderLoader {
   load(shaderPath: string): Promise<string> {
     return fetch(shaderPath).then(response => response.text());
   }
 }
 
-class StaticShaderLoader implements ShaderLoader {
-  constructor(private readonly shaders: { [path: string]: string }) {}
-  load(path: string): Promise<string> {
-    if (!this.shaders[path]) return Promise.reject('Shader "' + path + '" not found');
-    return Promise.resolve(this.shaders[path]);
+type ShadersMap = { [path: string]: string };
+
+class JSONShaderLoader implements ShaderLoader {
+  private _jsonPromise?: Promise<ShadersMap>;
+
+  constructor(readonly jsonPath: string) {}
+
+  async load(shaderPath: string): Promise<string> {
+    if (!this._jsonPromise) {
+      this._jsonPromise = fetch(this.jsonPath).then(async response => {
+        if (response.status === 200) {
+          const json = await response.text();
+          return JSON.parse(json) as ShadersMap;
+        }
+        throw new Error(
+          'Error loding JSON shaders ' + this.jsonPath + ' ' + response.status + ' ' + response.statusText
+        );
+      });
+    }
+    return this._jsonPromise.then(shaders => {
+      const shader = shaders[shaderPath];
+      if (!shader) throw new Error('Shader ' + shaderPath + ' not found');
+      return shader;
+    });
   }
 }
 
-export function shaderPath(shaderPath: string, importMeta?: ImportMeta): string {
-  if (importMeta) {
-    const path = Path.dirname(new URL(importMeta.url).pathname);
-    return Path.resolve(path, shaderPath);
+function isDev() {
+  return window.location.host.startsWith('localhost');
+}
+
+export function createShaderLoader(): ShaderLoader {
+  if (isDev()) {
+    return new HttpShaderLoader();
+  } else {
+    return new JSONShaderLoader('shaders/shaders.json');
   }
-  return Path.resolve('shaders', shaderPath);
 }

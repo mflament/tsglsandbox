@@ -116,7 +116,6 @@ export class Program<U = any, B = any, A = any> extends AbstractDeletable {
 
   link(shaders: Shader[], varyings?: Varyings): Program<U, B, A> {
     shaders.forEach(shader => this.gl.attachShader(this.glprogram, shader.glshader));
-
     if (varyings) {
       this.gl.transformFeedbackVaryings(this.glprogram, varyings.names, varyings.mode || VaryingBufferMode.INTERLEAVED);
     }
@@ -158,10 +157,11 @@ export class Program<U = any, B = any, A = any> extends AbstractDeletable {
   }
 
   use(): Program<U, B, A> {
-    if (Program._activeProgram !== this) {
-      this.gl.useProgram(this.glprogram);
-      Program._activeProgram = this;
-    }
+    this.gl.useProgram(this.glprogram);
+    // if (Program._activeProgram !== this) {
+    //   this.gl.useProgram(this.glprogram);
+    //   Program._activeProgram = this;
+    // }
     return this;
   }
 

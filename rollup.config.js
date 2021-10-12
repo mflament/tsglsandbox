@@ -1,13 +1,13 @@
-import {eslint} from 'rollup-plugin-eslint';
+import { eslint } from 'rollup-plugin-eslint';
 
 import typescript from 'rollup-plugin-typescript2';
 import tstreeshaking from 'rollup-plugin-ts-treeshaking';
 import nodeResolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import replace from '@rollup/plugin-replace';
-import {terser} from 'rollup-plugin-terser';
+import { terser } from 'rollup-plugin-terser';
 
-const env = "production";
+const env = 'production';
 
 export default [
   {
@@ -15,13 +15,8 @@ export default [
     output: {
       dir: 'dist',
       format: 'esm',
-      sourcemap: true,
+      sourcemap: false,
       plugins: [terser()]
-    },
-    manualChunks: (id) => {
-      if (id.includes('node_modules') || id.includes('react-esm')) {
-        return 'vendor';
-      }
     },
     plugins: [
       commonjs(),

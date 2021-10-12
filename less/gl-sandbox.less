@@ -4,7 +4,7 @@ html,
 body,
 div,
 p,
-lu,
+ul,
 li {
   padding: 0;
   margin: 0;
@@ -27,11 +27,10 @@ body {
 
 #glsandbox {
   display: flex;
-  flex-direction: row;
 
   .render-panel {
     position: relative;
-    flex: 1;
+    flex: 1 0;
     overflow: hidden;
 
     canvas {
@@ -47,103 +46,115 @@ body {
 
   .canvas-overlay {
     position: absolute;
-    right: 5px;
-    top: 5px;
-    width: auto;
     user-select: none;
-
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 5px;
-
     pointer-events: none;
+
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background-color: #0c0c0ca7;
+    padding: 4px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    column-gap: 5px;
 
     &.hidden {
       display: none;
     }
 
     .fps {
-      display: inline-block;
-      font-size: 18px;
+      font-size: 1em;
+      min-width: 2em;
       font-weight: bold;
       color: #60ee60;
+      text-align: center;
     }
 
     .button {
+      display: flex;
+      align-items: center;
       pointer-events: all;
       cursor: pointer;
-      height: auto;
 
       img {
-        width: 24px;
+        width: 1.5em;
+        height: 1.5em;
         opacity: 0.5;
-        transform: rotate(180deg);
-        transition: transform @menu_animation_time;
       }
     }
 
-    &.open .button img {
-      transform: rotate(0);
-    }
   }
 
   .control-panel {
-    flex: none;
-    min-width: 25%;
-    border-left: 1px solid #d0d0d080;
-    transition: margin-right @menu_animation_time;
-    overflow: hidden;
-    visibility: visible;
-    max-height: 100%;
-    color: white;
-
-    &.hidden {
-      visibility: hidden;
-      transition: none;
-    }
-
-    .sandbox-title {
-      display: flex;
-      font-size: 18px;
-
-      span {
-        flex-grow: 1;
-        text-align: center;
-        display: inline-block;
-      }
-
-      img {
-        float: right;
-        height: 16px;
-        margin-left: 8px;
-        cursor: pointer;
-      }
-    }
-
-    .parameters-table {
-      display: grid;
-      grid-template-columns: 0.5fr 1fr;
-      column-gap: 5px;
-      row-gap: 5px;
-      max-width: 100%;
-      max-height: 100%;
-      overflow: auto;
-
-      .row {
-        grid-column: span 2;
-      }
-    }
+    flex: 0;
 
     .control-panel-content {
+      display: flex;
+      flex-direction: column;
+
+      max-width: 100%;
+      max-height: 100%;
+
       padding: 5px;
+
+      color: white;
+
+      .sandbox-title {
+        flex: 0;
+        display: flex;
+        font-size: 18px;
+
+        span {
+          flex-grow: 1;
+          text-align: center;
+          display: inline-block;
+        }
+
+        img {
+          float: right;
+          height: 16px;
+          margin-left: 8px;
+          cursor: pointer;
+        }
+      }
+
+      hr {
+        width: 100%;
+      }
+
+      .parameters-table {
+        display: grid;
+        grid-template-columns: 5em 1fr;
+        column-gap: 5px;
+        row-gap: 8px;
+        max-width: 100%;
+        max-height: 100%;
+        overflow: hidden auto;
+
+        hr {
+          grid-column: span 2;
+          margin: 10px 0;
+        }
+
+        .row {
+          grid-column: span 2;
+        }
+      }
 
       .capitalized {
         text-transform: capitalize;
       }
 
       input {
-        vertical-align: middle;
-        width: auto;
+        padding: 0;
+        margin: 0;
+        height: 1.3em;
+      }
+
+      .inputs {
+        display: flex;
+        flex-direction: row;
+        column-gap: 5px;
       }
 
       select {
@@ -164,10 +175,11 @@ body {
           margin: 0 0 5px 0;
           padding: 0;
         }
+      }
 
-        .parameters-table {
-          padding-left: 10px;
-        }
+      .vector-dimensions {
+        display: grid;
+        grid-template-columns: 0fr 1fr;
       }
 
       .json {
@@ -207,5 +219,83 @@ body {
   .neuron {
     display: grid;
     grid-template-columns: 0fr 0.5fr 0.5fr;
+  }
+}
+
+@media (orientation: landscape) {
+  #glsandbox {
+    flex-direction: row;
+  }
+
+  .canvas-overlay {
+    right: 5px;
+    top: 5px;
+    width: auto;
+
+    .button {
+      img {
+        transform: rotate(180deg);
+        transition: transform @menu_animation_time;
+      }
+    }
+
+    &.open .button img {
+      transform: rotate(0);
+    }
+  }
+
+  .control-panel {
+    border-left: 1px solid #d0d0d080;
+    transition: width @menu_animation_time;
+    width: 30vw;
+    height: 100%;
+
+    &.closing, &.closed {
+      width: 0;
+    }
+
+    &.closed {
+      border-left: none;
+    }
+  }
+}
+
+@media (orientation: portrait) {
+
+  #glsandbox {
+    flex-direction: column;
+
+    .canvas-overlay {
+      right: 5px;
+      bottom: 5px;
+
+      .button {
+        img {
+          transform: rotate(270deg);
+          transition: transform @menu_animation_time;
+        }
+      }
+
+      &.open .button img {
+        transform: rotate(90deg);
+      }
+    }
+
+    .control-panel {
+      transition: height @menu_animation_time;
+      width: 100%;
+      height: 30vh;
+
+      border-top: 1px solid #d0d0d080;
+
+      &.closing, &.closed {
+        height: 0;
+      }
+
+      &.closed {
+        border-top: none;
+      }
+    }
+
   }
 }
