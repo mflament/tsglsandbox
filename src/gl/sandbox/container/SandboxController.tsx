@@ -5,7 +5,7 @@ import { ProgramLoader } from '../../shader/ProgramLoader';
 import { GLCanvas } from './GLCanvas';
 import { SandboxStorage, StoredState } from './SandboxStorage';
 import { createShaderLoader, ShaderLoader } from '../../shader/ShaderLoader';
-import { ShaderParser } from '../../shader/ShaderParser';
+import { ShaderParser } from '../../shader/parser/ShaderParser';
 import { SandboxHeader } from './SandboxHeader';
 import { ControlPanel } from './ControlPanel';
 import { CanvasOverlay } from './CanvasOverlay';

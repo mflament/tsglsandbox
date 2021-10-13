@@ -2,7 +2,9 @@ import { AbstractDeletable } from '../GLUtils';
 import { Program, ProgramLocations, VaryingBufferMode, Varyings } from './Program';
 import { CompiledShadersCache } from './CompiledShadersCache';
 import { Shader, ShaderType } from './Shader';
-import { Defines, ParsingResults, ShaderParser } from './ShaderParser';
+import { ShaderParser } from './parser/ShaderParser';
+import { ParsingResults } from './parser/ParsingResults';
+import { Defines } from './parser/Defines';
 
 export class ProgramLoader extends AbstractDeletable {
   private readonly shadersCache: CompiledShadersCache;

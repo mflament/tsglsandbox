@@ -18,7 +18,7 @@ import {
   WebGLRenderTarget
 } from 'three';
 import { vec2 } from 'gl-matrix';
-import { ShaderParser } from '../../../gl/shader/ShaderParser';
+import { ShaderParser } from '../../../gl/shader/parser/ShaderParser';
 
 type NoiseUniforms = {
   size: IUniform<vec2>;

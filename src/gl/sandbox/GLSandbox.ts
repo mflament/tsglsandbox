@@ -1,7 +1,7 @@
 import { ProgramLoader } from '../shader/ProgramLoader';
 import { SandboxInputHandler } from './ActionManager';
 import { ShaderLoader } from '../shader/ShaderLoader';
-import { ShaderParser } from '../shader/ShaderParser';
+import { ShaderParser } from '../shader/parser/ShaderParser';
 
 export type SandboxFactories = { [name: string]: SandboxFactory };
 

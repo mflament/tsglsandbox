@@ -1,5 +1,6 @@
 import { AbstractGLSandbox } from './AbstractGLSandbox';
-import { Camera, PerspectiveCamera, Scene, WebGLRenderer, WebGLRendererParameters, OrbitControls } from 'three';
+import { Camera, PerspectiveCamera, Scene, WebGLRenderer, WebGLRendererParameters } from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { SandboxContainer, SandboxFactory } from '../GLSandbox';
 
 export type ThreeSandboxFactory<P = any> = (
