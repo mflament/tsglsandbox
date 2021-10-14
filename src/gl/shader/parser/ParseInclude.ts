@@ -6,10 +6,15 @@ export async function parseInclude(line: string, context: ParsingContext): Promi
   if (matches) {
     const includePath = matches[1];
     if (includePath) {
-      const resolvedPath = Path.isRelative(includePath)
-        ? Path.resolve(Path.dirname(context.path), includePath)
-        : includePath;
+      let resolvedPath;
+
+      if (Path.isRelative(includePath)) {
+        resolvedPath = Path.resolve(Path.dirname(context.path), includePath);
+        console.log('resolving ', context.path, Path.dirname(context.path), includePath, resolvedPath);
+      } else resolvedPath = includePath;
+
       await context.parseShader(resolvedPath, context);
+
       return true;
     }
   }

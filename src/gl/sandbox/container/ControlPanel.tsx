@@ -30,7 +30,9 @@ export class ControlPanel extends Component<
   private transitionEnd(): void {
     this.setState(currentState => {
       const currentStep = currentState.step;
-      return { step: currentStep === 'closing' ? 'closing' : 'opened' };
+      if (currentStep === 'closing') return { step: 'closed' };
+      if (currentStep === 'opening') return { step: 'opened' };
+      return currentState;
     });
   }
 }

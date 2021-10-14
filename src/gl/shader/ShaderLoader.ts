@@ -4,6 +4,7 @@ export interface ShaderLoader {
 
 class HttpShaderLoader implements ShaderLoader {
   load(shaderPath: string): Promise<string> {
+    console.log('fetching ' + shaderPath);
     return fetch(shaderPath).then(response => response.text());
   }
 }

@@ -7,18 +7,10 @@ import { parseOutput } from './ParseOutput';
 import { parseTargetedShaders } from './ParseTargetedShaders';
 import { parseInclude } from './ParseInclude';
 import { parseVersion } from './ParseVersion';
-import { parseSamplers } from './ParseSamplers';
 
 type LineParser = (line: string, context: ParsingContext, nextLines: Iterator<string>) => boolean | Promise<boolean>;
 
-const lineParsers: LineParser[] = [
-  parseVersion,
-  parseInclude,
-  parseTargetedShaders,
-  parseOutput,
-  parseUnroll,
-  parseSamplers
-];
+const lineParsers: LineParser[] = [parseVersion, parseInclude, parseTargetedShaders, parseOutput, parseUnroll];
 
 export class ShaderParser {
   constructor(readonly shaderLoader: ShaderLoader) {}
@@ -46,6 +38,7 @@ export class ShaderParser {
       if (!handled) context.addLine(line);
       next = lines.next();
     }
+    context.paths.splice(context.paths.length - 1, 1);
   }
 }
 

@@ -41,52 +41,52 @@ void main() {
 }
 
 // in fs
+#define MAX_TEXTURES 10
+
 in vec2 spriteUV;
 in vec2 textureUV;
 flat in int regionIndex;
 flat in int textureIndex;
 
-uniform sampler2D u_textures[TEXTURES_COUNT];
+uniform sampler2D u_textures[MAX_TEXTURES];
 
 out vec4 color;
 
 void main() {
-    color = texture(u_textures[textureIndex], textureUV);
+    switch (textureIndex) {
+        case 0:
+        color = texture(u_textures[0], textureUV);
+        break;
+        case 1:
+        color = texture(u_textures[1], textureUV);
+        break;
+        case 2:
+        color = texture(u_textures[2], textureUV);
+        break;
+        case 3:
+        color = texture(u_textures[3], textureUV);
+        break;
+        case 4:
+        color = texture(u_textures[4], textureUV);
+        break;
+        case 5:
+        color = texture(u_textures[5], textureUV);
+        break;
+        case 6:
+        color = texture(u_textures[6], textureUV);
+        break;
+        case 7:
+        color = texture(u_textures[7], textureUV);
+        break;
+        case 8:
+        color = texture(u_textures[8], textureUV);
+        break;
+        case 9:
+        color = texture(u_textures[9], textureUV);
+        break;
+        default :
+        color = vec4(1.0, 0.0, 1.0, 1.0);
+        break;
+    }
 }
 
-//    switch (textureIndex) {
-//        /** unroll(TEXTURES_COUNT)
-//        case 0:
-//        color = texture(u_textures[0], textureUV);
-//        break;
-//        case 1:
-//        color = texture(u_textures[1], textureUV);
-//        break;
-//        case 2:
-//        color = texture(u_textures[2], textureUV);
-//        break;
-//        case 3:
-//        color = texture(u_textures[3], textureUV);
-//        break;
-//        case 4:
-//        color = texture(u_textures[4], textureUV);
-//        break;
-//        case 5:
-//        color = texture(u_textures[5], textureUV);
-//        break;
-//        case 6:
-//        color = texture(u_textures[6], textureUV);
-//        break;
-//        case 7:
-//        color = texture(u_textures[7], textureUV);
-//        break;
-//        case 8:
-//        color = texture(u_textures[8], textureUV);
-//        break;
-//        case 9:
-//        color = texture(u_textures[9], textureUV);
-//        break;
-//        default :
-//        color = vec4(1.0, 0.0, 1.0, 1.0);
-//        break;
-//    }

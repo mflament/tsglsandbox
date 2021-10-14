@@ -25,6 +25,8 @@ enum DisplayMode {
 
 class FlowerParameters {
   samples = 100;
+  @control({})
+  layers = DEFAULT_LAYERS;
   @control({ min: 0.001, max: 10, step: 0.1 })
   learningRate = 0.1;
   @control({ min: 1, max: 1000, step: 1 })
@@ -44,7 +46,7 @@ class FlowerParameters {
 
 const SIZE = 100;
 const DIM: vec2 = [SIZE, SIZE];
-const LAYERS = [2, 5, 2];
+const DEFAULT_LAYERS = '2,5,2';
 
 const newMatrix = Matrix.float32Factory;
 
@@ -140,8 +142,13 @@ class FlowersSandbox extends AbstractGLSandbox<FlowerParameters> {
       this.flowersTexture.update(this.inputs);
     }
 
-    if (params.seed !== currentParams?.seed) {
-      this.rnn = DefaultRNN.create({ layers: LAYERS, seed: params.seed });
+    if (params.seed !== currentParams?.seed || params.layers !== currentParams?.layers) {
+      let layers = parseLayers(params.layers);
+      if (layers.length < 2) {
+        params.layers = DEFAULT_LAYERS;
+        layers = parseLayers(params.layers);
+      }
+      this.rnn = DefaultRNN.create({ layers: layers, seed: params.seed });
     }
 
     if (params.display !== currentParams?.display) {
@@ -449,8 +456,6 @@ class FlowerSamples {
 class FlowersTexture extends AbstractDeletable {
   readonly texture: GLTexture2D;
 
-  readonly targets: Matrix = newMatrix(0, 2);
-
   constructor(gl: WebGL2RenderingContext, readonly textureUnit: number) {
     super();
     this.texture = new GLTexture2D(gl)
@@ -463,10 +468,6 @@ class FlowersTexture extends AbstractDeletable {
   bind(): FlowersTexture {
     this.texture.bind(this.textureUnit);
     return this;
-  }
-
-  get dim(): vec2 {
-    return [this.texture.width, this.texture.height];
   }
 
   update(inputs: FlowersInputs): void {
@@ -518,3 +519,9 @@ export function flowers(): SandboxFactory<FlowerParameters> {
 }
 
 const PIXEL_SIZE = 4;
+function parseLayers(s: string): number[] {
+  return s
+    .split(',')
+    .map(n => parseInt(n))
+    .filter(n => !isNaN(n));
+}
